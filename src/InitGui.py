@@ -1,28 +1,31 @@
-# This file initializes the graphical user interface components of the addon.
-
-from PySide import QtGui
-import FreeCAD
 import FreeCADGui
 
-class MyAddonGui:
-    def __init__(self):
-        self.toolbar = FreeCADGui.getMainWindow().findChild(QtGui.QToolBar, "MyAddonToolbar")
-        if not self.toolbar:
-            self.toolbar = FreeCADGui.getMainWindow().addToolBar("MyAddonToolbar")
-        
-        self.addToolbarButton()
+class ConstraintDesignWorkbench(FreeCADGui.Workbench):
+    """Constraint Design Workbench for FreeCAD"""
+    MenuText = "Constraint Design"
+    ToolTip = "A workbench for constraint-based design in FreeCAD"
+    Icon = ":/icons/constraint_design_icon.svg"  # Replace with your icon path
 
-    def addToolbarButton(self):
-        icon = QtGui.QIcon(FreeCAD.getResourceDir() + "path/to/icon.svg")
-        action = QtGui.QAction(icon, "My Addon Action", FreeCADGui.getMainWindow())
-        action.triggered.connect(self.onButtonClick)
-        self.toolbar.addAction(action)
+    def Initialize(self):
+        """This is where you define your commands and tools."""
+        self.appendToolbar("Constraint Tools", ["MyCommand"])
+        self.appendMenu("Constraint Design", ["MyCommand"])
 
-    def onButtonClick(self):
-        FreeCAD.Console.PrintMessage("My Addon button clicked!\n")
+    def Activated(self):
+        """Called when the workbench is activated."""
+        FreeCAD.Console.PrintMessage("Constraint Design Workbench activated\n")
 
-def initializeGui():
-    MyAddonGui()
+    def Deactivated(self):
+        """Called when the workbench is deactivated."""
+        FreeCAD.Console.PrintMessage("Constraint Design Workbench deactivated\n")
 
-def unloadGui():
-    FreeCADGui.getMainWindow().findChild(QtGui.QToolBar, "MyAddonToolbar").deleteLater()
+    def ContextMenu(self, recipient):
+        """Define the context menu."""
+        self.appendContextMenu("Constraint Design", ["MyCommand"])
+
+    def GetClassName(self):
+        """Return the class name."""
+        return "Gui::PythonWorkbench"
+
+# Register the workbench
+FreeCADGui.addWorkbench(ConstraintDesignWorkbench())

@@ -1,13 +1,11 @@
 import FreeCAD
-import FreeCADGui
 
 # Define the module name
 module_name = "ConstraintDesign"
 
 # Register the module with FreeCAD
 def init():
-    FreeCAD.Console.PrintMessage("Initializing " + module_name + "\n")
-    FreeCADGui.addModule(module_name)
+    FreeCAD.Console.PrintMessage(f"Initializing {module_name} module\n")
 
 # Call the init function to register the module
 init()
