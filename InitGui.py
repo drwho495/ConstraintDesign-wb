@@ -1,8 +1,14 @@
 import os
 import sys
 import locater
-# from freecad import app
-# from freecad import gui
+from Commands.CreatePartContainer import CreatePartContainer  # Add this import
+from Commands.CreateExtrusion import CreateExtrusion
+from Commands.CreateFillet import CreateFillet
+from Commands.ConstraintsCommands import CreateCoincidentConstraint
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
+
+from Entities.DatumPlane import DatumPlane
 
 __dirname__ = os.path.dirname(locater.__file__)
 
@@ -78,13 +84,37 @@ class ConstraintDesign(Workbench):
         return "Gui::PythonWorkbench"
 
     def Initialize(self):
-        pass
+        """
+        Initialize the workbench commands
+        """
+        # List the commands to be added to the workbench
+        mainCommands = [
+            'CreatePartContainer'
+        ]
+
+        featureCommands = [
+            'CreateExtrusion',
+            'CreateFillet'
+        ]
+
+        constraintCommands = [
+            'CreateCoincidentConstraint'
+        ]
+        
+        # Register the commands
+        self.appendToolbar("Constraint Design", mainCommands)
+        self.appendMenu("Constraint Design", mainCommands)
+
+        self.appendToolbar("Features", featureCommands)
+        self.appendMenu("Features", featureCommands)
+
+        self.appendToolbar("Constraints", constraintCommands)
+        self.appendMenu("Constraints", constraintCommands)
 
     def Activated(self):
         pass
 
     def Deactivated(self):
         pass
-
 
 Gui.addWorkbench(ConstraintDesign())
