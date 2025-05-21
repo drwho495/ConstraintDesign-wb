@@ -4,12 +4,14 @@ import Part
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from SolverSystem.SolvableEntity import SolvableEntity
+from Entities.Entity import SolvableEntity
 
 class Fillet(SolvableEntity):
     def __init__(self, obj):
         obj.Proxy = self
+        self.updateProps(obj)
 
+    def updateProps(self, obj):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "Fillet"
@@ -19,7 +21,7 @@ class Fillet(SolvableEntity):
             obj.Radius = 1.0
         
         if not hasattr(obj, "Edges"):
-            obj.addProperty("App::PropertyXLinkSubList", "Edges", "ConstraintDesign", "Edges to fillet.")
+            obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
     
     def generateEquations(self):
         pass
@@ -31,12 +33,7 @@ class Fillet(SolvableEntity):
         pass
 
     def getContainer(self, obj):
-        obj = obj.InList[0]
-
-        if hasattr(obj, "Type") and obj.Type == "PartContainer":
-            return obj
-        else:
-            return None
+        return super(Fillet, self).getContainer(obj)
         
     def generateShape(self, obj, prevShape):
         if prevShape.isNull():
@@ -45,42 +42,65 @@ class Fillet(SolvableEntity):
         datumEdges = obj.Edges
         allShapeEdges = prevShape.Edges
         edgesToFillet = []
-        
-        for edge in allShapeEdges:
-            length = edge.Length
+        container = self.getContainer(obj)
+
+        if container == None:
+            App.Console.PrintError(obj.Label + " is unable to find parent container!")
+
+            return prevShape
+        else:
+            for edge in allShapeEdges:
+                for datumEdge in datumEdges:
+                    try:
+                        feature, datumEdge = container.Proxy.getElement(container, datumEdge)
+                    except Exception as e:
+                        App.Console.PrintError(str(e))
+                        continue
+                    
+                    datumEdge = feature.Shape.getElement(datumEdge)
+
+                    intersectionPoints = 0
+
+                    try:
+                        intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                    except:
+                        intersectionPoints = -1
+
+                    if (
+                        edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2) or
+                        ((intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId)
+                        # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
+                    ):
+                        edgesToFillet.append(edge)
+                    else:
+                        print(feature.Label)
+            try:
+                filletShape = prevShape.makeFillet(obj.Radius, edgesToFillet)
+            except:
+                filletShape = prevShape
+                App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
+                App.Console.PrintMessage("The number of edges in this operation is: " + str(len(edgesToFillet)) + "\n")
             
-            for datumEdge in datumEdges:
-                feature = datumEdge[0]
+            obj.Shape = filletShape
 
-                print(datumEdge)
-                datumTypes = ["WiresDatum", "SketchProjection"]
+            return filletShape
+    
+    # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
-                if (hasattr(feature, "Type") and feature.Type in datumTypes) or feature.TypeId == "Sketcher::SketchObject":
-                    for internalDatumEdge in datumEdge[1]:
-                        internalDatumEdge = feature.Shape.getElement(internalDatumEdge)
-
-                        if (
-                            edge.CenterOfMass.isEqual(internalDatumEdge.CenterOfMass, 1e-2) or
-                            (len(edge.Curve.intersectCC(internalDatumEdge.Curve)) > 1 and edge.Curve.TypeId == internalDatumEdge.Curve.TypeId)
-                            # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
-                        ):
-                            edgesToFillet.append(edge)
-                        else:
-                            print(feature.Label)
-                else:
-                    print(feature.Label)
-                    print("Incorrect feature type.")
-        
-        filletShape = prevShape.makeFillet(obj.Radius, edgesToFillet)
-        obj.Shape = filletShape
-
-        return filletShape
+    def getElement(self, obj, hash):
+        return None, None
 
     def execute(self, obj):
-        pass
+        self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        pass
+        if prop == "Radius":
+            obj.touch()
+        
+        if prop == "Visibility" and obj.Visibility == True:
+            container = self.getContainer(obj)
+
+            container.Proxy.setShownObj(container, obj)
             
     def __getstate__(self):
         return None
@@ -95,6 +115,14 @@ class ViewProviderFillet:
         self.Origin = None
     
     def onDelete(self, vobj, subelements):
+        try:
+            container = vobj.Object.Proxy.getContainer(vobj.Object)
+            container.Proxy.fixTip(container)
+        except Exception as e:
+            App.Console.PrintWarning("Deleting Fillet Errored, reason: " + str(e))
+        
+        print("delete: fillet")
+
         return True
     
     def attach(self, vobj):
@@ -178,9 +206,13 @@ def makeFillet(edges):
         Fillet(obj)
         ViewProviderFillet(obj.ViewObject)
 
-        activeObject.Proxy.addObject(activeObject, obj)
-        activeObject.Proxy.setTip(activeObject, obj)
+        hashes = []
 
-        obj.Edges = edges
+        activeObject.Proxy.addObject(activeObject, obj, True)
+        activeObject.Proxy.setTip(activeObject, obj)
+        for edge in edges:
+            hashes.append(activeObject.Proxy.getHash(activeObject, edge, True))
+
+        obj.Edges = hashes
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")

@@ -11,7 +11,7 @@ class CreatePartContainer:
     
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "CreateConstraintPart.svg"),
             'MenuText': "Create Part Container",
             'ToolTip': "Creates a new Part Container feature"
         }

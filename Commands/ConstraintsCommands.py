@@ -10,7 +10,7 @@ class CreateCoincidentConstraint:
     
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "none.svg"),
             'MenuText': "Create Coincident Constraint",
             'ToolTip': "Creates a new Coincident Constraint"
         }
