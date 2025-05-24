@@ -3,7 +3,10 @@ import sys
 import locater
 from Commands.CreatePartContainer import CreatePartContainer  # Add this import
 from Commands.CreateExtrusion import CreateExtrusion
+from Commands.CreatePartMirror import CreatePartMirror
 from Commands.CreateFillet import CreateFillet
+from Commands.CreateExposedGeo import CreateExposedGeo
+from Commands.SketchUtils import CreateSketch, CreateExternalGeo
 from Commands.ConstraintsCommands import CreateCoincidentConstraint
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
@@ -94,22 +97,31 @@ class ConstraintDesign(Workbench):
 
         featureCommands = [
             'CreateExtrusion',
-            'CreateFillet'
+            'CreateFillet',
+            'CreateSketch',
+            'CreatePartMirror'
         ]
 
-        constraintCommands = [
-            'CreateCoincidentConstraint'
+        sketchUtils = [
+            'CreateExternalGeo'
+        ]
+
+        datumCommands = [
+            'CreateExposedGeo'
         ]
         
         # Register the commands
-        self.appendToolbar("Constraint Design", mainCommands)
-        self.appendMenu("Constraint Design", mainCommands)
+        self.appendToolbar("Part Container", mainCommands)
+        self.appendMenu("Part Container", mainCommands)
 
         self.appendToolbar("Features", featureCommands)
         self.appendMenu("Features", featureCommands)
 
-        self.appendToolbar("Constraints", constraintCommands)
-        self.appendMenu("Constraints", constraintCommands)
+        self.appendToolbar("Sketcher Utilities", sketchUtils)
+        self.appendMenu("Sketcher Utilities", sketchUtils)
+
+        self.appendToolbar("Datum Commands", datumCommands)
+        self.appendMenu("Datum Commands", datumCommands)
 
     def Activated(self):
         pass
