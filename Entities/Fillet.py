@@ -15,10 +15,6 @@ class Fillet(SolvableEntity):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "Fillet"
-        
-        if not hasattr(obj, "Suppressed"):
-            obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
-            obj.Suppressed = False
 
         if not hasattr(obj, "Radius"):
             obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Internal storage for radius of fillet. Updated every solve.")
@@ -76,6 +72,8 @@ class Fillet(SolvableEntity):
                         # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
                     ):
                         edgesToFillet.append(edge)
+                    else:
+                        print(feature.Label)
             try:
                 filletShape = prevShape.makeFillet(obj.Radius, edgesToFillet)
             except:
@@ -91,9 +89,6 @@ class Fillet(SolvableEntity):
 
     def getElement(self, obj, hash):
         return None, None
-
-    def getDatums(self, obj, isShape=False):
-        return []
 
     def execute(self, obj):
         self.updateProps(obj)
@@ -215,12 +210,7 @@ def makeFillet(edges):
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         activeObject.Proxy.setTip(activeObject, obj)
-
-        print(edges)
-
         for edge in edges:
-            # print(edge)
-
             hashes.append(activeObject.Proxy.getHash(activeObject, edge, True))
 
         obj.Edges = hashes
