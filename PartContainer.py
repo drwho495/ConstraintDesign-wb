@@ -3,13 +3,27 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
+from Utils import acceptableFeatureTypes, isType, nonFeatureEntityTypes, getParent
+from Commands.SketchUtils import positionSketch
 import json
 from Entities.ConstraintGroup import makeConstraintGroup
 
 class PartContainer:
     def updateProps(self, obj):
-        if not hasattr(obj, "Group"):
-            obj.addProperty("App::PropertyLinkList", "Group", "Base", "List of contained objects.")
+        # if not obj.hasExtension('App::LinkBaseExtensionPython'):
+            # obj.addExtension('App::LinkBaseExtensionPython')
+        
+        if not obj.hasExtension('App::OriginGroupExtensionPython'):
+            obj.addExtension('App::OriginGroupExtensionPython')
+        
+        # if not obj.hasExtension('App::GeoFeatureGroupExtensionPython'):
+            # obj.addExtension('App::GeoFeatureGroupExtensionPython')
+        
+        # if not obj.hasExtension('App::LinkExtensionPython'):
+            # obj.addExtension('App::LinkExtensionPython')
+
+        # if not hasattr(obj, "Group"):
+            # obj.addProperty("App::PropertyLinkList", "Group", "Base", "List of contained objects.")
         
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
@@ -21,9 +35,6 @@ class PartContainer:
         if not hasattr(obj, "Tip"):
             obj.addProperty("App::PropertyXLink", "Tip", "ConstraintDesign", "The tip feature of the container.")
 
-        if not hasattr(obj, "ConstraintGroup"):
-            obj.addProperty("App::PropertyXLink", "ConstraintGroup", "ConstraintDesign", "Constraint group object.")
-        
         if not hasattr(obj, "ShownFeature"):
             obj.addProperty("App::PropertyXLink", "ShownFeature", "ConstraintDesign", "The feature that is being shown.")
 
@@ -52,34 +63,93 @@ class PartContainer:
 
     def setShownObj(self, obj, feature):
         obj.ShownFeature = feature
-        group = self.getGroup(obj)
+        group = self.getGroup(obj, False)
         group.remove(feature)
 
         for item in group: item.Visibility = False
 
-    def addGroup(self, obj, group):
-        obj.ConstraintGroup = group
-
-        self.addObject(obj, group)
-    
-    def getGroup(self, obj):
-        ls = []
-        featureTypes = ["Extrusion", "Fillet"]
-
+    def getGroup(self, obj, withNonFeatureEntities = False):
+        filteredGroup = []
         for item in obj.Group:
-            if hasattr(item, "Type") and item.Type in featureTypes:
-                ls.append(item)
+            if (hasattr(item, "Type") and item.Type in acceptableFeatureTypes) or (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject") or (withNonFeatureEntities and isType(item, "ExposedGeometry")):
+                filteredGroup.append(item)
         
-        return ls
+        return filteredGroup
     
-    def fixTip(self, obj, group=None):
+    def fixTip(self, obj):
         if not obj.Tip in obj.Group:
-            if group == None:
-                group = self.getGroup(obj)
+            group = self.getGroup(obj, False)
             
             if len(group) > 0:
                 obj.Tip = group[len(group) - 1]
             #obj.Tip.Visibility = True
+
+    # Format {"HashName": {"Element:" edge, "GeoId", sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
+    def getDatumsCompound(self, obj, generateElementMap = False, elementMapFeatureName = ""):
+        datumArray = []
+        elementMap = {}
+        newEdgeNum = 0
+        newVertexNum = 0
+        edgeIndex = 0
+        vertexIndex = 0
+        group = self.getGroup(obj, False)
+
+        for item in group:
+            if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
+                datums = []
+
+                if generateElementMap:
+                    datums = item.Proxy.getDatums(item, False)
+                else:
+                    datums = item.Proxy.getDatums(item, True)
+
+                if generateElementMap and elementMapFeatureName != "" and hasattr(item, "ElementMap"):
+                    itemElementMap = json.loads(item.ElementMap)
+                    
+                    for datum in datums:
+                        datumArray.append(datum.Shape)
+                    
+                        for hash, value in itemElementMap.items():
+                            elementArray = value["Element"].split(".")
+                            featureName = elementArray[0]
+                            elementName = elementArray[1]
+
+                            if featureName == datum.Name:
+                                if elementName.startswith("Edge"):
+                                    elementNum = int(elementName[4:])
+                                    elementNum += edgeIndex
+                                    elementName = "Edge" + str(elementNum)
+                                elif elementName.startswith("Vertex"):
+                                    elementNum = int(elementName[6:])
+                                    elementNum += vertexIndex
+                                    elementName = "Vertex" + str(elementNum)
+
+                                value["Element"] = elementMapFeatureName + "." + elementName
+                                value["EIndex"] = edgeIndex
+                                value["VIndex"] = vertexIndex
+                                value["OriginalF"] = item.Name
+                                elementMap[hash] = value
+                        
+                        edgeIndex += len(datum.Shape.Edges) + 0
+                        vertexIndex += len(datum.Shape.Vertexes) + 0
+                # print(elementMap)
+                    
+            else: 
+                datumArray.extend(datums)
+            
+            print("edge index: " + str(edgeIndex))
+            print("vertex index: " + str(vertexIndex))
+
+            edgeIndex += newEdgeNum
+            vertexIndex += newVertexNum
+
+        
+        print("array: " + str(datumArray))
+        
+        if generateElementMap:
+            return Part.Compound(datumArray), elementMap
+        else:
+            return Part.Compound(datumArray)
     
     def recalculateShapes(self, obj, startObj = None):
         prevShape = Part.Shape()
@@ -89,34 +159,40 @@ class PartContainer:
             self.updateProps(obj)
 
         tipFound = False
-        group = self.getGroup(obj)
+        group = self.getGroup(obj, True)
         startIndex = 0
 
         if startObj != None and startObj in group:
             startIndex = group.index(startObj)
 
         for i, child in enumerate(group):
-            if i >= startIndex:
-                newShape = child.Proxy.generateShape(child, prevShape)
+            if hasattr(child, "TypeId") and child.TypeId == "Sketcher::SketchObject":
+                if hasattr(child, "Support"):
+                    positionSketch(child, obj)
+            elif hasattr(child, "Type") and child.Type in acceptableFeatureTypes:
+                if i >= startIndex and not tipFound and not child.Suppressed:
+                    newShape = child.Proxy.generateShape(child, prevShape)
 
-                if not newShape.isNull():
-                    prevShape = newShape
-            else:
-                newShape = child.Shape
+                    if not newShape.isNull():
+                        prevShape = newShape
+                else:
+                    newShape = child.Shape
 
-                if not newShape.isNull():
-                    prevShape = newShape
-            
-            if obj.ShownFeature != child:
-                child.Visibility = False # only set to false to avoid recursion
+                    if not newShape.isNull():
+                        prevShape = newShape
+                
+                if obj.ShownFeature != child:
+                    child.Visibility = False # only set to false to avoid recursion
 
-            if child == obj.Tip:
-                tipFound = True
+                if child == obj.Tip:
+                    tipFound = True
+            elif hasattr(child, "Type") and child.Type in nonFeatureEntityTypes:
+                child.Proxy.generateShape(child, prevShape)
 
             child.purgeTouched()
         
         if not tipFound:
-            self.fixTip(obj, group)
+            self.fixTip(obj)
         
         if obj.ShownFeature == None and obj.Tip != None:
             obj.ShownFeature = obj.Tip
@@ -143,21 +219,15 @@ class PartContainer:
         return group
             
     def onChanged(self, obj, prop):
-        if prop == "Placement":
-            group = self.getFullGroup(obj)
-
-            for item in group:
-                if hasattr(item, "Placement"):
-                    # item.Placement = obj.Placement
-                    item.purgeTouched()
-            obj.purgeTouched()
+        pass
     
+    """ Element format: (feature object, element name) """
     def getHash(self, obj, element, full=False):
         feature = element[0]
         elementName = element[1]
-        parent = feature.InList[0]
+        parent = getParent(feature, acceptableFeatureTypes)
 
-        if hasattr(parent, "Type") and parent.Type == "Extrusion":
+        if hasattr(parent, "Type") and parent.Type in acceptableFeatureTypes:
             if hasattr(parent, "ElementMap"):
                 map = json.loads(parent.ElementMap)
 
@@ -175,6 +245,7 @@ class PartContainer:
         else:
             print("incorrect type")
     
+    """ Element format: featureName.hash """
     def getElement(self, obj, element):
         elementArray = element.split(".")
 
@@ -204,17 +275,24 @@ class PartContainer:
 
         Gui.Selection.clearSelection()
         Gui.Selection.addSelection(feature, [element])
-            
-    def __getstate__(self):
-        return None
-
-    def __setstate__(self, state):
-        return None
 
 class ViewProviderPartContainer:
     def __init__(self, obj):
         obj.Proxy = self
+        obj.setPropertyStatus('Visibility','Hidden')
+        obj.Visibility = False
         self.Editable = True
+        self.updateExtensions(obj)
+    
+    def updateExtensions(self, vobj):
+        if not vobj.hasExtension('Gui::ViewProviderOriginGroupExtensionPython'):
+            vobj.addExtension('Gui::ViewProviderOriginGroupExtensionPython')
+        
+        # if not vobj.hasExtension('Gui::ViewProviderGroupExtensionPython'):
+            # vobj.addExtension('Gui::ViewProviderGroupExtensionPython')
+        
+        # if not vobj.hasExtension('Gui::ViewProviderGeoFeatureGroupExtensionPython'):
+            # vobj.addExtension('Gui::ViewProviderGeoFeatureGroupExtensionPython')
     
     def onDelete(self, vobj, subelements): # TODO: Check for constraint design elements
         if hasattr(vobj.Object, "Origin"):
@@ -247,6 +325,7 @@ class ViewProviderPartContainer:
     def attach(self, vobj):
         # Called when the view provider is attached
         self.Object = vobj
+        self.updateExtensions(vobj)
 
         return
 
@@ -294,11 +373,10 @@ class ViewProviderPartContainer:
 def makePartContainer():
     obj = App.ActiveDocument.addObject("Part::FeaturePython", "PartContainer")
     origin = App.ActiveDocument.addObject("App::Origin", "Origin")
-    group = makeConstraintGroup()
+    # group = makeConstraintGroup()
 
     part = PartContainer(obj)
     viewProvider = ViewProviderPartContainer(obj.ViewObject)
 
     part.addOrigin(obj, origin)
-    part.addGroup(obj, group)
     return obj

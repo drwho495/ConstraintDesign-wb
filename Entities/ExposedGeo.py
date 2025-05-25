@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Entities.Entity import SolvableEntity
 
-class Fillet(SolvableEntity):
+class ExposedGeo(SolvableEntity):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
@@ -14,18 +14,10 @@ class Fillet(SolvableEntity):
     def updateProps(self, obj):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
-            obj.Type = "Fillet"
+            obj.Type = "ExposedGeometry"
         
-        if not hasattr(obj, "Suppressed"):
-            obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
-            obj.Suppressed = False
-
-        if not hasattr(obj, "Radius"):
-            obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Internal storage for radius of fillet. Updated every solve.")
-            obj.Radius = 1.0
-        
-        if not hasattr(obj, "Edges"):
-            obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
+        if not hasattr(obj, "Support"):
+            obj.addProperty("App::PropertyString", "Support", "ConstraintDesign", "Element to expose.")
     
     def generateEquations(self):
         pass
@@ -37,55 +29,27 @@ class Fillet(SolvableEntity):
         pass
 
     def getContainer(self, obj):
-        return super(Fillet, self).getContainer(obj)
+        return super(ExposedGeo, self).getContainer(obj)
         
     def generateShape(self, obj, prevShape):
-        if prevShape.isNull():
-            raise Exception("No feature before this fillet!")
+        print(obj.Label)
 
-        datumEdges = obj.Edges
-        allShapeEdges = prevShape.Edges
-        edgesToFillet = []
+        shape = Part.Shape()
         container = self.getContainer(obj)
+        elementName = None
 
-        if container == None:
-            App.Console.PrintError(obj.Label + " is unable to find parent container!")
-
-            return prevShape
-        else:
-            for edge in allShapeEdges:
-                for datumEdge in datumEdges:
-                    try:
-                        feature, datumEdge = container.Proxy.getElement(container, datumEdge)
-                    except Exception as e:
-                        App.Console.PrintError(str(e))
-                        continue
-                    
-                    datumEdge = feature.Shape.getElement(datumEdge)
-
-                    intersectionPoints = 0
-
-                    try:
-                        intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
-                    except:
-                        intersectionPoints = -1
-
-                    if (
-                        edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2) or
-                        ((intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId)
-                        # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
-                    ):
-                        edgesToFillet.append(edge)
-            try:
-                filletShape = prevShape.makeFillet(obj.Radius, edgesToFillet)
-            except:
-                filletShape = prevShape
-                App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
-                App.Console.PrintMessage("The number of edges in this operation is: " + str(len(edgesToFillet)) + "\n")
-            
-            obj.Shape = filletShape
-
-            return filletShape
+        feature, elementName = container.Proxy.getElement(container, obj.Support)
+        
+        if elementName != None:
+            element = feature.Shape.getElement(elementName)
+            if element != None:
+                shape = Part.Shape(Part.Compound([element]))
+                obj.Shape = shape
+        
+        obj.ViewObject.Selectable = True
+        obj.ViewObject.LineWidth = 4 
+        
+        return shape
     
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
@@ -99,21 +63,15 @@ class Fillet(SolvableEntity):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Radius":
-            obj.touch()
-        
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
-
-            container.Proxy.setShownObj(container, obj)
-            
+        pass
+    
     def __getstate__(self):
         return None
 
     def __setstate__(self, state):
         return None
 
-class ViewProviderFillet:
+class ViewProviderExposedGeo:
     def __init__(self, obj):
         obj.Proxy = self
         obj.Selectable = False
@@ -133,7 +91,7 @@ class ViewProviderFillet:
     def attach(self, vobj):
         # Called when the view provider is attached
         self.Object = vobj
-        self.Object.Selectable = False
+        self.Object.Selectable = True
 
         return
 
@@ -203,26 +161,20 @@ class ViewProviderFillet:
         # Called when restoring
         return None
     
-def makeFillet(edges):
+def makeExposedGeo(edges):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
     if hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
-        obj = App.ActiveDocument.addObject("Part::FeaturePython", "Fillet")
-        Fillet(obj)
-        ViewProviderFillet(obj.ViewObject)
+        obj = App.ActiveDocument.addObject("Part::FeaturePython", "ExposedGeo")
+        ExposedGeo(obj)
+        ViewProviderExposedGeo(obj.ViewObject)
 
         hashes = []
 
         activeObject.Proxy.addObject(activeObject, obj, True)
-        activeObject.Proxy.setTip(activeObject, obj)
 
         print(edges)
 
-        for edge in edges:
-            # print(edge)
-
-            hashes.append(activeObject.Proxy.getHash(activeObject, edge, True))
-
-        obj.Edges = hashes
+        obj.Support = activeObject.Proxy.getHash(activeObject, edges[0], True)
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")
