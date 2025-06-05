@@ -5,13 +5,14 @@ from Commands.CreatePartContainer import CreatePartContainer  # Add this import
 from Commands.CreateExtrusion import CreateExtrusion
 from Commands.CreatePartMirror import CreatePartMirror
 from Commands.CreateFillet import CreateFillet
+from Commands.CreateChamfer import CreateChamfer
+from Commands.CreateCountersink import CreateCountersink
+from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
+from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.SketchUtils import CreateSketch, CreateExternalGeo
-from Commands.ConstraintsCommands import CreateCoincidentConstraint
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
-
-from Entities.DatumPlane import DatumPlane
 
 __dirname__ = os.path.dirname(locater.__file__)
 
@@ -98,8 +99,16 @@ class ConstraintDesign(Workbench):
         featureCommands = [
             'CreateExtrusion',
             'CreateFillet',
+            'CreateChamfer',
             'CreateSketch',
-            'CreatePartMirror'
+            'CreatePartMirror',
+            'CreateDerive',
+            'CreateCountersink'
+        ]
+
+        treeCommands = [
+            "MoveDesignObjectUp",
+            "MoveDesignObjectDown"
         ]
 
         sketchUtils = [
@@ -116,6 +125,9 @@ class ConstraintDesign(Workbench):
 
         self.appendToolbar("Features", featureCommands)
         self.appendMenu("Features", featureCommands)
+
+        self.appendToolbar("Tree Commands", treeCommands)
+        self.appendMenu("Tree Commands", treeCommands)
 
         self.appendToolbar("Sketcher Utilities", sketchUtils)
         self.appendMenu("Sketcher Utilities", sketchUtils)

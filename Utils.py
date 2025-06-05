@@ -1,6 +1,6 @@
-acceptableFeatureTypes = ["Extrusion", "Fillet", "PartMirror"]
-nonFeatureEntityTypes = ["ExposedGeometry"]
-datumNames = ["WiresDatum", "SketchProjection"]
+featureTypes = ["Extrusion", "Fillet", "PartMirror", "Derive"]
+datumTypes = ["ExposedGeometry"]
+boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
 
 def isType(obj, typeObj):
     if type(typeObj) == str:

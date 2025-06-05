@@ -2,27 +2,49 @@ import FreeCAD as App
 import FreeCADGui as Gui
 import Part
 import sys
+import math
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Entities.Entity import SolvableEntity
+from Entities.Entity import Entity
 
-class Fillet(SolvableEntity):
-    def __init__(self, obj):
+# 0 for Fillet
+# 1 for Chamfer
+# 2 for Countersink
+
+class FeatureDressup(Entity):
+    def __init__(self, obj, dressupType):
         obj.Proxy = self
-        self.updateProps(obj)
+        self.updateProps(obj, dressupType)
 
-    def updateProps(self, obj):
+    def updateProps(self, obj, dressupType = 0):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "Fillet"
+        
+        if not hasattr(obj, "DressupType"):
+            obj.addProperty("App::PropertyInteger", "DressupType", "ConstraintDesign", "Type of feature dressup.\n0 for fillet\n1 for chamfer")
+            obj.DressupType = dressupType
+            obj.setEditorMode("DressupType", 3)
         
         if not hasattr(obj, "Suppressed"):
             obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
             obj.Suppressed = False
 
-        if not hasattr(obj, "Radius"):
-            obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Internal storage for radius of fillet. Updated every solve.")
-            obj.Radius = 1.0
+        if hasattr(obj, "DressupType") and obj.DressupType == 0:
+            if not hasattr(obj, "Radius"):
+                obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Radius of fillet.")
+                obj.Radius = 1.0
+        elif hasattr(obj, "DressupType") and obj.DressupType == 1:
+            if not hasattr(obj, "Length"):
+                obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of fillet.")
+                obj.Length = 1.0
+        elif hasattr(obj, "DressupType") and obj.DressupType == 2:
+            if not hasattr(obj, "Diameter"):
+                obj.addProperty("App::PropertyFloat", "Diameter", "ConstraintDesign", "Diameter of the countersink.")
+                obj.Diameter = 8
+            if not hasattr(obj, "Angle"):
+                obj.addProperty("App::PropertyFloat", "Angle", "ConstraintDesign", "Angle of the countersink in degrees.")
+                obj.Angle = 90
         
         if not hasattr(obj, "Edges"):
             obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
@@ -37,7 +59,7 @@ class Fillet(SolvableEntity):
         pass
 
     def getContainer(self, obj):
-        return super(Fillet, self).getContainer(obj)
+        return super(FeatureDressup, self).getContainer(obj)
         
     def generateShape(self, obj, prevShape):
         if prevShape.isNull():
@@ -45,7 +67,7 @@ class Fillet(SolvableEntity):
 
         datumEdges = obj.Edges
         allShapeEdges = prevShape.Edges
-        edgesToFillet = []
+        elementsToDressup = []
         container = self.getContainer(obj)
 
         if container == None:
@@ -75,24 +97,55 @@ class Fillet(SolvableEntity):
                         ((intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId)
                         # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
                     ):
-                        edgesToFillet.append(edge)
-            try:
-                filletShape = prevShape.makeFillet(obj.Radius, edgesToFillet)
-            except:
-                filletShape = prevShape
-                App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
-                App.Console.PrintMessage("The number of edges in this operation is: " + str(len(edgesToFillet)) + "\n")
-            
-            obj.Shape = filletShape
+                        elementsToDressup.append(edge)
+                dressupShape = prevShape
 
-            return filletShape
+            if hasattr(obj, "DressupType") and obj.DressupType == 0:
+                try:
+                    dressupShape = prevShape.makeFillet(obj.Radius, elementsToDressup)
+                except Exception as e:
+                    dressupShape = prevShape
+                    App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\nException: " + str(e) + "\n")
+            elif hasattr(obj, "DressupType") and obj.DressupType == 1:
+                try:
+                    dressupShape = prevShape.makeChamfer(obj.Length, elementsToDressup)
+                except Exception as e:
+                    dressupShape = prevShape
+                    App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
+            elif hasattr(obj, "DressupType") and obj.DressupType == 2:
+                try:
+                    depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
+                    cone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
+                    cutCompound = []
+
+                    for edge in elementsToDressup:
+                        print("countersink")
+
+                        if edge.Curve.TypeId == "Part::GeomCircle":
+                            placement = App.Placement()
+                            placement.Base = edge.CenterOfMass
+                            placement.Rotation = edge.Placement.Rotation
+                            
+                            cone.Placement = placement
+                            cutCompound.append(cone.copy())
+                        else:
+                            print("edge is not a circle")
+                    
+                    dressupShape = prevShape.cut(Part.Compound(cutCompound))
+                except Exception as e:
+                    dressupShape = prevShape
+                    App.Console.PrintError(obj.Label + ": creating a countersink failed!\nException: " + str(e) + "\n")
+            
+            obj.Shape = dressupShape
+
+            return dressupShape
     
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
     def getElement(self, obj, hash):
         return None, None
 
-    def getDatums(self, obj, isShape=False):
+    def getBoundaries(self, obj, isShape=False):
         return []
 
     def execute(self, obj):
@@ -113,7 +166,7 @@ class Fillet(SolvableEntity):
     def __setstate__(self, state):
         return None
 
-class ViewProviderFillet:
+class ViewProviderDressup:
     def __init__(self, obj):
         obj.Proxy = self
         obj.Selectable = False
@@ -202,14 +255,26 @@ class ViewProviderFillet:
     def __setstate__(self, state):
         # Called when restoring
         return None
-    
-def makeFillet(edges):
+
+""" Method to create a FeatureDressup. """
+def makeDressup(edges, type):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
-        obj = App.ActiveDocument.addObject("Part::FeaturePython", "Fillet")
-        Fillet(obj)
-        ViewProviderFillet(obj.ViewObject)
+    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
+        name = "Dressup"
+        doc = activeObject.Document
+        doc.openTransaction("CreateDressup")
+
+        if type == 0:
+            name = "Fillet"
+        elif type == 1:
+            name = "Chamfer"
+        elif type == 2:
+            name = "Countersink"
+
+        obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
+        FeatureDressup(obj, type)
+        ViewProviderDressup(obj.ViewObject)
 
         hashes = []
 

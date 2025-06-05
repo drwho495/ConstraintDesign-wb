@@ -5,19 +5,15 @@ import Part
 from PySide import QtGui
 from Entities.Dressup import makeDressup
 
-class CreateFillet:
+class CreateChamfer:
     def GetResources(self):
         return {
             'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
-            'MenuText': "Create Fillet Feature",
-            'ToolTip': "Creates a new Fillet feature"
+            'MenuText': "Create Chamfer Feature",
+            'ToolTip': "Creates a new Chamfer feature"
         }
         
     def Activated(self):
-        doc = FreeCAD.ActiveDocument
-        if not doc:
-            doc = FreeCAD.newDocument()
-        
         selection = FreeCADGui.Selection.getCompleteSelection()
         elements = []
         for obj in selection:
@@ -30,11 +26,9 @@ class CreateFillet:
         
         # Only works if the gui is up
         if FreeCAD.GuiUp == True:
-            makeDressup(elements, 0)
-            
-        doc.recompute()
+            makeDressup(elements, 1)
         
     def IsActive(self):
         return True
 
-FreeCADGui.addCommand('CreateFillet', CreateFillet())
+FreeCADGui.addCommand('CreateChamfer', CreateChamfer())

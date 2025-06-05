@@ -5,12 +5,12 @@ import Part
 from PySide import QtGui
 from Entities.Dressup import makeDressup
 
-class CreateFillet:
+class CreateCountersink:
     def GetResources(self):
         return {
             'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
-            'MenuText': "Create Fillet Feature",
-            'ToolTip': "Creates a new Fillet feature"
+            'MenuText': "Create Countersink Feature",
+            'ToolTip': "Creates a new Countersink feature"
         }
         
     def Activated(self):
@@ -30,11 +30,11 @@ class CreateFillet:
         
         # Only works if the gui is up
         if FreeCAD.GuiUp == True:
-            makeDressup(elements, 0)
+            makeDressup(elements, 2)
             
         doc.recompute()
         
     def IsActive(self):
         return True
 
-FreeCADGui.addCommand('CreateFillet', CreateFillet())
+FreeCADGui.addCommand('CreateCountersink', CreateCountersink())

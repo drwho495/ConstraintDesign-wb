@@ -7,13 +7,13 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import getParent
 
-class SolvableEntity(ABC):
+class Entity(ABC):
     @abstractmethod
     def __init__(self):
         pass
 
     @abstractmethod
-    def getDatums(self, obj, isShape=False):
+    def getBoundaries(self, obj, isShape=False):
         return []
 
     def generateHashName(self, map):

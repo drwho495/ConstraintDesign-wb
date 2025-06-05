@@ -4,9 +4,10 @@ import Part
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Entities.Entity import SolvableEntity
+from Utils import isType, getParent, featureTypes, boundaryTypes
+from Entities.Entity import Entity
 
-class ExposedGeo(SolvableEntity):
+class ExposedGeo(Entity):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
@@ -56,7 +57,7 @@ class ExposedGeo(SolvableEntity):
     def getElement(self, obj, hash):
         return None, None
 
-    def getDatums(self, obj, isShape=False):
+    def getBoundaries(self, obj, isShape=False):
         return []
 
     def execute(self, obj):
@@ -164,17 +165,29 @@ class ViewProviderExposedGeo:
 def makeExposedGeo(edges):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
+    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
+        doc = activeObject.Document
+        doc.openTransaction("CreateExposedGeo")
+
         obj = App.ActiveDocument.addObject("Part::FeaturePython", "ExposedGeo")
         ExposedGeo(obj)
         ViewProviderExposedGeo(obj.ViewObject)
 
         hashes = []
+        afterFeature = edges[0][0]
 
-        activeObject.Proxy.addObject(activeObject, obj, True)
+        if isType(afterFeature, boundaryTypes) or hasattr(afterFeature, "TypeId") and afterFeature.TypeId == "Sketcher::SketchObject":
+            afterFeature = getParent(afterFeature, featureTypes)
+        elif isType(afterFeature, featureTypes):
+            pass
+        else:
+            afterFeature = None
 
-        print(edges)
+        print(afterFeature.Name)
 
         obj.Support = activeObject.Proxy.getHash(activeObject, edges[0], True)
+        activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
+
+        print(edges)
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")

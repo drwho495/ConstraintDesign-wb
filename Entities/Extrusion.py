@@ -9,9 +9,9 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Entities.Entity import SolvableEntity
+from Entities.Entity import Entity
 
-class Extrusion(SolvableEntity):
+class Extrusion(Entity):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
@@ -48,21 +48,35 @@ class Extrusion(SolvableEntity):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
         
         if not hasattr(obj, "Length"):
-            obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Internal storage for length of extrusion. Updated every solve.")
+            obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of extrusion.")
             obj.Length = 10
     
     def setDatums(self, obj, wiresDatum, sketchProjection):
         obj.WiresDatum = wiresDatum
         obj.SketchProjection = sketchProjection
+
+        self.addObject(obj, wiresDatum)
+        self.addObject(obj, sketchProjection)
     
-    def getDatums(self, obj, isShape=False):
+    def addObject(self, obj, newObj):
+        if hasattr(obj, "Group"):
+            group = obj.Group
+            group.append(newObj)
+
+            print("add " + newObj.Label)
+
+            obj.Group = group
+    
+    def getBoundaries(self, obj, isShape=False):
         if isShape:
-            return [obj.WiresDatum.Shape, obj.SketchProjection.Shape, obj.Support.Shape]
+            return [obj.WiresDatum.Shape, obj.SketchProjection.Shape]
         else:
-            return [obj.WiresDatum, obj.SketchProjection, obj.Support]
+            return [obj.WiresDatum, obj.SketchProjection]
         
     def setSupport(self, obj, support):
         obj.Support = support
+
+        self.addObject(obj, support)
     
     def getContainer(self, obj):
         return super(Extrusion, self).getContainer(obj)
@@ -126,6 +140,7 @@ class Extrusion(SolvableEntity):
             obj.Shape = extrusion
             obj.SketchProjection.Shape = Part.Shape()
             obj.WiresDatum.Shape = Part.Shape()
+
             if not hasattr(obj, "ElementMap"):
                 try:
                     self.updateProps(obj)
@@ -157,8 +172,6 @@ class Extrusion(SolvableEntity):
                 # Handle Wires
                 
                 if isinstance(geo, Part.Point):
-                    geoType = "Vertex"
-
                     startPoint = App.Vector(geo.X, geo.Y, geo.Z)
                     endPoint = startPoint + App.Vector(0, 0, obj.Length)
                     
@@ -169,13 +182,12 @@ class Extrusion(SolvableEntity):
                         wiresEdgeIndex += 1
 
                         element = (obj.WiresDatum, "Edge" + str(wiresEdgeIndex))
-                        elementMap = self.updateElement(element, geoFacade.Id, elementMap, geoType, 0, "WiresDatum")
+                        elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Edge", 0, "WiresDatum")
                     
                     vertexList.append(startPoint)
+                    
                     vertexList.append(endPoint)
                 elif isinstance(geo, Part.LineSegment) or isinstance(geo, Part.ArcOfCircle):
-                    geoType = "Edge"
-
                     for i, point in enumerate([geo.StartPoint, geo.EndPoint]):
                         startPoint = point
                         endPoint = point + App.Vector(0, 0, obj.Length)
@@ -188,20 +200,24 @@ class Extrusion(SolvableEntity):
                             wiresVertexIndex += 2
 
                             element = (obj.WiresDatum, "Edge" + str(wiresEdgeIndex))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, geoType, i, "WiresDatum")
+                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Edge", i, "WiresDatum")
+
+                            element = (obj.WiresDatum, "Vertex" + str(wiresVertexIndex - 1))
+                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex1", i, "WiresDatum")
 
                             element = (obj.WiresDatum, "Vertex" + str(wiresVertexIndex))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex", i, "WiresDatum")
-
-                            element = (obj.WiresDatum, "Vertex" + str(wiresVertexIndex))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex", i, "WiresDatum")
+                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex2", i, "WiresDatum")
 
                         vertexList.append(startPoint)
                         vertexList.append(endPoint)
                 
                 if type(geo.toShape()).__name__ == "Edge":
+                    geoType = "Edge"
+
                     sketchIndexEdges += 1
                 elif type(geo.toShape()).__name__ == "Vertex":
+                    geoType = "Vertex"
+
                     sketchIndexVertices += 1
                                 
                 #Handle SketchProj
@@ -212,15 +228,38 @@ class Extrusion(SolvableEntity):
                 # implement hashes for vertices of lines and arcs
                 if geoType == "Edge":
                     projElement = (obj.SketchProjection, geoType + str(sketchIndexEdges))
-                    element = (obj.Support, geoType + str(sketchIndexEdges))
+
+                    sketchIndexEdges += 1
+
+                    element = (obj.SketchProjection, geoType + str(sketchIndexEdges))
                 else:
                     projElement = (obj.SketchProjection, geoType + str(sketchIndexVertices))
-                    element = (obj.Support, geoType + str(sketchIndexVertices))
+
+                    sketchIndexVertices += 1
+
+                    element = (obj.SketchProjection, geoType + str(sketchIndexVertices))
+                
+                print(projElement[1])
+                print(element[1])
+                print(geoFacade.Id)
                 
                 print("ProjElement: " + projElement[0].Label + "." + projElement[1])
                 print("Element: " + element[0].Label + "." + element[1])
 
-                obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, geoShape])
+                newShape = geoShape.copy()
+                newShape.Placement.Base = newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)
+                newShape.Placement.Rotation.Angle = sketch.Placement.Rotation.Angle
+                newShape.Placement.Rotation.Axis = sketch.Placement.Rotation.Axis
+                # newShape.Placement.Rotation.Q += sketch.Placement.Rotation.Q
+
+                obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
+
+                newShape = geoShape.copy()
+                newShape.Placement.Base = newShape.Placement.Base + (sketch.Placement.Base)
+                newShape.Placement.Rotation.Angle = sketch.Placement.Rotation.Angle
+                newShape.Placement.Rotation.Axis = sketch.Placement.Rotation.Axis
+                
+                obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
 
                 elementMap = self.updateElement(projElement, geoFacade.Id, elementMap, geoType, 0, "SketchProj")
                 elementMap = self.updateElement(element, geoFacade.Id, elementMap, geoType, 0, "Sketch")
@@ -234,8 +273,6 @@ class Extrusion(SolvableEntity):
             obj.ElementMap = json.dumps(elementMap)
             
             obj.WiresDatum.Placement = sketch.Placement
-            obj.SketchProjection.Placement.Base = sketch.Placement.Base + extrudeVector
-            obj.SketchProjection.Placement.Rotation = sketch.Placement.Rotation
 
             obj.ViewObject.LineWidth = 1
             obj.WiresDatum.ViewObject.LineWidth = 2
@@ -248,7 +285,7 @@ class Extrusion(SolvableEntity):
             
             obj.WiresDatum.Visibility = True
             obj.SketchProjection.Visibility = True
-            obj.Support.Visibility = True
+            obj.Support.Visibility = False
 
             return extrusion
 
@@ -265,10 +302,10 @@ class Extrusion(SolvableEntity):
         if prop == "Visibility" and obj.Visibility == True:
             container = self.getContainer(obj)
 
-            if container != None:
-                container.Proxy.setShownObj(container, obj)
-            else:
-                App.Console.PrintWarning("No container found in onChanged!")
+            # if container != None:
+                # container.Proxy.setShownObj(container, obj)
+            # else:
+                # App.Console.PrintWarning("No container found in onChanged!")
             
     def __getstate__(self):
         return None
@@ -327,30 +364,7 @@ class ViewProviderExtrusion:
         return
 
     def getIcon(self):
-        return """
-            /* XPM */
-            static const char *icon[] = {
-            "16 16 2 1",
-            "  c None",
-            ". c #0000FF",
-            "                ",
-            "    ........    ",
-            "   ..........   ",
-            "  ............  ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            "  ............  ",
-            "   ..........   ",
-            "    ........    ",
-            "                "
-            };
-        """
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "Extrusion.svg")
     
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
@@ -372,8 +386,10 @@ class ViewProviderExtrusion:
 def makeExtrusion():
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
+    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
         selectedObject = Gui.Selection.getSelection()
+        doc = activeObject.Document
+        doc.openTransaction("CreateExtrusion")
 
         if len(selectedObject) == 0:
             selectedObject = None
@@ -381,12 +397,12 @@ def makeExtrusion():
             selectedObject = selectedObject[0]
 
         if selectedObject != None and selectedObject.TypeId == "Sketcher::SketchObject":
-            obj = App.ActiveDocument.addObject("Part::FeaturePython", "Extrusion")
-            wiresDatum = App.ActiveDocument.addObject("Part::Feature", "WiresDatum")
+            obj = doc.addObject("Part::FeaturePython", "Extrusion")
+            wiresDatum = doc.addObject("Part::Feature", "WiresDatum")
             wiresDatum.addProperty("App::PropertyString", "Type")
             wiresDatum.Type = "WiresDatum"
 
-            sketchProjection = App.ActiveDocument.addObject("Part::Feature", "SketchProjection")
+            sketchProjection = doc.addObject("Part::Feature", "SketchProjection")
             sketchProjection.addProperty("App::PropertyString", "Type")
             sketchProjection.Type = "SketchProjection"
 
@@ -407,10 +423,11 @@ def makeExtrusion():
 
                             parent.Group = group
 
-            activeObject.Proxy.addObject(activeObject, obj, True)
-            activeObject.Proxy.setTip(activeObject, obj)
             obj.Proxy.setSupport(obj, selectedObject)
             obj.Proxy.setDatums(obj, wiresDatum, sketchProjection)
+
+            activeObject.Proxy.addObject(activeObject, obj, True)
+            activeObject.Proxy.setTip(activeObject, obj)
         else:
             App.Console.PrintError("Selected object is not a sketch!\n")
     else:

@@ -12,7 +12,7 @@ from Utils import featureTypes, isType, boundaryTypes
 from Commands.SketchUtils import positionSketch
 from Entities.Entity import Entity
 
-class PartMirror(Entity):
+class Derive(Entity):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
@@ -29,33 +29,17 @@ class PartMirror(Entity):
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyXLink", "Support", "ConstraintDesign", "Part container to Mirror")
         
-        if hasattr(obj, "TipName") and obj.getTypeIdOfProperty("TipName") == "App::PropertyString":
-            obj.removeProperty("TipName")
-
         if not hasattr(obj, "TipName"):
-            obj.addProperty("App::PropertyEnumeration", "TipName", "ConstraintDesign", "The Tip of the Part Container to mirror.")
-            obj.TipName = [""]
+            obj.addProperty("App::PropertyString", "TipName", "ConstraintDesign", "The Tip of the Part Container to mirror.")
             obj.TipName = ""
         
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
-            obj.Type = "PartMirror"
+            obj.Type = "Derive"
         
         if not hasattr(obj, "ElementMap"):
             obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")
             obj.ElementMap = "{}"
-
-        if not hasattr(obj, "PlaneType"):
-            obj.addProperty("App::PropertyString", "PlaneType", "ConstraintDesign", "The type of plane to mirror about.")
-            obj.PlaneType = "None"
-        
-        if not hasattr(obj, "PlaneHash"):
-            obj.addProperty("App::PropertyStringList", "PlaneHash", "ConstraintDesign", "The plane (as a set of hashes) to mirror about.")
-            obj.PlaneHash = []
-        
-        if not hasattr(obj, "PlaneFace"):
-            obj.addProperty("App::PropertyXLinkSubList", "PlaneFace", "ConstraintDesign", "The plane (as a face) to mirror about.")
-            obj.PlaneHash = []
 
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
@@ -71,7 +55,7 @@ class PartMirror(Entity):
         obj.Support = support
     
     def getContainer(self, obj):
-        return super(PartMirror, self).getContainer(obj)
+        return super(Derive, self).getContainer(obj)
 
     # Format {"HashName": {"Element:" edge, "GeoId", sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
     def updateElement(self, element, id, map, occurrence = 0, featureType = "Sketch"):
@@ -84,7 +68,7 @@ class PartMirror(Entity):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(PartMirror, self).generateHashName(map)
+            hash = super(Derive, self).generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -109,77 +93,15 @@ class PartMirror(Entity):
         datumShape = Part.Shape()
 
         if isType(obj.Support, "PartContainer"):
-            if obj.Support != None:
-                pcGroup = obj.Support.Proxy.getGroup(obj.Support, False, True)
-
-                if pcGroup != None or len(pcGroup) != 0:
-                    nameGroup = []
-                    updateName = obj.TipName == ""
-
-                    for item in pcGroup:
-                        nameGroup.append(item.Name)
-                    
-                    obj.TipName = nameGroup
-
-                    if updateName:
-                        obj.TipName = obj.Support.Tip.Name
+            if obj.TipName == "":
+                obj.TipName = obj.Support.Tip.Name
 
             tip = obj.Document.getObject(obj.TipName)
 
             if tip != None:
-                face = None
-
-                if obj.PlaneType == "Face":
-                    face = obj.PlaneFace
-                elif obj.PlaneType == "Hashes":
-                    points = []
-
-                    for hash in obj.PlaneHash:
-                        hashArray = hash.split(".")
-                        print(hashArray)
-
-                        if len(hashArray) == 3:
-                            container = obj.Document.getObject(hashArray[0])
-
-                            if container != None:
-                                normalHash = ".".join(hashArray[1:])
-                                print(normalHash)
-
-                                feature, elementName = container.Proxy.getElement(container, normalHash)
-                                element = feature.Shape.getElement(elementName)
-
-                                if element != None:
-                                    if type(element).__name__ == "Edge":
-                                        for vertex in element.Vertexes:
-                                            points.append(vertex.Point)
-                                    elif type(element).__name__ == "Vertex":
-                                        points.append(element.Point)
-                                else:
-                                    print("element is none")
-                            else:
-                                print("bad container")
-                        else:
-                            print("bad hash array")
-                    
-                    if len(points) >= 3:
-                        points.append(points[0])
-                        print(points)
-
-                        face = Part.Face(Part.Wire(Part.makePolygon(points)))
-                        print(face)
-                    else:
-                        print("not enough verts")
-                else:
-                    print("bad plane type")
-                
-                planeCenter = face.Vertexes[0].Point
-                print(planeCenter)
-                normal = face.normalAt(0, 0)
-                print(normal)
-
                 datumShape, elementMap = obj.Support.Proxy.getBoundariesCompound(obj.Support, True, obj.Boundary.Name)
-                datumShape = datumShape.mirror(planeCenter, normal)
-                newShape = tip.Shape.mirror(planeCenter, normal)
+                datumShape = datumShape
+                newShape = tip.Shape
 
                 obj.ElementMap = json.dumps(elementMap)
             else:
@@ -224,7 +146,7 @@ class PartMirror(Entity):
     def __setstate__(self, state):
         return None
 
-class ViewProviderPartMirror:
+class ViewProviderDerive:
     def __init__(self, obj):
         obj.Proxy = self
         obj.Selectable = False
@@ -313,70 +235,29 @@ class ViewProviderPartMirror:
         # Called when restoring
         return None
     
-def makePartMirror():
+def makeDerive():
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if hasattr(activeObject, "Type") and activeObject != None and activeObject.Type == "PartContainer":
-        doc = activeObject.Document
+    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
         selectedObject = Gui.Selection.getSelection()
-        fullSelection = Gui.Selection.getCompleteSelection()
-        planeType = "None"
+        doc = activeObject.Document
+        doc.openTransaction("CreateDerive")
         supportSelection = []
-
-        if len(fullSelection) >= 2:
-            fullSelection = fullSelection[1:]
-
-            for obj in fullSelection:
-                if obj.HasSubObjects:
-                    supportSelection.append((obj.Object, obj.SubElementNames[0]))
-        
-        if len(supportSelection) == 1 and type(supportSelection[0][1]).__name__ == "Face":
-            planeType = "Face"
-        elif len(supportSelection) > 1:
-            planeType = "Hashes"
 
         if len(selectedObject) == 0:
             selectedObject = None
         else:
             selectedObject = selectedObject[0]
 
-        if selectedObject != None and hasattr(selectedObject, "Type") and selectedObject.Type == "PartContainer":
-            doc.openTransaction("CreatePartMirror")
-
-            mirror = App.ActiveDocument.addObject("Part::FeaturePython", "PartMirror")
+        if selectedObject != None and isType(selectedObject, "PartContainer"):
+            mirror = App.ActiveDocument.addObject("Part::FeaturePython", "Derive")
             boundary = App.ActiveDocument.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
             boundary.Type = "Boundary"
 
-            PartMirror(mirror)
-            ViewProviderPartMirror(mirror.ViewObject)
+            Derive(mirror)
+            ViewProviderDerive(mirror.ViewObject)
 
-            mirror.PlaneType = planeType
-
-            if planeType == "Face":
-                mirror.PlaneFace = selectedObject[0]
-            elif planeType == "Hashes":
-                hashes = []
-
-                for element in supportSelection:
-                    if len(element) == 2:
-                        obj = element[0]
-
-                        if hasattr(obj, "Type") and obj.Type in boundaryTypes:
-                            if len(obj.InList) != 0:
-                                feature = obj.InList[0]
-                                if hasattr(feature, "Type") and feature.Type in featureTypes:
-                                    container = feature.Proxy.getContainer(feature)
-
-                                    if container != None:
-                                        print(element)
-                                        hash = container.Proxy.getHash(container, element, True)
-                                        hash = container.Name + "." + hash
-
-                                        hashes.append(hash)
-                
-                mirror.PlaneHash = hashes
-                                        
             mirror.Proxy.setSupport(mirror, selectedObject)
             mirror.Proxy.setBoundary(mirror, boundary)
 

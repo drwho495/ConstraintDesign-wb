@@ -5,9 +5,10 @@ import sys
 import os
 import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Entities.Entity import SolvableEntity
+from Entities.Entity import Entity
 
-class DatumPlane(SolvableEntity):
+# unimplemented
+class DatumPlane(Entity):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
