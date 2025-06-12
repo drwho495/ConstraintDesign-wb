@@ -126,13 +126,8 @@ class Derive(Entity):
         if prop == "Length":
             obj.touch()
 
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
+        super(Derive, self).onChanged(obj, prop)
 
-            if container != None:
-                container.Proxy.setShownObj(container, obj)
-            else:
-                App.Console.PrintWarning("No container found in onChanged!")
 
     def getBoundaries(self, obj, isShape=False):
         if isShape:

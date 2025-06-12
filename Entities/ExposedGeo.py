@@ -4,7 +4,7 @@ import Part
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getParent, featureTypes, boundaryTypes
+from Utils import isType, getParent, featureTypes, boundaryTypes, getIDsFromSelection, getObjectsFromScope, getElementFromHash
 from Entities.Entity import Entity
 
 class ExposedGeo(Entity):
@@ -39,7 +39,7 @@ class ExposedGeo(Entity):
         container = self.getContainer(obj)
         elementName = None
 
-        feature, elementName = container.Proxy.getElement(container, obj.Support)
+        feature, elementName = getElementFromHash(container, obj.Support)
         
         if elementName != None:
             element = feature.Shape.getElement(elementName)
@@ -162,7 +162,7 @@ class ViewProviderExposedGeo:
         # Called when restoring
         return None
     
-def makeExposedGeo(edges):
+def makeExposedGeo():
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
     if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
@@ -173,21 +173,16 @@ def makeExposedGeo(edges):
         ExposedGeo(obj)
         ViewProviderExposedGeo(obj.ViewObject)
 
-        hashes = []
-        afterFeature = edges[0][0]
+        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
 
-        if isType(afterFeature, boundaryTypes) or hasattr(afterFeature, "TypeId") and afterFeature.TypeId == "Sketcher::SketchObject":
-            afterFeature = getParent(afterFeature, featureTypes)
-        elif isType(afterFeature, featureTypes):
-            pass
+        if type(hashes) == list and len(hashes) == 0:
+            App.Console.PrintError("Unable to find string IDs from selection!")
         else:
-            afterFeature = None
+            _, _, afterFeature, _ = getObjectsFromScope(activeObject, hashes[0])
 
-        print(afterFeature.Name)
+            print(afterFeature.Name)
 
-        obj.Support = activeObject.Proxy.getHash(activeObject, edges[0], True)
-        activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
-
-        print(edges)
+            obj.Support = hashes[0]
+            activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")

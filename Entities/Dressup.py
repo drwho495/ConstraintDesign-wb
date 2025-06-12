@@ -4,8 +4,11 @@ import Part
 import sys
 import math
 import os
+from Utils import getIDsFromSelection, getElementFromHash
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Entities.Entity import Entity
+
+dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
 
 # 0 for Fillet
 # 1 for Chamfer
@@ -78,9 +81,9 @@ class FeatureDressup(Entity):
             for edge in allShapeEdges:
                 for datumEdge in datumEdges:
                     try:
-                        feature, datumEdge = container.Proxy.getElement(container, datumEdge)
+                        feature, datumEdge = getElementFromHash(container, datumEdge)
                     except Exception as e:
-                        App.Console.PrintError(str(e))
+                        App.Console.PrintError(str(e) + "\n")
                         continue
                     
                     datumEdge = feature.Shape.getElement(datumEdge)
@@ -152,13 +155,10 @@ class FeatureDressup(Entity):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Radius":
+        if prop in dressupPropertyNames:
             obj.touch()
         
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
-
-            container.Proxy.setShownObj(container, obj)
+        super(FeatureDressup, self).onChanged(obj, prop)
             
     def __getstate__(self):
         return None
@@ -257,7 +257,7 @@ class ViewProviderDressup:
         return None
 
 """ Method to create a FeatureDressup. """
-def makeDressup(edges, type):
+def makeDressup(dressupType):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
     if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
@@ -265,29 +265,26 @@ def makeDressup(edges, type):
         doc = activeObject.Document
         doc.openTransaction("CreateDressup")
 
-        if type == 0:
+        if dressupType == 0:
             name = "Fillet"
-        elif type == 1:
+        elif dressupType == 1:
             name = "Chamfer"
-        elif type == 2:
+        elif dressupType == 2:
             name = "Countersink"
 
         obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
-        FeatureDressup(obj, type)
+        FeatureDressup(obj, dressupType)
         ViewProviderDressup(obj.ViewObject)
 
-        hashes = []
+        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+
+        if type(hashes) == list and len(hashes) == 0:
+            App.Console.PrintError("Unable to find string IDs from selection!")
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         activeObject.Proxy.setTip(activeObject, obj)
 
-        print(edges)
-
-        for edge in edges:
-            # print(edge)
-
-            hashes.append(activeObject.Proxy.getHash(activeObject, edge, True))
-
         obj.Edges = hashes
+        activeObject.recompute()
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")

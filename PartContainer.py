@@ -229,30 +229,6 @@ class PartContainer:
     def onChanged(self, obj, prop):
         pass
     
-    """ Element format: (feature object, element name) """
-    def getHash(self, obj, element, full=False):
-        feature = element[0]
-        elementName = element[1]
-        parent = getParent(feature, featureTypes)
-
-        if hasattr(parent, "Type") and parent.Type in featureTypes:
-            if hasattr(parent, "ElementMap"):
-                map = json.loads(parent.ElementMap)
-
-                for hash, value in map.items():
-                    print(feature.Name + "." + elementName)
-                    print(value["Element"])
-
-                    if value["Element"] == feature.Name + "." + elementName:
-                        if full == False:
-                            return hash
-                        else:
-                            return parent.Name + "." + hash
-            else:
-                print("no map")
-        else:
-            print("incorrect type")
-    
     """ Element format: featureName.hash """
     def getElement(self, obj, element):
         elementArray = element.split(".")

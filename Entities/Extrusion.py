@@ -99,19 +99,19 @@ class Extrusion(Entity):
         
         return map
     
-    def getElement(self, obj, hash):
-        map = json.loads(obj.ElementMap)
+    # def getElement(self, obj, hash):
+    #     map = json.loads(obj.ElementMap)
 
-        if hash in map:
-            element = map[hash]["Element"]
-            elementArray = element.split(".")
-            subFeatureName = elementArray[0]
-            elementName = elementArray[1]
-            subFeature = obj.Document.getObject(subFeatureName)
-        else:
-            raise Exception("Hash: " + str(hash) + " cannot be found in " + obj.Label)
+    #     if hash in map:
+    #         element = map[hash]["Element"]
+    #         elementArray = element.split(".")
+    #         subFeatureName = elementArray[0]
+    #         elementName = elementArray[1]
+    #         subFeature = obj.Document.getObject(subFeatureName)
+    #     else:
+    #         raise Exception("Hash: " + str(hash) + " cannot be found in " + obj.Label)
         
-        return subFeature, elementName
+    #     return subFeature, elementName
         
     def generateShape(self, obj, prevShape):
         if obj.Support.TypeId == "Sketcher::SketchObject":
@@ -250,7 +250,6 @@ class Extrusion(Entity):
                 newShape.Placement.Base = newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)
                 newShape.Placement.Rotation.Angle = sketch.Placement.Rotation.Angle
                 newShape.Placement.Rotation.Axis = sketch.Placement.Rotation.Axis
-                # newShape.Placement.Rotation.Q += sketch.Placement.Rotation.Q
 
                 obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
 
@@ -299,13 +298,7 @@ class Extrusion(Entity):
         if prop == "Length":
             obj.touch()
 
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
-
-            # if container != None:
-                # container.Proxy.setShownObj(container, obj)
-            # else:
-                # App.Console.PrintWarning("No container found in onChanged!")
+        super(Extrusion, self).onChanged(obj, prop)
             
     def __getstate__(self):
         return None

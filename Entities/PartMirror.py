@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import featureTypes, isType, boundaryTypes
+from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection
 from Commands.SketchUtils import positionSketch
 from Entities.Entity import Entity
 
@@ -204,13 +204,8 @@ class PartMirror(Entity):
         if prop == "Length":
             obj.touch()
 
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
+        super(PartMirror, self).onChanged(obj, prop)
 
-            if container != None:
-                container.Proxy.setShownObj(container, obj)
-            else:
-                App.Console.PrintWarning("No container found in onChanged!")
 
     def getBoundaries(self, obj, isShape=False):
         if isShape:
@@ -356,24 +351,12 @@ def makePartMirror():
             if planeType == "Face":
                 mirror.PlaneFace = selectedObject[0]
             elif planeType == "Hashes":
-                hashes = []
+                hashes = getIDsFromSelection(supportSelection)
 
-                for element in supportSelection:
-                    if len(element) == 2:
-                        obj = element[0]
-
-                        if hasattr(obj, "Type") and obj.Type in boundaryTypes:
-                            if len(obj.InList) != 0:
-                                feature = obj.InList[0]
-                                if hasattr(feature, "Type") and feature.Type in featureTypes:
-                                    container = feature.Proxy.getContainer(feature)
-
-                                    if container != None:
-                                        print(element)
-                                        hash = container.Proxy.getHash(container, element, True)
-                                        hash = container.Name + "." + hash
-
-                                        hashes.append(hash)
+                if type(hashes) == list and len(hashes) == 0:
+                    App.Console.PrintError("Unable to find string IDs from selection!")
+                else:
+                    hashes = [] # Error probably already thrown
                 
                 mirror.PlaneHash = hashes
                                         
