@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection
+from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection, getElementFromHash
 from Commands.SketchUtils import positionSketch
 from Entities.Entity import Entity
 
@@ -90,20 +90,6 @@ class PartMirror(Entity):
         
         return map
     
-    def getElement(self, obj, hash):
-        map = json.loads(obj.ElementMap)
-
-        if hash in map:
-            element = map[hash]["Element"]
-            elementArray = element.split(".")
-            subFeatureName = elementArray[0]
-            elementName = elementArray[1]
-            subFeature = obj.Document.getObject(subFeatureName)
-        else:
-            raise Exception("Hash: " + str(hash) + " cannot be found in " + obj.Label)
-        
-        return subFeature, elementName
-        
     def generateShape(self, obj, prevShape):
         newShape = Part.Shape()
         datumShape = Part.Shape()
@@ -145,7 +131,7 @@ class PartMirror(Entity):
                                 normalHash = ".".join(hashArray[1:])
                                 print(normalHash)
 
-                                feature, elementName = container.Proxy.getElement(container, normalHash)
+                                feature, elementName = getElementFromHash(container, normalHash)
                                 element = feature.Shape.getElement(elementName)
 
                                 if element != None:
@@ -191,6 +177,9 @@ class PartMirror(Entity):
         obj.ViewObject.LineWidth = 1
 
         obj.Boundary.purgeTouched()
+
+        if not prevShape.isNull():
+            newShape = Part.Compound([prevShape, newShape])
 
         return newShape
 
@@ -351,12 +340,10 @@ def makePartMirror():
             if planeType == "Face":
                 mirror.PlaneFace = selectedObject[0]
             elif planeType == "Hashes":
-                hashes = getIDsFromSelection(supportSelection)
+                hashes = getIDsFromSelection(fullSelection)
 
-                if type(hashes) == list and len(hashes) == 0:
+                if (type(hashes) == list and len(hashes) == 0) or hashes == None:
                     App.Console.PrintError("Unable to find string IDs from selection!")
-                else:
-                    hashes = [] # Error probably already thrown
                 
                 mirror.PlaneHash = hashes
                                         

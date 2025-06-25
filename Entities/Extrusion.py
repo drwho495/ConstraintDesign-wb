@@ -9,6 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
+from Utils import isType, getElementFromHash
 from Entities.Entity import Entity
 
 class Extrusion(Entity):
@@ -35,10 +36,23 @@ class Extrusion(Entity):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "Extrusion"
+
+        if not hasattr(obj, "DimensionType"):
+            obj.addProperty("App::PropertyEnumeration", "DimensionType", "ConstraintDesign", "Determines the type of dimension that controls the length of extrusion.")
+            obj.DimensionType = ["Blind", "UpToEntity"]
+            obj.DimensionType = "Blind"
+        
+        if not hasattr(obj, "UpToEntity"):
+            obj.addProperty("App::PropertyString", "UpToEntity", "ConstraintDesign")
+            obj.UpToEntity = ""
         
         if not hasattr(obj, "ElementMap"):
             obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")
             obj.ElementMap = "{}"
+
+        if not hasattr(obj, "Symmetric"):
+            obj.addProperty("App::PropertyBool", "Symmetric", "ConstraintDesign", "Determines if this extrusion will be symmetric to the extrusion plane.")
+            obj.Symmetric = False
 
         if not hasattr(obj, "Remove"):
             obj.addProperty("App::PropertyBool", "Remove", "ConstraintDesign", "Determines the type of boolean operation to perform.")
@@ -99,22 +113,10 @@ class Extrusion(Entity):
         
         return map
     
-    # def getElement(self, obj, hash):
-    #     map = json.loads(obj.ElementMap)
-
-    #     if hash in map:
-    #         element = map[hash]["Element"]
-    #         elementArray = element.split(".")
-    #         subFeatureName = elementArray[0]
-    #         elementName = elementArray[1]
-    #         subFeature = obj.Document.getObject(subFeatureName)
-    #     else:
-    #         raise Exception("Hash: " + str(hash) + " cannot be found in " + obj.Label)
-        
-    #     return subFeature, elementName
-        
     def generateShape(self, obj, prevShape):
-        if obj.Support.TypeId == "Sketcher::SketchObject":
+        self.updateProps(obj)
+
+        if obj.Support.TypeId == "Sketcher::SketchObject" or isType(obj.Support, "BoundarySketch"):
             sketch = obj.Support
 
             if hasattr(sketch, "Support"):
@@ -126,17 +128,43 @@ class Extrusion(Entity):
 
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
             face = Part.makeFace(sketchWires)
-
+            ZOffset = 0
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))
-            extrudeVector = normal.multiply(obj.Length)
+            extrudeLength = 1
+
+            print(obj.DimensionType)
+
+            if obj.DimensionType == "Blind":
+                extrudeLength = obj.Length
+            elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
+                boundary, elementName = getElementFromHash(obj, obj.UpToEntity)
+                element = boundary.Shape.getElement(elementName)
+
+                startPoint = sketch.Placement.Base
+                entityPoint = element.CenterOfMass
+                vec = entityPoint - startPoint
+
+                extrudeLength = vec.dot(normal)
+            
+            print(extrudeLength)
+
+            if obj.Symmetric:
+                ZOffset += -extrudeLength / 2
+            
+            print("ZOffset: " + str(ZOffset))
+
+            extrudeVector = normal * extrudeLength
+            offsetVector = normal * ZOffset
 
             extrusion = face.extrude(extrudeVector)
+            extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
 
             if not prevShape.isNull():
                 if obj.Remove:
                     extrusion = prevShape.cut(extrusion)
                 else:
                     extrusion = prevShape.fuse(extrusion)
+            
             obj.Shape = extrusion
             obj.SketchProjection.Shape = Part.Shape()
             obj.WiresDatum.Shape = Part.Shape()
@@ -185,7 +213,6 @@ class Extrusion(Entity):
                         elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Edge", 0, "WiresDatum")
                     
                     vertexList.append(startPoint)
-                    
                     vertexList.append(endPoint)
                 elif isinstance(geo, Part.LineSegment) or isinstance(geo, Part.ArcOfCircle):
                     for i, point in enumerate([geo.StartPoint, geo.EndPoint]):
@@ -247,16 +274,16 @@ class Extrusion(Entity):
                 print("Element: " + element[0].Label + "." + element[1])
 
                 newShape = geoShape.copy()
-                newShape.Placement.Base = newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)
-                newShape.Placement.Rotation.Angle = sketch.Placement.Rotation.Angle
-                newShape.Placement.Rotation.Axis = sketch.Placement.Rotation.Axis
+                newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)) + offsetVector
+                newShape.Placement.Rotation = sketch.Placement.Rotation
+
+                print(sketch.Placement.Rotation)
 
                 obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
 
                 newShape = geoShape.copy()
-                newShape.Placement.Base = newShape.Placement.Base + (sketch.Placement.Base)
-                newShape.Placement.Rotation.Angle = sketch.Placement.Rotation.Angle
-                newShape.Placement.Rotation.Axis = sketch.Placement.Rotation.Axis
+                newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base)) + offsetVector
+                newShape.Placement.Rotation = sketch.Placement.Rotation
                 
                 obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
 
@@ -272,6 +299,7 @@ class Extrusion(Entity):
             obj.ElementMap = json.dumps(elementMap)
             
             obj.WiresDatum.Placement = sketch.Placement
+            obj.WiresDatum.Placement.Base += offsetVector
 
             obj.ViewObject.LineWidth = 1
             obj.WiresDatum.ViewObject.LineWidth = 2
@@ -389,7 +417,7 @@ def makeExtrusion():
         else:
             selectedObject = selectedObject[0]
 
-        if selectedObject != None and selectedObject.TypeId == "Sketcher::SketchObject":
+        if selectedObject != None and (selectedObject.TypeId == "Sketcher::SketchObject" or isType(selectedObject, "BoundarySketch")):
             obj = doc.addObject("Part::FeaturePython", "Extrusion")
             wiresDatum = doc.addObject("Part::Feature", "WiresDatum")
             wiresDatum.addProperty("App::PropertyString", "Type")

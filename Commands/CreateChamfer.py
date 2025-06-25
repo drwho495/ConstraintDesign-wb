@@ -8,7 +8,7 @@ from Entities.Dressup import makeDressup
 class CreateChamfer:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "Chamfer.svg"),
             'MenuText': "Create Chamfer Feature",
             'ToolTip': "Creates a new Chamfer feature"
         }

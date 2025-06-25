@@ -71,13 +71,12 @@ if sys.version_info[0] == 3 and sys.version_info[1] >= 11:
             )
         )
 
-
 class ConstraintDesign(Workbench):
     global __dirname__
 
     MenuText = App.Qt.translate("Workbench", "Constraint Design")
     ToolTip = App.Qt.translate("Workbench", "Constraint Design Workbench")
-    Icon = os.path.join(__dirname__, "icons", "gearworkbench.svg")
+    Icon = os.path.join(__dirname__, "icons", "ConstraintPart.svg")
 
     App.Console.PrintLog(Icon)
 
@@ -98,11 +97,13 @@ class ConstraintDesign(Workbench):
 
         featureCommands = [
             'CreateExtrusion',
-            'CreateFillet',
-            'CreateChamfer',
-            'CreateSketch',
             'CreatePartMirror',
             'CreateDerive',
+        ]
+
+        dressupCommands = [
+            'CreateFillet',
+            'CreateChamfer',
             'CreateCountersink'
         ]
 
@@ -112,7 +113,8 @@ class ConstraintDesign(Workbench):
         ]
 
         sketchUtils = [
-            'CreateExternalGeo'
+            'CreateExternalGeo',
+            'CreateSketch'
         ]
 
         datumCommands = [
@@ -125,6 +127,9 @@ class ConstraintDesign(Workbench):
 
         self.appendToolbar("Features", featureCommands)
         self.appendMenu("Features", featureCommands)
+
+        self.appendToolbar("Dressups", dressupCommands)
+        self.appendMenu("Dressups", dressupCommands)
 
         self.appendToolbar("Tree Commands", treeCommands)
         self.appendMenu("Tree Commands", treeCommands)

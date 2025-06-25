@@ -48,6 +48,9 @@ class FeatureDressup(Entity):
             if not hasattr(obj, "Angle"):
                 obj.addProperty("App::PropertyFloat", "Angle", "ConstraintDesign", "Angle of the countersink in degrees.")
                 obj.Angle = 90
+            if not hasattr(obj, "Reversed"):
+                obj.addProperty("App::PropertyBool", "Reversed", "ConstraintDesign", "Determines if the countersinks should be reversed.")
+                obj.Angle = 90
         
         if not hasattr(obj, "Edges"):
             obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
@@ -118,19 +121,34 @@ class FeatureDressup(Entity):
             elif hasattr(obj, "DressupType") and obj.DressupType == 2:
                 try:
                     depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
-                    cone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
+
+                    # I have two of these to save on possible computation time, I should't need to constantly recreate
+                    # the cone each time.
+                    forwardCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
+                    reversedCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
                     cutCompound = []
 
                     for edge in elementsToDressup:
-                        print("countersink")
+                        print(edge.Orientation)
 
                         if edge.Curve.TypeId == "Part::GeomCircle":
                             placement = App.Placement()
                             placement.Base = edge.CenterOfMass
                             placement.Rotation = edge.Placement.Rotation
+
+                            fCone = forwardCone
+                            rCone = reversedCone
+
+                            if obj.Reversed:
+                                fCone = reversedCone
+                                rCone = forwardCone
                             
-                            cone.Placement = placement
-                            cutCompound.append(cone.copy())
+                            if edge.Orientation == "Forward":
+                                fCone.Placement = placement
+                                cutCompound.append(fCone.copy())
+                            else:
+                                rCone.Placement = placement
+                                cutCompound.append(rCone.copy())
                         else:
                             print("edge is not a circle")
                     
@@ -144,9 +162,6 @@ class FeatureDressup(Entity):
             return dressupShape
     
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
-
-    def getElement(self, obj, hash):
-        return None, None
 
     def getBoundaries(self, obj, isShape=False):
         return []
@@ -217,30 +232,37 @@ class ViewProviderDressup:
         return
 
     def getIcon(self):
-        return """
-            /* XPM */
-            static const char *icon[] = {
-            "16 16 2 1",
-            "  c None",
-            ". c #0000FF",
-            "                ",
-            "    ........    ",
-            "   ..........   ",
-            "  ............  ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            "  ............  ",
-            "   ..........   ",
-            "    ........    ",
-            "                "
-            };
-        """
+        if self.Object.Object.DressupType == 0:
+            return os.path.join(os.path.dirname(__file__), "..", "icons", "Fillet.svg")
+        elif self.Object.Object.DressupType == 1:
+            return os.path.join(os.path.dirname(__file__), "..", "icons", "Chamfer.svg")
+        elif self.Object.Object.DressupType == 2:
+            return os.path.join(os.path.dirname(__file__), "..", "icons", "Countersink.svg")
+        else:
+            return """
+                /* XPM */
+                static const char *icon[] = {
+                "16 16 2 1",
+                "  c None",
+                ". c #0000FF",
+                "                ",
+                "    ........    ",
+                "   ..........   ",
+                "  ............  ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                " .............. ",
+                "  ............  ",
+                "   ..........   ",
+                "    ........    ",
+                "                "
+                };
+            """
     
     def claimChildren(self):
         return []

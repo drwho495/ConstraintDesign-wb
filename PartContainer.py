@@ -83,7 +83,7 @@ class PartContainer:
     
     def fixTip(self, obj):
         if not obj.Tip in obj.Group:
-            group = self.getGroup(obj, False)
+            group = self.getGroup(obj, False, True)
             
             if len(group) > 0:
                 obj.Tip = group[len(group) - 1]
@@ -130,9 +130,6 @@ class PartContainer:
                                     elementName = "Vertex" + str(elementNum)
 
                                 value["Element"] = elementMapFeatureName + "." + elementName
-                                value["EIndex"] = edgeIndex
-                                value["VIndex"] = vertexIndex
-                                value["OriginalF"] = item.Name
                                 elementMap[hash] = value
                         
                         edgeIndex += len(boundary.Shape.Edges) + 0
@@ -172,13 +169,13 @@ class PartContainer:
 
         for i, child in enumerate(group):
             if hasattr(child, "TypeId") and child.TypeId == "Sketcher::SketchObject":
-                if hasattr(child, "Support"):
-                    positionSketch(child, obj)
+                
+                positionSketch(child, obj)
             elif isType(child, featureTypes):
                 print(child.Label)
                 print(child.Type)
 
-                if i >= startIndex and not tipFound and not child.Suppressed:
+                if i >= startIndex and not child.Suppressed:
                     newShape = child.Proxy.generateShape(child, prevShape)
 
                     if not newShape.isNull():
@@ -230,28 +227,28 @@ class PartContainer:
         pass
     
     """ Element format: featureName.hash """
-    def getElement(self, obj, element):
-        elementArray = element.split(".")
+    # def getElement(self, obj, element):
+    #     elementArray = element.split(".")
 
-        if len(elementArray) != 2:
-            App.Console.PrintError("Malformed element reference!\nPlease remove any periods in your feature names\n(If one somehow does contain a period, then you will need to recreate it)\n")
-        else:
-            featureName = elementArray[0]
-            hash = elementArray[1]
-            featureGroup = self.getFullGroup(obj)
-            featureInGroup = None
+    #     if len(elementArray) != 2:
+    #         App.Console.PrintError("Malformed element reference!\nPlease remove any periods in your feature names\n(If one somehow does contain a period, then you will need to recreate it)\n")
+    #     else:
+    #         featureName = elementArray[0]
+    #         hash = elementArray[1]
+    #         featureGroup = self.getFullGroup(obj)
+    #         featureInGroup = None
 
-            for feature in featureGroup:
-                if feature.Name == featureName:
-                    featureInGroup = feature
+    #         for feature in featureGroup:
+    #             if feature.Name == featureName:
+    #                 featureInGroup = feature
             
-            if featureInGroup == None:
-                App.Console.PrintError("Feature in element reference not found!\n")
-            else:
-                try:
-                    return featureInGroup.Proxy.getElement(featureInGroup, hash)
-                except Exception as e:
-                    raise e
+    #         if featureInGroup == None:
+    #             App.Console.PrintError("Feature in element reference not found!\n")
+    #         else:
+    #             try:
+    #                 return featureInGroup.Proxy.getElement(featureInGroup, hash)
+    #             except Exception as e:
+    #                 raise e
 
     # This is for debugging
     def highlightElement(self, obj, element):

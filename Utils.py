@@ -32,6 +32,8 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
     """
         Get an element (or elements) from a hash or list of hashes
 
+        The returned element is formatted as `(boundaryObject, elementName)`
+
         `activeContainer` is necessary in order to determine the right place to look for the element.
         Change `asList` to True to pass a list of hashes, and have a list of elements returned.
     """
@@ -76,9 +78,7 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
         if len(elements) != 0:
             return elements[0]
         else:
-            return None
-
-
+            return None    
 
 def getStringID(activeContainer, element, fullScope=False):
         boundary = element[0]
@@ -126,17 +126,15 @@ def getStringID(activeContainer, element, fullScope=False):
         else:
             print("no map")
 
-""" Returns None if error """
 def getIDsFromSelection(fullSelection):
     elements = []
     hashes = []
     for obj in fullSelection:
-        if obj.HasSubObjects:
+        if obj.HasSubObjects and obj.SubElementNames[0] != '':
             elements.append((obj.Object, obj.SubElementNames[0]))
 
-    if len(elements) == 0:
-        App.Console.PrintError("You must select at least one element!\n")
-        return None
+    if len(elements) == 0 or len(fullSelection) == 0:
+        return []
     
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
     if activeObject != None and isType(activeObject, "PartContainer"):
@@ -145,7 +143,6 @@ def getIDsFromSelection(fullSelection):
 
             if id != None:
                 hashes.append(id)
-
         return hashes
     else:
         App.Console.PrintError("You must select a Part Container as an active object!\n")

@@ -44,9 +44,5 @@ class Entity(ABC):
                 App.Console.PrintWarning("No container found in onChanged!")
 
     @abstractmethod
-    def getElement(self, obj, hash):
-        pass
-    
-    @abstractmethod
     def getContainer(self, obj):
         return getParent(obj, "PartContainer")

@@ -46,8 +46,10 @@ class MoveDesignObject:
                         objects.extend(objects)
 
                     for obj in objects:
-                        group.remove(selectedObj)
-                        group.insert(index + (-1 * self.direction), selectedObj)
+                        group.remove(obj)
+                        group.insert(index + (-1 * self.direction), obj)
+
+                        print(obj.Label)
 
                     parent.Group = group
                 else:

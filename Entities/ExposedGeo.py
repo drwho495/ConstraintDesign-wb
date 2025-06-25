@@ -38,13 +38,23 @@ class ExposedGeo(Entity):
         shape = Part.Shape()
         container = self.getContainer(obj)
         elementName = None
+        hashStr = obj.Support
 
         feature, elementName = getElementFromHash(container, obj.Support)
+        scoreDocument, scopeContainer, _, _ = getObjectsFromScope(container, hashStr)
         
         if elementName != None:
             element = feature.Shape.getElement(elementName)
             if element != None:
                 shape = Part.Shape(Part.Compound([element]))
+                if scoreDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
+                    globalP = feature.getGlobalPlacement()
+
+                    print(globalP)
+
+                    shape.Placement.Base += globalP.Base
+                    shape.Placement.Rotation = globalP.Rotation
+
                 obj.Shape = shape
         
         obj.ViewObject.Selectable = True

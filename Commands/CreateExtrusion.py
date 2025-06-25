@@ -8,7 +8,7 @@ from Entities.Extrusion import makeExtrusion
 class CreateExtrusion:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "Extrusion.svg"),
             'MenuText': "Create Extrusion Feature",
             'ToolTip': "Creates a new Extrusion feature"
         }

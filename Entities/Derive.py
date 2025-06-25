@@ -74,20 +74,6 @@ class Derive(Entity):
         
         return map
     
-    def getElement(self, obj, hash):
-        map = json.loads(obj.ElementMap)
-
-        if hash in map:
-            element = map[hash]["Element"]
-            elementArray = element.split(".")
-            subFeatureName = elementArray[0]
-            elementName = elementArray[1]
-            subFeature = obj.Document.getObject(subFeatureName)
-        else:
-            raise Exception("Hash: " + str(hash) + " cannot be found in " + obj.Label)
-        
-        return subFeature, elementName
-        
     def generateShape(self, obj, prevShape):
         newShape = Part.Shape()
         datumShape = Part.Shape()

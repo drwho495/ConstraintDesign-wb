@@ -8,7 +8,7 @@ from Entities.Dressup import makeDressup
 class CreateCountersink:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "Countersink.svg"),
             'MenuText': "Create Countersink Feature",
             'ToolTip': "Creates a new Countersink feature"
         }

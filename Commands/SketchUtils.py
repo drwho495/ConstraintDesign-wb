@@ -3,51 +3,63 @@ import FreeCAD
 import FreeCADGui
 import Part
 from PySide import QtGui
+from Utils import getElementFromHash, getIDsFromSelection, getObjectsFromScope
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 
 def positionSketch(sketch, container):
-    if hasattr(sketch, "Support"):
-        support = sketch.Support
-        vectors = []
+    if hasattr(sketch, "Support") and not hasattr(sketch, "SupportHashes"):
+        sketch.addProperty("App::PropertyStringList", "SupportHashes", "Base")
+        sketch.SupportHashes = sketch.Support
 
-        for hash in support:
-            object, elementName = container.Proxy.getElement(container, hash)
-            element = object.Shape.getElement(elementName)
+        sketch.removeProperty("Support")
 
-            if type(element).__name__ == "Edge":
-                if len(element.Vertexes) == 2:
-                    vectors.append(element.Vertexes[0].Point)
-                    vectors.append(element.Vertexes[1].Point)
-                else:
-                    for vertex in element.Vertexes:
-                        vectors.append(vertex.Point)
-            elif type(element).__name__ == "Vertex":
-                vectors.append(element.Point)
+    if not hasattr(sketch, "SupportPlane"): 
+        sketch.addProperty("App::PropertyXLink", "SupportPlane", "Base")
+    
+    if not hasattr(sketch, "SupportType"): 
+        sketch.addProperty("App::PropertyEnumeration", "SupportType", "Base")
+        sketch.SupportType = ["Plane", "Hashes"]
+        sketch.SupportType = "Hashes"
+    
+    if hasattr(sketch, "SupportType") and hasattr(sketch, "SupportPlane") and hasattr(sketch, "SupportHashes"):
+        if sketch.SupportType == "Hashes":
+            vectors = []
 
-        if len(vectors) >= 3:
-            p1 = vectors[0]
-            p2 = vectors[1]
-            p3 = vectors[2]
+            for hash in sketch.SupportHashes:
+                boundary, elementName = getElementFromHash(container, hash)
+                element = boundary.Shape.getElement(elementName)
 
-            x_axis = (p2 - p1).normalize()
-            normal = (p2 - p1).cross(p3 - p1).normalize()
-            y_axis = normal.cross(x_axis)  # ensures right-handed coordinate system
+                if type(element).__name__ == "Edge":
+                    if len(element.Vertexes) == 2:
+                        vectors.append(element.Vertexes[0].Point)
+                        vectors.append(element.Vertexes[1].Point)
+                    else:
+                        for vertex in element.Vertexes:
+                            vectors.append(vertex.Point)
+                elif type(element).__name__ == "Vertex":
+                    vectors.append(element.Point)
 
-            rot = FreeCAD.Rotation(x_axis, y_axis, normal)
-            translation = p1 - rot.multVec(FreeCAD.Vector(0, 0, 0))
+            if len(vectors) >= 3:
+                p1 = vectors[0]
+                p2 = vectors[1]
+                p3 = vectors[2]
 
-            sketch.Placement = FreeCAD.Placement(translation, rot)
+                x_axis = (p2 - p1).normalize()
+                normal = (p2 - p1).cross(p3 - p1).normalize()
+                y_axis = normal.cross(x_axis)
 
-def makeSketch(elements):
+                rot = FreeCAD.Rotation(x_axis, y_axis, normal)
+                translation = p1 - rot.multVec(FreeCAD.Vector(0, 0, 0))
+
+                sketch.Placement = FreeCAD.Placement(translation, rot)
+        elif sketch.SupportType == "Plane":
+            sketch.Placement = sketch.SupportPlane.Placement
+
+def makeSketch(hashes):
     activeObject = FreeCADGui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
     if activeObject is not None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
-        hashes = []
-
-        for element in elements:
-            print(element)
-
-            hashes.append(activeObject.Proxy.getHash(activeObject, element, True))
-        
         newSketch = activeObject.Document.addObject("Sketcher::SketchObject", "Sketch")
         activeObject.Proxy.addObject(activeObject, newSketch)
 
@@ -55,8 +67,20 @@ def makeSketch(elements):
         newSketch.setEditorMode("AttachmentSupport", 3)
         newSketch.setEditorMode("MapMode", 3)
 
-        newSketch.addProperty("App::PropertyStringList", "Support", "Base")
-        newSketch.Support = hashes
+        newSketch.addProperty("App::PropertyStringList", "SupportHashes", "Base")
+        newSketch.addProperty("App::PropertyXLink", "SupportPlane", "Base")
+        newSketch.addProperty("App::PropertyString", "Type", "Base")
+        newSketch.addProperty("App::PropertyEnumeration", "SupportType", "Base")
+
+        newSketch.Type = "BoundarySketch"
+        newSketch.SupportType = ["Plane", "Hashes"]
+        if len(hashes) != 0:
+            newSketch.SupportType = "Hashes"
+            newSketch.SupportHashes = hashes
+        else:
+            newSketch.SupportType = "Plane"
+            newSketch.SupportPlane = activeObject.Origin.OutList[3]
+
 
         positionSketch(newSketch, activeObject)
     else:
@@ -71,25 +95,11 @@ class CreateSketch:
         }
         
     def Activated(self):
-        doc = FreeCAD.ActiveDocument
-        if not doc:
-            doc = FreeCAD.newDocument()
-        
         selection = FreeCADGui.Selection.getCompleteSelection()
-        elements = []
-        for obj in selection:
-            if obj.HasSubObjects:
-                elements.append((obj.Object, obj.SubElementNames[0]))
+        elements = getIDsFromSelection(selection)
 
-        if len(elements) == 0:
-            FreeCAD.Console.PrintError("You must select at least one edge!\n")
-            return
-        
-        # Only works if the gui is up
         if FreeCAD.GuiUp == True:
             makeSketch(elements)
-            
-        doc.recompute()
         
     def IsActive(self):
         return True
