@@ -12,6 +12,49 @@ def isType(obj, typeObj):
     elif type(typeObj) == list:
         return obj != None and hasattr(obj, "Type") and obj.Type in typeObj
 
+# "<StartPoint/Center/Endpoint/Intersect>; <X>,<Y>,<Z>; <RX>,<RY>,<RZ>,<RA>:: <GeoId>v<VertexNum>; <ElementType>"
+def makeLocater(pointType = "Center", positionVector = App.Vector(0, 0, 0), rotation = App.Rotation(0, 0, 1, 0), geoID = "-1", elementType = "Edge"):
+    return f"{pointType}; {positionVector.x},{positionVector.y},{positionVector.z}; {rotation.x},{rotation.y},{rotation.z}:: {geoID}; {elementType}"
+
+def findElementFromLocater(feature, locater):
+    # VVV might need to put all this in a method VVV
+    locationData = locater.split("::")[0]
+    identifierData = locater.split("::")[1]
+    identifierArray = identifierData.split("; ")
+    elementType = identifierArray[len(identifierArray) - 1]
+    splitLocationData = locationData.split("; ")
+    locationType = splitLocationData[0]
+    locationStr = splitLocationData[1]
+    splitLocation = locationStr.split(",")
+    rotationStr = splitLocationData[2]
+    splitRotation = rotationStr.split(",")
+
+    location = App.Vector(float(splitLocation[0]), float(splitLocation[1]), float(splitLocation[2]))
+    rotation = App.Vector(float(splitRotation[0]), float(splitRotation[1]), float(splitRotation[2]))
+
+    # ^^^ might need to put all this in a method ^^^
+
+    print(location)
+    print(rotation)
+
+    if elementType == "Edge":
+        for i, edge in enumerate(feature.Shape.Edges):
+            startPoint = edge.Vertexes[0].Point
+            endPoint = edge.Vertexes[-1].Point
+            direction = (endPoint.sub(startPoint)).normalize()
+
+            print(direction)
+            print(rotation)
+            print("\n")
+
+            if direction.isEqual(rotation, 1e-5):
+                if locationType == "StartPoint":
+                    pt = startPoint
+
+                    if pt.isEqual(location, 1e-5):
+                        return "Edge" + str(i + 1)
+                    
+
 def getParent(obj, parentType):
     typeLs = []
     if type(parentType) == str:

@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Utils import isType, getElementFromHash
+from Utils import isType, getElementFromHash, makeLocater, findElementFromLocater
 from Entities.Entity import Entity
 
 class Extrusion(Entity):
@@ -18,17 +18,9 @@ class Extrusion(Entity):
         self.updateProps(obj)
         
     def updateProps(self, obj):
-        if not hasattr(obj, "WiresDatum"):
-            obj.addProperty("App::PropertyXLink", "WiresDatum", "ConstraintDesign")
-            obj.setEditorMode("WiresDatum", 3)
-        
         if not hasattr(obj, "Suppressed"):
             obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
             obj.Suppressed = False
-        
-        if not hasattr(obj, "SketchProjection"):
-            obj.addProperty("App::PropertyXLink", "SketchProjection", "ConstraintDesign")
-            obj.setEditorMode("SketchProjection", 3)
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyXLink", "Support", "ConstraintDesign", "Support object (ex: A sketch)")
@@ -65,13 +57,6 @@ class Extrusion(Entity):
             obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of extrusion.")
             obj.Length = 10
     
-    def setDatums(self, obj, wiresDatum, sketchProjection):
-        obj.WiresDatum = wiresDatum
-        obj.SketchProjection = sketchProjection
-
-        self.addObject(obj, wiresDatum)
-        self.addObject(obj, sketchProjection)
-    
     def addObject(self, obj, newObj):
         if hasattr(obj, "Group"):
             group = obj.Group
@@ -81,12 +66,6 @@ class Extrusion(Entity):
 
             obj.Group = group
     
-    def getBoundaries(self, obj, isShape=False):
-        if isShape:
-            return [obj.WiresDatum.Shape, obj.SketchProjection.Shape]
-        else:
-            return [obj.WiresDatum, obj.SketchProjection]
-        
     def setSupport(self, obj, support):
         obj.Support = support
 
@@ -95,21 +74,31 @@ class Extrusion(Entity):
     def getContainer(self, obj):
         return super(Extrusion, self).getContainer(obj)
 
-    # Format {"HashName": {"Element:" edge, "GeoId", "ElType": Vertex/Edge, sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
-    def updateElement(self, element, id, map, elType, occurrence = 0, featureType = "Sketch"):
+    # Format {"HashName": {"Element:" <ObjectName>.<Edge(X)/Vertex(Y)/Face(Z)>, "Locater": "<StartPoint/Center/Endpoint>; <X>,<Y>,<Z>; <RX>,<RY>,<RZ>; <GeoId>v<VertexNum>; <ElementType>"}}
+    # Standardize
+    def updateElement(self, obj, map, locater, element=None):
         hasElement = False
 
-        for key, value in map.items():
-            if value["GeoId"] == id and value["Occurrence"] == occurrence and ((value.get("ElType") == None and value["Element"].split(".")[1].startswith(element[1])) or (value.get("ElType") != None and value["ElType"] == elType)) and value["FeatureType"] == featureType:
+        if element == None:
+            element = (obj, findElementFromLocater(obj, locater))
+
+            print(element)
+
+        for key, _ in map.items():
+            locaterArray = map[key]["Locater"].split("::")
+            # location = locaterArray[0]
+            identifier = locaterArray[1]
+
+            if identifier == locater.split("::")[1]:
+                map[key]["Locater"] = locater
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
-                map[key]["ElType"] = elType
 
                 hasElement = True
 
         if hasElement == False:
             hash = super(Extrusion, self).generateHashName(map)
             
-            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType, "ElType": elType}
+            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Locater": locater}
         
         return map
     
@@ -132,8 +121,6 @@ class Extrusion(Entity):
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))
             extrudeLength = 1
 
-            print(obj.DimensionType)
-
             if obj.DimensionType == "Blind":
                 extrudeLength = obj.Length
             elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
@@ -146,8 +133,6 @@ class Extrusion(Entity):
 
                 extrudeLength = vec.dot(normal)
             
-            print(extrudeLength)
-
             if obj.Symmetric:
                 ZOffset += -extrudeLength / 2
             
@@ -166,8 +151,6 @@ class Extrusion(Entity):
                     extrusion = prevShape.fuse(extrusion)
             
             obj.Shape = extrusion
-            obj.SketchProjection.Shape = Part.Shape()
-            obj.WiresDatum.Shape = Part.Shape()
 
             if not hasattr(obj, "ElementMap"):
                 try:
@@ -180,146 +163,59 @@ class Extrusion(Entity):
             except:
                 raise Exception("The Element Map is an invalid json string!")
             
-            vertexList = []
-            wiresEdgeIndex = 0
-            wiresVertexIndex = 0
-            sketchIndexEdges = 0
-            sketchIndexVertices = 0
-            geoType = "Edge"
-            points = []
-            idList = []
+            # {vec: ["geo1v1", "geo2v2"]}
+            supportPoints = {}
+            
+            for geoF in sketch.GeometryFacadeList:
+                geo = geoF.Geometry
 
-            startTime = time.time()
+                if isinstance(geo, Part.LineSegment) or isinstance(geo, Part.ArcOfCircle):
+                    tol = 1e-5
+                    hasSPoint = False
+                    hasEPoint = False
 
-            for geoFacade in sketch.GeometryFacadeList:
-                line = Part.Shape()
-                geo = geoFacade.Geometry
+                    for sPointStr, geoIDs in supportPoints.items():
+                        sPointSplit = sPointStr.split(";")
+                        sPoint = App.Vector(float(sPointSplit[0]), float(sPointSplit[1]), float(sPointSplit[2]))
 
-                idList.append(geoFacade.Id)
-                
-                # Handle Wires
-                
-                if isinstance(geo, Part.Point):
-                    startPoint = App.Vector(geo.X, geo.Y, geo.Z)
-                    endPoint = startPoint + App.Vector(0, 0, obj.Length)
-                    
-                    if startPoint not in vertexList and endPoint not in vertexList:
-                        line = Part.LineSegment(startPoint, endPoint).toShape()
-                        obj.WiresDatum.Shape = Part.Compound([obj.WiresDatum.Shape, line])
+                        if sPoint.isEqual(geo.StartPoint, tol):
+                            supportPoints[sPointStr] += f"geo{geoF.Id}v1,"
+                            hasSPoint = True
 
-                        wiresEdgeIndex += 1
-
-                        element = (obj.WiresDatum, "Edge" + str(wiresEdgeIndex))
-                        elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Edge", 0, "WiresDatum")
-                    
-                    vertexList.append(startPoint)
-                    vertexList.append(endPoint)
-                elif isinstance(geo, Part.LineSegment) or isinstance(geo, Part.ArcOfCircle):
-                    for i, point in enumerate([geo.StartPoint, geo.EndPoint]):
-                        startPoint = point
-                        endPoint = point + App.Vector(0, 0, obj.Length)
+                            print(supportPoints[sPointStr])
+                            break
                         
-                        if startPoint not in vertexList and endPoint not in vertexList:
-                            line = Part.LineSegment(startPoint, endPoint).toShape()
-                        
-                            obj.WiresDatum.Shape = Part.Compound([obj.WiresDatum.Shape, line])
-                            wiresEdgeIndex += 1
-                            wiresVertexIndex += 2
+                        if sPoint.isEqual(geo.EndPoint, tol):
+                            supportPoints[sPointStr] += f"geo{geoF.Id}v2,"
+                            hasEPoint = True
 
-                            element = (obj.WiresDatum, "Edge" + str(wiresEdgeIndex))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Edge", i, "WiresDatum")
-
-                            element = (obj.WiresDatum, "Vertex" + str(wiresVertexIndex - 1))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex1", i, "WiresDatum")
-
-                            element = (obj.WiresDatum, "Vertex" + str(wiresVertexIndex))
-                            elementMap = self.updateElement(element, geoFacade.Id, elementMap, "Vertex2", i, "WiresDatum")
-
-                        vertexList.append(startPoint)
-                        vertexList.append(endPoint)
-                
-                if type(geo.toShape()).__name__ == "Edge":
-                    geoType = "Edge"
-
-                    sketchIndexEdges += 1
-                elif type(geo.toShape()).__name__ == "Vertex":
-                    geoType = "Vertex"
-
-                    sketchIndexVertices += 1
-                                
-                #Handle SketchProj
-                
-                geoShape = geo.toShape()
-                #geoShape.Placement.Base = vector
-                
-                # implement hashes for vertices of lines and arcs
-                if geoType == "Edge":
-                    projElement = (obj.SketchProjection, geoType + str(sketchIndexEdges))
-
-                    sketchIndexEdges += 1
-
-                    element = (obj.SketchProjection, geoType + str(sketchIndexEdges))
-                else:
-                    projElement = (obj.SketchProjection, geoType + str(sketchIndexVertices))
-
-                    sketchIndexVertices += 1
-
-                    element = (obj.SketchProjection, geoType + str(sketchIndexVertices))
-                
-                print(projElement[1])
-                print(element[1])
-                print(geoFacade.Id)
-                
-                print("ProjElement: " + projElement[0].Label + "." + projElement[1])
-                print("Element: " + element[0].Label + "." + element[1])
-
-                newShape = geoShape.copy()
-                newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)) + offsetVector
-                newShape.Placement.Rotation = sketch.Placement.Rotation
-
-                print(sketch.Placement.Rotation)
-
-                obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
-
-                newShape = geoShape.copy()
-                newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base)) + offsetVector
-                newShape.Placement.Rotation = sketch.Placement.Rotation
-                
-                obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
-
-                elementMap = self.updateElement(projElement, geoFacade.Id, elementMap, geoType, 0, "SketchProj")
-                elementMap = self.updateElement(element, geoFacade.Id, elementMap, geoType, 0, "Sketch")
+                            print(supportPoints[sPointStr])
+                            break
+                    
+                    if not hasSPoint:
+                        supportPoints[f"{geo.StartPoint.x};{geo.StartPoint.y};{geo.StartPoint.z};"] = f"geo{geoF.Id}v1,"
+                    
+                    if not hasEPoint:
+                        supportPoints[f"{geo.EndPoint.x};{geo.EndPoint.y};{geo.EndPoint.z};"] = f"geo{geoF.Id}v2,"
             
-            App.Console.PrintLog(obj.Label + " update datums time: " + str(time.time() - startTime) + "\n")
+            for pointStr, geoIDs in supportPoints.items():
+                pointStr = pointStr.split(";")
+                point = App.Vector(float(pointStr[0]), float(pointStr[1]), float(pointStr[2]))
+                print(normal)
+                locater = makeLocater("StartPoint", point, normal, geoIDs)
+
+                elementMap = self.updateElement(obj, elementMap, locater)
             
-            for hash, value in elementMap.copy().items():
-                if int(value["GeoId"]) not in idList:
-                    elementMap.pop(hash)
+            try:
+                mapStr = json.dumps(elementMap)
 
-            obj.ElementMap = json.dumps(elementMap)
+                obj.ElementMap = mapStr
+            except Exception as e:
+                App.Console.PrintError("Unable to convert the elementMap into a string!\n" + str(e) + "\n")
             
-            obj.WiresDatum.Placement = sketch.Placement
-            obj.WiresDatum.Placement.Base += offsetVector
-
-            obj.ViewObject.LineWidth = 1
-            obj.WiresDatum.ViewObject.LineWidth = 2
-            obj.Support.ViewObject.LineWidth = 2
-            obj.SketchProjection.ViewObject.LineWidth = 2
-
-            obj.Support.purgeTouched()
-            obj.WiresDatum.purgeTouched()
-            obj.SketchProjection.purgeTouched()
-            
-            obj.WiresDatum.Visibility = True
-            obj.SketchProjection.Visibility = True
-            obj.Support.Visibility = False
-
             return extrusion
 
     def execute(self, obj):
-        if obj.Group == []:
-            obj.Group = [obj.Support, obj.SketchProjection, obj.WiresDatum]
-
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
@@ -335,20 +231,12 @@ class Extrusion(Entity):
         return None
 
 class ViewProviderExtrusion:
-    def __init__(self, obj):
-        obj.Proxy = self
-        obj.Selectable = False
+    def __init__(self, vobj):
+        vobj.Proxy = self
+        # vobj.Selectable = False
         self.Origin = None
     
     def onDelete(self, vobj, subelements):
-        if hasattr(vobj.Object, "WiresDatum"):
-            if vobj.Object.WiresDatum != None:
-                vobj.Object.Document.removeObject(vobj.Object.WiresDatum.Name)
-
-        if hasattr(vobj.Object, "SketchProjection"):
-            if vobj.Object.SketchProjection != None:
-                vobj.Object.Document.removeObject(vobj.Object.SketchProjection.Name)
-        
         return True
     
     def attach(self, vobj):
@@ -390,7 +278,7 @@ class ViewProviderExtrusion:
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
         if hasattr(self, "Object"):
-            return [self.Object.Object.Support, self.Object.Object.WiresDatum, self.Object.Object.SketchProjection] 
+            return self.Object.Object.Group
         return []
 
     def dragObject(self, obj):
@@ -419,16 +307,6 @@ def makeExtrusion():
 
         if selectedObject != None and (selectedObject.TypeId == "Sketcher::SketchObject" or isType(selectedObject, "BoundarySketch")):
             obj = doc.addObject("Part::FeaturePython", "Extrusion")
-            wiresDatum = doc.addObject("Part::Feature", "WiresDatum")
-            wiresDatum.addProperty("App::PropertyString", "Type")
-            wiresDatum.Type = "WiresDatum"
-
-            sketchProjection = doc.addObject("Part::Feature", "SketchProjection")
-            sketchProjection.addProperty("App::PropertyString", "Type")
-            sketchProjection.Type = "SketchProjection"
-
-            wiresDatum.ViewObject.ShowInTree = False
-            sketchProjection.ViewObject.ShowInTree = False
 
             Extrusion(obj)
             ViewProviderExtrusion(obj.ViewObject)
@@ -445,7 +323,6 @@ def makeExtrusion():
                             parent.Group = group
 
             obj.Proxy.setSupport(obj, selectedObject)
-            obj.Proxy.setDatums(obj, wiresDatum, sketchProjection)
 
             activeObject.Proxy.addObject(activeObject, obj, True)
             activeObject.Proxy.setTip(activeObject, obj)

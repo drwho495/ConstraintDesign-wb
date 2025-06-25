@@ -13,10 +13,6 @@ class Entity(ABC):
     def __init__(self):
         pass
 
-    @abstractmethod
-    def getBoundaries(self, obj, isShape=False):
-        return []
-
     def generateHashName(self, map):
         keys = map.keys()
         newHash = ""
