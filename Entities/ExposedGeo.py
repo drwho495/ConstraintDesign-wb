@@ -133,30 +133,7 @@ class ViewProviderExposedGeo:
         return
 
     def getIcon(self):
-        return """
-            /* XPM */
-            static const char *icon[] = {
-            "16 16 2 1",
-            "  c None",
-            ". c #0000FF",
-            "                ",
-            "    ........    ",
-            "   ..........   ",
-            "  ............  ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            "  ............  ",
-            "   ..........   ",
-            "    ........    ",
-            "                "
-            };
-        """
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "ExposedGeo.svg")
     
     def claimChildren(self):
         return []

@@ -1,8 +1,10 @@
 import json
 import FreeCAD as App
 import FreeCADGui as Gui
+import random
+import string
 
-featureTypes = ["Extrusion", "Fillet", "PartMirror", "Derive"]
+featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive"]
 datumTypes = ["ExposedGeometry"]
 boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
 
@@ -93,7 +95,7 @@ def getStringID(activeContainer, element, fullScope=False):
         featurePartContainer = getParent(feature, "PartContainer")
 
         if not isType(activeContainer, "PartContainer"):
-            objPartContainer = getParent(feature, "PartContainer")
+            objPartContainer = featurePartContainer
         else:
             objPartContainer = activeContainer
 
@@ -126,7 +128,19 @@ def getStringID(activeContainer, element, fullScope=False):
         else:
             print("no map")
 
-def getIDsFromSelection(fullSelection):
+def generateHashName(map):
+        keys = map.keys()
+        newHash = ""
+
+        while True:
+            newHash = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+            if newHash not in keys:
+                break
+        
+        return newHash
+
+def getIDsFromSelection(fullSelection, activeContainer=None):
     elements = []
     hashes = []
     for obj in fullSelection:
@@ -136,17 +150,19 @@ def getIDsFromSelection(fullSelection):
     if len(elements) == 0 or len(fullSelection) == 0:
         return []
     
-    activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
-    if activeObject != None and isType(activeObject, "PartContainer"):
+    if activeContainer == None:
+        activeContainer = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
+        
+    if activeContainer != None and isType(activeContainer, "PartContainer"):
         for element in elements:
-            id = getStringID(activeObject, element, False)
+            id = getStringID(activeContainer, element, False)
 
             if id != None:
                 hashes.append(id)
         return hashes
     else:
         App.Console.PrintError("You must select a Part Container as an active object!\n")
-        return None
+        return []
 
 def getObjectsFromScope(activeContainer, hashName):
     document = None

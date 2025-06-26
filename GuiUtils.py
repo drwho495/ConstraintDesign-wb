@@ -1,0 +1,210 @@
+from PySide import QtWidgets, QtCore, QtGui
+import FreeCADGui as Gui
+from Utils import getIDsFromSelection, getElementFromHash
+
+hashToElementSplitStr = "   "
+
+class HoverableListWidget(QtWidgets.QListWidget):
+    itemHovered = QtCore.Signal(str) 
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self._last_hovered = None
+
+    def mouseMoveEvent(self, event):
+        item = self.itemAt(event.pos())
+        if item and item != self._last_hovered:
+            self._last_hovered = item
+            self.itemHovered.emit(item.data(QtCore.Qt.UserRole))
+        elif not item:
+            self._last_hovered = None
+        super().mouseMoveEvent(event)
+
+class SelectorWidget(QtWidgets.QWidget):
+    selectionChanged = QtCore.Signal(list)
+
+    def __init__(self, addOldSelection=True, startSelection=[], container=None, sizeLimit=-1):
+        super().__init__(None)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.preselected = ""
+        self.sizeLimit = sizeLimit
+
+        self.listWidget = HoverableListWidget()
+        self.listWidget.setFixedHeight(125)
+        self.listWidget.itemHovered.connect(self.onItemHovered)
+        
+        self.clearButton = QtWidgets.QPushButton("Clear All")
+        self.layout.addWidget(self.listWidget)
+        self.layout.addWidget(self.clearButton)
+        self.hashList = []
+
+        # selection box sizing
+        self.minSize = 30
+        self.YMargin = 3
+        self.multipierSize = 26
+        self.maxSize = 150
+
+        self.updateBoxSize()
+
+        if container == None:
+            self.activeContainer = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
+        else:
+            self.activeContainer = container
+
+        self.clearButton.clicked.connect(self.clear)
+        
+        if addOldSelection:
+            self.addSelection(Gui.Selection.getCompleteSelection())
+        else:
+            Gui.Selection.clearSelection()
+
+        if len(startSelection) != 0:
+            self.addSelection(startSelection)
+
+        # Gui.Selection.setSelectionStyle(Gui.Selection.SelectionStyle.GreedySelection)
+        self._observer = _SelectorWidgetObserver(self)
+        self.destroyed.connect(self.cleanup)
+    
+    def onItemHovered(self, entry):
+        hash = entry.split(hashToElementSplitStr)[0]
+
+        if self.activeContainer != None:
+            element = getElementFromHash(self.activeContainer, hash)
+
+            self.preselected = hash
+            Gui.Selection.clearSelection()
+            Gui.Selection.addSelection(self.activeContainer, f"{element[0].Name}.{element[1]}")
+
+    def addSelection(self, selection):
+        if type(selection) != list:
+            selection = [selection]
+        
+        if len(selection) != 0 and type(selection[0]) != str:
+            stringIdSelection = getIDsFromSelection(selection, self.activeContainer)
+        else:
+            stringIdSelection = selection
+
+        for sel in stringIdSelection:
+            if sel == self.preselected:
+                continue
+
+            element = getElementFromHash(self.activeContainer, sel)
+            Gui.Selection.removeSelection(self.activeContainer.Document.Name, self.activeContainer.Name, f'{element[0].Name}.{element[1]}')
+
+            entry = f"{sel}{hashToElementSplitStr}({element[1]})"
+            print(entry)
+
+            try:
+                if self.sizeLimit != -1 and self.sizeLimit <= self.listWidget.count():
+                    continue
+
+                for i in range(self.listWidget.count()):
+                    if self.listWidget.item(i).data(QtCore.Qt.UserRole) == entry:
+                        return  # Already added
+            except:
+                pass
+
+            item = QtWidgets.QListWidgetItem()
+            item.setData(QtCore.Qt.UserRole, entry)
+
+            widget = QtWidgets.QWidget()
+            hbox = QtWidgets.QHBoxLayout(widget)
+            hbox.setContentsMargins(5, self.YMargin, 5, self.YMargin)
+            label = QtWidgets.QLabel(entry)
+
+            remove_btn = QtWidgets.QToolButton()
+            remove_btn.setText("X")
+            remove_btn.setToolTip("Remove this item")
+            remove_btn.setFixedSize(20, 20)
+            remove_btn.setStyleSheet("""
+            QToolButton {
+                border: none;
+                color: #d62828;
+                margin-top: -8px;
+                font-weight: bold;
+                font-size: 14px;
+                background: transparent;
+            }
+            QToolButton:hover {
+                color: #a00000;
+            }
+            """)
+            remove_btn.clicked.connect(lambda: self.removeItem(item))
+
+            hbox.addWidget(label)
+            hbox.addStretch()
+            hbox.addWidget(remove_btn)
+
+            initialLen = self.listWidget.count()
+
+            self.listWidget.addItem(item)
+            self.listWidget.setItemWidget(item, widget)
+
+            if initialLen != self.listWidget.count():
+                self.hashList.append(sel)
+
+            self.updateBoxSize()
+            self.emitSelection()
+    
+    def updateBoxSize(self):
+        size = self.listWidget.count() * self.multipierSize
+        
+        if size <= self.minSize:
+            size = self.minSize
+
+        if size >= self.maxSize:
+            size = self.maxSize
+        
+        self.listWidget.setFixedHeight(size)
+        
+    def removeItem(self, item):
+        initialLen = self.listWidget.count()
+
+        row = self.listWidget.row(item)
+        self.listWidget.takeItem(row)
+
+        if initialLen != self.listWidget.count():
+            self.hashList.pop(row)
+
+        print(self.hashList)
+
+        self.updateBoxSize()
+        self.emitSelection()
+
+    def clear(self):
+        self.listWidget.clear()
+        self.hashList = []
+
+        self.updateBoxSize()
+        self.emitSelection()
+
+    def getSelection(self):
+        return self.hashList
+
+    def emitSelection(self):
+        self.selectionChanged.emit(self.getSelection())
+
+    def cleanup(self):
+        # Gui.Selection.setSelectionStyle(Gui.Selection.SelectionStyle.NormalSelection)
+        self.listWidget.deleteLater()
+        self.clearButton.deleteLater()
+
+        Gui.Selection.removeObserver(self._observer)
+
+
+class _SelectorWidgetObserver:
+    def __init__(self, widget):
+        self.widget = widget
+        Gui.Selection.addObserver(self)
+
+    def addSelection(self, _, _2, _3, _4):
+        if self.widget:
+            self.widget.addSelection(Gui.Selection.getCompleteSelection())
+
+    # def clearSelection(self, doc):
+        # if self.widget:
+            # self.widget.listWidget.clear()
+            # self.widget.emitSelection()

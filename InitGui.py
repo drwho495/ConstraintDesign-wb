@@ -11,6 +11,7 @@ from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.SketchUtils import CreateSketch, CreateExternalGeo
+from GuiUtils import SelectorWidget
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
 

@@ -17,18 +17,6 @@ class Entity(ABC):
     def getBoundaries(self, obj, isShape=False):
         return []
 
-    def generateHashName(self, map):
-        keys = map.keys()
-        newHash = ""
-
-        while True:
-            newHash = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-
-            if newHash not in keys:
-                break
-        
-        return newHash
-
     @abstractmethod
     def updateProps(self, obj):
         pass

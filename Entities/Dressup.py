@@ -4,8 +4,11 @@ import Part
 import sys
 import math
 import os
-from Utils import getIDsFromSelection, getElementFromHash
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
+from Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
+from GuiUtils import SelectorWidget
+from PySide import QtWidgets
+import json
 from Entities.Entity import Entity
 
 dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
@@ -14,15 +17,158 @@ dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
 # 1 for Chamfer
 # 2 for Countersink
 
+class DressupTaskPanel:
+    def __init__(self, obj, addOldSelection=True, startSelection=[]):
+        self.form = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(self.form)
+        layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
+
+        button_layout = QtWidgets.QHBoxLayout()
+
+        self.applyButton = QtWidgets.QPushButton("Apply")
+        self.updateButton = QtWidgets.QPushButton("Update")
+        self.cancelButton = QtWidgets.QPushButton("Cancel")
+
+        button_layout.addWidget(self.applyButton)
+        button_layout.addWidget(self.updateButton)
+        button_layout.addWidget(self.cancelButton)
+
+        layout.addLayout(button_layout)
+        
+        self.applyButton.clicked.connect(self.accept)
+        self.updateButton.clicked.connect(self.update)
+        self.cancelButton.clicked.connect(self.reject)
+
+        self.oldHashes = obj.Edges
+
+        self.dressup = obj
+        self.container = self.dressup.Proxy.getContainer(self.dressup)
+        self.selector = SelectorWidget(addOldSelection=addOldSelection, startSelection=startSelection, container=self.container)
+        layout.addWidget(self.selector)
+
+        if self.dressup.DressupType == 0:
+            self.oldRadius = self.dressup.Radius
+
+            radius_row = QtWidgets.QHBoxLayout()
+            radius_label = QtWidgets.QLabel("Radius:")
+            self.radius_input = QtWidgets.QDoubleSpinBox()
+            self.radius_input.setMinimum(0)
+            self.radius_input.setMaximum(100000)
+            self.radius_input.setSingleStep(1)
+            self.radius_input.setValue(self.oldRadius)
+
+            radius_row.addWidget(radius_label)
+            radius_row.addWidget(self.radius_input)
+            radius_row.addStretch()
+
+            layout.addLayout(radius_row)
+        elif self.dressup.DressupType == 1:
+            self.oldLength = self.dressup.Length
+
+            lengthRow = QtWidgets.QHBoxLayout()
+            lengthLabel = QtWidgets.QLabel("Length:")
+            self.lengthInput = QtWidgets.QDoubleSpinBox()
+            self.lengthInput.setMinimum(0)
+            self.lengthInput.setMaximum(100000)
+            self.lengthInput.setSingleStep(1)
+            self.lengthInput.setValue(self.oldLength)
+
+            lengthRow.addWidget(lengthLabel)
+            lengthRow.addWidget(self.lengthInput)
+            lengthRow.addStretch()
+
+            layout.addLayout(lengthRow)
+        elif self.dressup.DressupType == 2:
+            self.oldDiameter = self.dressup.Diameter
+            self.oldAngle = self.dressup.Angle
+
+            counterSinkRow = QtWidgets.QHBoxLayout()
+            diameterLabel = QtWidgets.QLabel("Diameter:")
+            self.diameterInput = QtWidgets.QDoubleSpinBox()
+            self.diameterInput.setMinimum(0)
+            self.diameterInput.setMaximum(100000)
+            self.diameterInput.setSingleStep(1)
+            self.diameterInput.setValue(self.oldDiameter)
+
+            angleLabel = QtWidgets.QLabel("Angle:")
+            self.angleInput = QtWidgets.QDoubleSpinBox()
+            self.angleInput.setMinimum(0)
+            self.angleInput.setMaximum(180)
+            self.angleInput.setSingleStep(10)
+            self.angleInput.setValue(self.oldAngle)
+
+            counterSinkRow.addWidget(diameterLabel)
+            counterSinkRow.addWidget(self.diameterInput)
+            
+            counterSinkRow.addWidget(angleLabel)
+            counterSinkRow.addWidget(self.angleInput)
+
+            counterSinkRow.addStretch()
+
+            layout.addLayout(counterSinkRow)
+    
+    def update(self):
+        selected = self.selector.getSelection()
+
+        if self.dressup.DressupType == 0:
+            radius = self.radius_input.value()
+            
+            self.dressup.Radius = radius
+        elif self.dressup.DressupType == 1:
+            length = self.lengthInput.value()
+            
+            self.dressup.Length = length
+        elif self.dressup.DressupType == 2:
+            diameter = self.diameterInput.value()
+            self.dressup.Diameter = diameter
+
+            angle = self.angleInput.value()
+            self.dressup.Angle = angle
+
+        self.dressup.Edges = selected
+        self.container.recompute()
+    
+    def accept(self):
+        self.update()
+
+        self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def reject(self):
+        self.dressup.Edges = self.oldHashes
+
+        if self.dressup.DressupType == 0:
+            self.dressup.Radius = self.oldRadius
+        elif self.dressup.DressupType == 1:
+            self.dressup.Length = self.oldLength
+        elif self.dressup.DressupType == 2:
+            self.dressup.Diameter = self.oldDiameter
+            self.dressup.Angle = self.oldAngle
+
+        self.container.recompute()
+        self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def getStandardButtons(self):
+        return 0
+
+    def getTitle(self):
+        return "Dressup Task Panel"
+
+    def IsModal(self):
+        return False
+
 class FeatureDressup(Entity):
     def __init__(self, obj, dressupType):
         obj.Proxy = self
         self.updateProps(obj, dressupType)
+    
+    def showGui(self, obj, addOldSelection = True, startSelection = []):
+        Gui.Control.showDialog(DressupTaskPanel(obj, addOldSelection, startSelection))
 
     def updateProps(self, obj, dressupType = 0):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
-            obj.Type = "Fillet"
         
         if not hasattr(obj, "DressupType"):
             obj.addProperty("App::PropertyInteger", "DressupType", "ConstraintDesign", "Type of feature dressup.\n0 for fillet\n1 for chamfer")
@@ -34,23 +180,41 @@ class FeatureDressup(Entity):
             obj.Suppressed = False
 
         if hasattr(obj, "DressupType") and obj.DressupType == 0:
+            obj.Type = "Fillet"
+
             if not hasattr(obj, "Radius"):
                 obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Radius of fillet.")
                 obj.Radius = 1.0
         elif hasattr(obj, "DressupType") and obj.DressupType == 1:
+            obj.Type = "Chamfer"
+
             if not hasattr(obj, "Length"):
                 obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of fillet.")
                 obj.Length = 1.0
         elif hasattr(obj, "DressupType") and obj.DressupType == 2:
+            obj.Type = "Countersink"
+
             if not hasattr(obj, "Diameter"):
                 obj.addProperty("App::PropertyFloat", "Diameter", "ConstraintDesign", "Diameter of the countersink.")
                 obj.Diameter = 8
+
             if not hasattr(obj, "Angle"):
                 obj.addProperty("App::PropertyFloat", "Angle", "ConstraintDesign", "Angle of the countersink in degrees.")
                 obj.Angle = 90
+
             if not hasattr(obj, "Reversed"):
                 obj.addProperty("App::PropertyBool", "Reversed", "ConstraintDesign", "Determines if the countersinks should be reversed.")
                 obj.Angle = 90
+
+            if not hasattr(obj, "Boundary"):
+                obj.addProperty("App::PropertyXLink", "Boundary", "ConstraintDesign", "Boundary of this dressup")
+            
+            if not hasattr(obj, "Group"):
+                obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group of this dressup")
+
+            if not hasattr(obj, "ElementMap"):
+                obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "Element map of this dressup")
+                obj.ElementMap = "{}"
         
         if not hasattr(obj, "Edges"):
             obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
@@ -66,6 +230,27 @@ class FeatureDressup(Entity):
 
     def getContainer(self, obj):
         return super(FeatureDressup, self).getContainer(obj)
+    
+    def makeIdentifier(self, supportHash, placement, elementType):
+        """ Used to make development easier, won't need to update 10 different instances of id generation """
+        return f"{supportHash};{placement};{elementType}"
+
+    # {"<String ID>": {"Identifier": "<SupportHash>;Top/Bottom;ElementType", "Element": <BoundaryName>.<Vertex1/Edge2/Face3>}}
+    def updateElement(self, map, identifier, element):
+        foundElement = False
+
+        for stringId, value in map.items():
+            if value["Identifier"] == identifier:
+                foundElement = True
+
+                map[stringId]["Element"] = f"{element[0].Name}.{element[1]}"
+        
+        if not foundElement:
+            newId = generateHashName(map)
+
+            map[newId] = {"Identifier": identifier, "Element": f"{element[0].Name}.{element[1]}"}
+        
+        return map
         
     def generateShape(self, obj, prevShape):
         if prevShape.isNull():
@@ -73,7 +258,7 @@ class FeatureDressup(Entity):
 
         datumEdges = obj.Edges
         allShapeEdges = prevShape.Edges
-        elementsToDressup = []
+        elementsToDressup = {}
         container = self.getContainer(obj)
 
         if container == None:
@@ -82,80 +267,107 @@ class FeatureDressup(Entity):
             return prevShape
         else:
             for edge in allShapeEdges:
-                for datumEdge in datumEdges:
+                if edge.isValid():
+                    for stringID in datumEdges:
+                        try:
+                            feature, datumEdge = getElementFromHash(container, stringID)
+                        except Exception as e:
+                            App.Console.PrintError(str(e) + "\n")
+                            continue
+                        
+                        datumEdge = feature.Shape.getElement(datumEdge)
+
+                        intersectionPoints = 0
+
+                        try:
+                            intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                        except:
+                            intersectionPoints = -1
+                        
+                        try:
+                            if (
+                                edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2) or
+                                ((intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId)
+                                # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
+                            ):
+                                # elementsToDressup.append(edge)
+                                print(stringID)
+                                _, _, _, singleID = getObjectsFromScope(container, stringID)
+                                elementsToDressup[singleID] = edge
+
+                                print(f"add hash: {singleID}")
+                        except Exception as e:
+                            print(e)
+                    dressupShape = prevShape
+            
+            if len(elementsToDressup) != 0:
+                if hasattr(obj, "DressupType") and obj.DressupType == 0:
                     try:
-                        feature, datumEdge = getElementFromHash(container, datumEdge)
+                        dressupShape = prevShape.makeFillet(obj.Radius, list(elementsToDressup.values()))
                     except Exception as e:
-                        App.Console.PrintError(str(e) + "\n")
-                        continue
-                    
-                    datumEdge = feature.Shape.getElement(datumEdge)
-
-                    intersectionPoints = 0
-
+                        dressupShape = prevShape
+                        App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\nException: " + str(e) + "\n")
+                elif hasattr(obj, "DressupType") and obj.DressupType == 1:
                     try:
-                        intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
-                    except:
-                        intersectionPoints = -1
+                        dressupShape = prevShape.makeChamfer(obj.Length, list(elementsToDressup.values()))
+                    except Exception as e:
+                        dressupShape = prevShape
+                        App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
+                elif hasattr(obj, "DressupType") and obj.DressupType == 2:
+                    try:
+                        depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
 
-                    if (
-                        edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2) or
-                        ((intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId)
-                        # edge.Placement.isSame(internalDatumEdge.Placement, 1e-2)
-                    ):
-                        elementsToDressup.append(edge)
-                dressupShape = prevShape
+                        # I have two of these to save on possible computation time, I should't need to constantly recreate
+                        # the cone each time.
+                        forwardCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
+                        reversedCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
+                        cutCompound = []
+                        map = json.loads(obj.ElementMap)
+                        boundaryShape = Part.Shape()
 
-            if hasattr(obj, "DressupType") and obj.DressupType == 0:
-                try:
-                    dressupShape = prevShape.makeFillet(obj.Radius, elementsToDressup)
-                except Exception as e:
-                    dressupShape = prevShape
-                    App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\nException: " + str(e) + "\n")
-            elif hasattr(obj, "DressupType") and obj.DressupType == 1:
-                try:
-                    dressupShape = prevShape.makeChamfer(obj.Length, elementsToDressup)
-                except Exception as e:
-                    dressupShape = prevShape
-                    App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
-            elif hasattr(obj, "DressupType") and obj.DressupType == 2:
-                try:
-                    depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
+                        for hash, edge in elementsToDressup.items():
+                            print(edge.Orientation)
 
-                    # I have two of these to save on possible computation time, I should't need to constantly recreate
-                    # the cone each time.
-                    forwardCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
-                    reversedCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
-                    cutCompound = []
+                            if edge.Curve.TypeId == "Part::GeomCircle":
+                                radius = edge.Curve.Radius
+                                placement = App.Placement()
+                                placement.Base = edge.CenterOfMass
+                                placement.Rotation = edge.Placement.Rotation
 
-                    for edge in elementsToDressup:
-                        print(edge.Orientation)
+                                topCircle = Part.Circle()
+                                topCircle.Radius = obj.Diameter/2
+                                topCircle = topCircle.toShape()
+                                topCircle.Placement = placement
 
-                        if edge.Curve.TypeId == "Part::GeomCircle":
-                            placement = App.Placement()
-                            placement.Base = edge.CenterOfMass
-                            placement.Rotation = edge.Placement.Rotation
+                                boundaryShape = Part.Compound([boundaryShape, topCircle])
+                                map = self.updateElement(map, self.makeIdentifier(hash, "Top", "Edge"), (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
 
-                            fCone = forwardCone
-                            rCone = reversedCone
+                                fCone = forwardCone
+                                rCone = reversedCone
 
-                            if obj.Reversed:
-                                fCone = reversedCone
-                                rCone = forwardCone
-                            
-                            if edge.Orientation == "Forward":
-                                fCone.Placement = placement
-                                cutCompound.append(fCone.copy())
+                                if obj.Reversed:
+                                    fCone = reversedCone
+                                    rCone = forwardCone
+                                
+                                if edge.Orientation == "Forward":
+                                    fCone.Placement = placement
+                                    cutCompound.append(fCone.copy())
+                                else:
+                                    rCone.Placement = placement
+                                    cutCompound.append(rCone.copy())
                             else:
-                                rCone.Placement = placement
-                                cutCompound.append(rCone.copy())
-                        else:
-                            print("edge is not a circle")
-                    
-                    dressupShape = prevShape.cut(Part.Compound(cutCompound))
-                except Exception as e:
-                    dressupShape = prevShape
-                    App.Console.PrintError(obj.Label + ": creating a countersink failed!\nException: " + str(e) + "\n")
+                                print("edge is not a circle")
+                        
+                        obj.Boundary.Shape = boundaryShape
+                        obj.ElementMap = json.dumps(map)
+                        dressupShape = prevShape.cut(Part.Compound(cutCompound))
+
+                        obj.Boundary.purgeTouched()
+                    except Exception as e:
+                        dressupShape = prevShape
+                        App.Console.PrintError(obj.Label + ": creating a countersink failed!\nException: " + str(e) + "\n")
+            else:
+                dressupShape = prevShape
             
             obj.Shape = dressupShape
 
@@ -172,6 +384,9 @@ class FeatureDressup(Entity):
     def onChanged(self, obj, prop):
         if prop in dressupPropertyNames:
             obj.touch()
+        
+        if prop == "Boundary":
+            obj.Group = [obj.Boundary]
         
         super(FeatureDressup, self).onChanged(obj, prop)
             
@@ -206,6 +421,9 @@ class ViewProviderDressup:
         return
 
     def setEdit(self, vobj, mode):
+        vobj.Object.Document.openTransaction("EditDressup")
+        vobj.Object.Proxy.showGui(vobj.Object, False, vobj.Object.Edges)
+
         return False
 
     def unsetEdit(self, vobj, mode):
@@ -265,6 +483,11 @@ class ViewProviderDressup:
             """
     
     def claimChildren(self):
+        if hasattr(self, "Object") and self.Object.Object.DressupType == 2:
+            if len(self.Object.Object.Group) == 0:
+                self.Object.Object.Group = [self.Object.Object.Boundary]
+                
+            return self.Object.Object.Group
         return []
 
     def dragObject(self, obj):
@@ -294,17 +517,23 @@ def makeDressup(dressupType):
         elif dressupType == 2:
             name = "Countersink"
 
+            boundary = doc.addObject("Part::Feature", "Boundary")
+            boundary.addProperty("App::PropertyString", "Type")
+            boundary.Type = "Boundary"
+
         obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
         FeatureDressup(obj, dressupType)
         ViewProviderDressup(obj.ViewObject)
 
-        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+        if dressupType == 2:
+            obj.Boundary = boundary
+            activeObject.Proxy.addObject(activeObject, boundary, False)
 
-        if type(hashes) == list and len(hashes) == 0:
-            App.Console.PrintError("Unable to find string IDs from selection!")
+        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         activeObject.Proxy.setTip(activeObject, obj)
+        obj.Proxy.showGui(obj, True)
 
         obj.Edges = hashes
         activeObject.recompute()

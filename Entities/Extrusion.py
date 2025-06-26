@@ -9,8 +9,139 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Utils import isType, getElementFromHash
+from Utils import isType, getElementFromHash, generateHashName
 from Entities.Entity import Entity
+from PySide import QtWidgets
+from GuiUtils import SelectorWidget
+
+dimensionTypes = ["Blind", "UpToEntity"]
+
+class ExtrusionTaskPanel:
+    def __init__(self, obj):
+        self.form = QtWidgets.QWidget()
+        self.layout = QtWidgets.QVBoxLayout(self.form)
+        self.layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
+        self.extrusion = obj
+        self.activeLayouts = []
+        self.selector = None
+        self.blindDimensionRow = None
+        self.container = self.extrusion.Proxy.getContainer(self.extrusion)
+
+        button_layout = QtWidgets.QHBoxLayout()
+        self.applyButton = QtWidgets.QPushButton("Apply")
+        self.updateButton = QtWidgets.QPushButton("Update")
+        self.cancelButton = QtWidgets.QPushButton("Cancel")
+
+        button_layout.addWidget(self.applyButton)
+        button_layout.addWidget(self.updateButton)
+        button_layout.addWidget(self.cancelButton)
+
+        self.layout.addLayout(button_layout)
+        
+        self.applyButton.clicked.connect(self.accept)
+        self.updateButton.clicked.connect(self.update)
+        self.cancelButton.clicked.connect(self.reject)
+
+        self.dimensionTypeComboLayout = QtWidgets.QHBoxLayout()
+        self.dimensionTypeLabel = QtWidgets.QLabel("Type:")
+        self.dimensionTypeCombo = QtWidgets.QComboBox()
+        self.dimensionTypeComboLayout.setContentsMargins(0, 5, 0, 5)
+
+        self.oldType = obj.DimensionType
+
+        for type in dimensionTypes:
+            self.dimensionTypeCombo.addItem(type, type)
+        
+        self.dimensionTypeCombo.setCurrentIndex(dimensionTypes.index(obj.DimensionType))
+
+        self.dimensionTypeComboLayout.addWidget(self.dimensionTypeLabel)
+        self.dimensionTypeComboLayout.addWidget(self.dimensionTypeCombo)
+        self.layout.addLayout(self.dimensionTypeComboLayout)
+
+        self.updateGuiDimensionType()
+        self.dimensionTypeCombo.currentIndexChanged.connect(self.dimensionTypeChanged)
+
+        print(self.extrusion.DimensionType)
+    
+    def dimensionTypeChanged(self, index):
+        newType = self.dimensionTypeCombo.itemData(index)
+        self.extrusion.DimensionType = newType
+
+        self.updateGuiDimensionType()
+    
+    def updateGuiDimensionType(self):
+        if self.extrusion.DimensionType == "Blind":
+            if self.selector != None:
+                self.selector.cleanup()
+                self.layout.removeWidget(self.selector)
+
+                self.selector = None
+
+            print("add length row")
+            self.oldLength = self.extrusion.Length
+
+            self.blindDimensionRow = QtWidgets.QHBoxLayout()
+            self.blindLabel = QtWidgets.QLabel("Length:")
+            self.blindInput = QtWidgets.QDoubleSpinBox()
+            self.blindInput.setMinimum(-100000)
+            self.blindInput.setMaximum(100000)
+            self.blindInput.setSingleStep(1)
+            self.blindInput.setValue(self.oldLength)
+
+            self.blindDimensionRow.addWidget(self.blindLabel)
+            self.blindDimensionRow.addWidget(self.blindInput)
+            self.blindDimensionRow.addStretch()
+
+            self.layout.addLayout(self.blindDimensionRow)
+        elif self.extrusion.DimensionType == "UpToEntity":
+            if self.blindDimensionRow != None:
+                self.blindDimensionRow.deleteLater()
+                self.blindDimensionRow = None
+
+            self.selector = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+            self.oldUpToEntity = self.extrusion.UpToEntity
+
+            self.layout.addWidget(self.selector)
+
+    def update(self):
+        if self.extrusion.DimensionType == "Blind":
+            self.extrusion.Length = self.blindInput.value()
+        elif self.extrusion.DimensionType == "UpToEntity":
+            selection = self.selector.getSelection()
+
+            if len(selection) != 0:
+                self.extrusion.UpToEntity = selection[0]
+
+        self.container.recompute()
+    
+    def accept(self):
+        self.update()
+
+        if self.selector != None:
+            self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def reject(self):
+        if hasattr(self, "oldLength"):
+            self.extrusion.Length = self.oldLength
+        if hasattr(self, "oldUpToEntity"):
+            self.extrusion.UpToEntity = self.oldUpToEntity
+
+        self.extrusion.DimensionType = self.oldType
+
+        self.container.recompute()
+        if self.selector != None:
+            self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def getStandardButtons(self):
+        return 0
+
+    def getTitle(self):
+        return "Extrusion Task Panel"
+
+    def IsModal(self):
+        return False
 
 class Extrusion(Entity):
     def __init__(self, obj):
@@ -39,12 +170,8 @@ class Extrusion(Entity):
 
         if not hasattr(obj, "DimensionType"):
             obj.addProperty("App::PropertyEnumeration", "DimensionType", "ConstraintDesign", "Determines the type of dimension that controls the length of extrusion.")
-            obj.DimensionType = ["Blind", "UpToEntity"]
+            obj.DimensionType = dimensionTypes
             obj.DimensionType = "Blind"
-        
-        if not hasattr(obj, "UpToEntity"):
-            obj.addProperty("App::PropertyString", "UpToEntity", "ConstraintDesign")
-            obj.UpToEntity = ""
         
         if not hasattr(obj, "ElementMap"):
             obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")
@@ -64,7 +191,14 @@ class Extrusion(Entity):
         if not hasattr(obj, "Length"):
             obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of extrusion.")
             obj.Length = 10
+            
+        if not hasattr(obj, "UpToEntity"):
+            obj.addProperty("App::PropertyString", "UpToEntity", "ConstraintDesign")
+            obj.UpToEntity = ""
     
+    def showGui(self, obj, addOldSelection = True, startSelection = []):
+        Gui.Control.showDialog(ExtrusionTaskPanel(obj))
+
     def setDatums(self, obj, wiresDatum, sketchProjection):
         obj.WiresDatum = wiresDatum
         obj.SketchProjection = sketchProjection
@@ -107,7 +241,7 @@ class Extrusion(Entity):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(Extrusion, self).generateHashName(map)
+            hash = generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType, "ElType": elType}
         
@@ -141,7 +275,13 @@ class Extrusion(Entity):
                 element = boundary.Shape.getElement(elementName)
 
                 startPoint = sketch.Placement.Base
-                entityPoint = element.CenterOfMass
+                entityPoint = None
+
+                if isinstance(element, Part.Vertex):
+                    entityPoint = element.Point
+                else:
+                    entityPoint = element.CenterOfMass
+
                 vec = entityPoint - startPoint
 
                 extrudeLength = vec.dot(normal)
@@ -359,6 +499,8 @@ class ViewProviderExtrusion:
         return
 
     def setEdit(self, vobj, mode):
+        vobj.Object.Proxy.showGui(vobj.Object)
+
         return False
 
     def unsetEdit(self, vobj, mode):

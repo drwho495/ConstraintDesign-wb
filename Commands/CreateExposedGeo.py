@@ -8,7 +8,7 @@ from Entities.ExposedGeo import makeExposedGeo
 class CreateExposedGeo:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "ExposedGeo.svg"),
             'MenuText': "Create Exposed Geometry datum.",
             'ToolTip': "Creates a new Exposed Geometry datum."
         }
