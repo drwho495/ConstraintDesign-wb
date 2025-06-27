@@ -181,11 +181,9 @@ class PartContainer:
                     if not newShape.isNull():
                         prevShape = newShape
                 else:
-                    newShape = child.Shape
+                    if hasattr(child, "Shape"):
+                        child.Shape = prevShape
 
-                    if not newShape.isNull():
-                        prevShape = newShape
-                
                 if obj.ShownFeature != child:
                     child.Visibility = False # only set to false to avoid recursion
 

@@ -1,8 +1,10 @@
 from PySide import QtWidgets, QtCore, QtGui
 import FreeCADGui as Gui
 from Utils import getIDsFromSelection, getElementFromHash
+import copy
 
 hashToElementSplitStr = "   "
+missingStr = "(MISSING)"
 
 class HoverableListWidget(QtWidgets.QListWidget):
     itemHovered = QtCore.Signal(str) 
@@ -46,6 +48,7 @@ class SelectorWidget(QtWidgets.QWidget):
         self.YMargin = 3
         self.multipierSize = 26
         self.maxSize = 150
+        self.selecting = True
 
         self.updateBoxSize()
 
@@ -68,17 +71,32 @@ class SelectorWidget(QtWidgets.QWidget):
         self._observer = _SelectorWidgetObserver(self)
         self.destroyed.connect(self.cleanup)
     
+    def toggleSelections(self, set):
+        self.selecting = set
+    
     def onItemHovered(self, entry):
-        hash = entry.split(hashToElementSplitStr)[0]
+        hashSplArray = entry.split(hashToElementSplitStr)
+        hash = hashSplArray[0]
+
+        if hashSplArray[1] == missingStr:
+            Gui.Selection.clearSelection()
+            self.preselected = ""
+            return
 
         if self.activeContainer != None:
             element = getElementFromHash(self.activeContainer, hash)
 
-            self.preselected = hash
-            Gui.Selection.clearSelection()
-            Gui.Selection.addSelection(self.activeContainer, f"{element[0].Name}.{element[1]}")
+            if element != None:
+                self.preselected = hash
+                Gui.Selection.clearSelection()
+                Gui.Selection.addSelection(self.activeContainer, f"{element[0].Name}.{element[1]}")
+    
+    def makeLambda(self, entry): 
+        return lambda: self.removeItem(entry)
 
     def addSelection(self, selection):
+        if not self.selecting: return
+
         if type(selection) != list:
             selection = [selection]
         
@@ -87,14 +105,20 @@ class SelectorWidget(QtWidgets.QWidget):
         else:
             stringIdSelection = selection
 
-        for sel in stringIdSelection:
+        print(stringIdSelection)
+
+        for i,sel in enumerate(stringIdSelection):
             if sel == self.preselected:
                 continue
 
             element = getElementFromHash(self.activeContainer, sel)
-            Gui.Selection.removeSelection(self.activeContainer.Document.Name, self.activeContainer.Name, f'{element[0].Name}.{element[1]}')
 
-            entry = f"{sel}{hashToElementSplitStr}({element[1]})"
+            if element != None:
+                Gui.Selection.removeSelection(self.activeContainer.Document.Name, self.activeContainer.Name, f'{element[0].Name}.{element[1]}')
+                entry = f"{sel}{hashToElementSplitStr}({element[1]})"
+            else:
+                entry = f"{sel}{hashToElementSplitStr}{missingStr}"
+
             print(entry)
 
             try:
@@ -132,7 +156,8 @@ class SelectorWidget(QtWidgets.QWidget):
                 color: #a00000;
             }
             """)
-            remove_btn.clicked.connect(lambda: self.removeItem(item))
+
+            remove_btn.clicked.connect(self.makeLambda(entry))
 
             hbox.addWidget(label)
             hbox.addStretch()
@@ -146,8 +171,13 @@ class SelectorWidget(QtWidgets.QWidget):
             if initialLen != self.listWidget.count():
                 self.hashList.append(sel)
 
-            self.updateBoxSize()
-            self.emitSelection()
+            print(f"new entry: {entry}")
+
+            item = None
+            entry = None
+
+        self.updateBoxSize()
+        self.emitSelection()
     
     def updateBoxSize(self):
         size = self.listWidget.count() * self.multipierSize
@@ -160,10 +190,18 @@ class SelectorWidget(QtWidgets.QWidget):
         
         self.listWidget.setFixedHeight(size)
         
-    def removeItem(self, item):
+    def removeItem(self, entry):
         initialLen = self.listWidget.count()
 
-        row = self.listWidget.row(item)
+        print(entry)
+
+        hash = entry.split(hashToElementSplitStr)[0]
+
+        if hash == self.preselected:
+            self.preselected = ""
+            Gui.Selection.clearSelection()
+
+        row = self.hashList.index(hash)
         self.listWidget.takeItem(row)
 
         if initialLen != self.listWidget.count():
@@ -177,6 +215,7 @@ class SelectorWidget(QtWidgets.QWidget):
     def clear(self):
         self.listWidget.clear()
         self.hashList = []
+        self.preselected = ""
 
         self.updateBoxSize()
         self.emitSelection()

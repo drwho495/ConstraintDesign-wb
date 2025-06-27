@@ -9,12 +9,14 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Utils import isType, getElementFromHash, generateHashName
+from Utils import isType, getDistanceToEntity, generateHashName
 from Entities.Entity import Entity
 from PySide import QtWidgets
 from GuiUtils import SelectorWidget
+import copy
 
 dimensionTypes = ["Blind", "UpToEntity"]
+startingOffsetTypes = ["Blind", "UpToEntity"]
 
 class ExtrusionTaskPanel:
     def __init__(self, obj):
@@ -23,8 +25,6 @@ class ExtrusionTaskPanel:
         self.layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
         self.extrusion = obj
         self.activeLayouts = []
-        self.selector = None
-        self.blindDimensionRow = None
         self.container = self.extrusion.Proxy.getContainer(self.extrusion)
 
         button_layout = QtWidgets.QHBoxLayout()
@@ -45,7 +45,7 @@ class ExtrusionTaskPanel:
         self.dimensionTypeComboLayout = QtWidgets.QHBoxLayout()
         self.dimensionTypeLabel = QtWidgets.QLabel("Type:")
         self.dimensionTypeCombo = QtWidgets.QComboBox()
-        self.dimensionTypeComboLayout.setContentsMargins(0, 5, 0, 5)
+        self.dimensionTypeComboLayout.setContentsMargins(0, 5, 0, 0)
 
         self.oldType = obj.DimensionType
 
@@ -58,10 +58,104 @@ class ExtrusionTaskPanel:
         self.dimensionTypeComboLayout.addWidget(self.dimensionTypeCombo)
         self.layout.addLayout(self.dimensionTypeComboLayout)
 
+        self.createBlindDimension()
+        self.createUTEDimension()
         self.updateGuiDimensionType()
         self.dimensionTypeCombo.currentIndexChanged.connect(self.dimensionTypeChanged)
 
+        # Starting offset section start
+        self.startingOffsetLayout = QtWidgets.QVBoxLayout()
+        self.startingOffsetComboRow = QtWidgets.QHBoxLayout()
+        self.offsetLabel = QtWidgets.QLabel("Starting Offset Type:")
+        self.startOffsetCombo = QtWidgets.QComboBox()
+        self.startingOffsetComboRow.setContentsMargins(0, 5, 0, 0)
+        self.oldStartingOffsetType = obj.StartingOffsetType
+        self.oldStartingOffsetEnabled = obj.StartingOffset
+        self.oldStartingOffsetLength = obj.StartingOffsetLength
+
+        self.sOffestBlindWidget = self.createSOffsetBlind()
+        self.sOffsetSelectorWidget = self.createSOffsetUTE()
+        self.createUTEDimension()
+
+        self.startingOffsetComboRow.addWidget(self.offsetLabel)
+        self.startingOffsetComboRow.addWidget(self.startOffsetCombo)
+        self.startingOffsetLayout.addLayout(self.startingOffsetComboRow)
+        self.startingOffsetLayout.addWidget(self.sOffestBlindWidget)
+        self.startingOffsetLayout.addWidget(self.sOffsetSelectorWidget)
+
+        self.layout.addLayout(self.startingOffsetLayout)
+
+        self.startOffsetCombo.addItem("None", "None")
+        for type in startingOffsetTypes:
+            self.startOffsetCombo.addItem(type, type)
+        
+        self.startOffsetCombo.currentIndexChanged.connect(self.offsetTypeChanged)
+
+        if self.extrusion.StartingOffset:
+            self.startOffsetCombo.setCurrentIndex(startingOffsetTypes.index(obj.StartingOffsetType) + 1)
+        else:
+            self.startOffsetCombo.setCurrentIndex(0)
+        
+        self.updateGuiStartingOffset()
+        # Starting offset section end
+
         print(self.extrusion.DimensionType)
+    
+    def createSOffsetUTE(self):
+        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
+        return widget
+    
+    def createSOffsetBlind(self):
+        self.sOffestBlindWidget = QtWidgets.QWidget()
+        self.sOffestBlindLayout = QtWidgets.QHBoxLayout()
+        self.sOffestBlindLayout.setContentsMargins(10, 0, 0, 0)
+        self.sOffsetBlindLabel = QtWidgets.QLabel("Starting Offset Length:")
+        self.sOffsetBlindInput = QtWidgets.QDoubleSpinBox()
+        self.sOffsetBlindInput.setMinimum(-100000)
+        self.sOffsetBlindInput.setMaximum(100000)
+        self.sOffsetBlindInput.setSingleStep(1)
+        self.sOffsetBlindInput.setValue(self.oldStartingOffsetLength)
+
+        self.sOffestBlindLayout.addWidget(self.sOffsetBlindLabel)
+        self.sOffestBlindLayout.addWidget(self.sOffsetBlindInput)
+        self.sOffestBlindWidget.setLayout(self.sOffestBlindLayout)
+
+        return self.sOffestBlindWidget
+    
+    def createUTEDimension(self):
+        self.selectorWidget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+        self.layout.addWidget(self.selectorWidget)
+
+    def createBlindDimension(self):
+        self.oldLength = self.extrusion.Length
+
+        self.blindDimensionWidget = QtWidgets.QWidget()
+        self.blindDimensionRow = QtWidgets.QHBoxLayout()
+        self.blindLabel = QtWidgets.QLabel("Length:")
+        self.blindInput = QtWidgets.QDoubleSpinBox()
+        self.blindInput.setMinimum(-100000)
+        self.blindInput.setMaximum(100000)
+        self.blindInput.setSingleStep(1)
+        self.blindDimensionRow.setContentsMargins(10, 0, 0, 0)
+        self.blindInput.setValue(self.oldLength)
+
+        self.blindDimensionRow.addWidget(self.blindLabel)
+        self.blindDimensionRow.addWidget(self.blindInput)
+        self.blindDimensionRow.addStretch()
+
+        self.blindDimensionWidget.setLayout(self.blindDimensionRow)
+        self.layout.addWidget(self.blindDimensionWidget)
+    
+    def offsetTypeChanged(self, index):
+        newType = self.startOffsetCombo.itemData(index)
+
+        if newType == "None":
+            self.extrusion.StartingOffset = False
+        else:
+            self.extrusion.StartingOffset = True
+            self.extrusion.StartingOffsetType = newType
+        
+        self.updateGuiStartingOffset()
     
     def dimensionTypeChanged(self, index):
         newType = self.dimensionTypeCombo.itemData(index)
@@ -69,56 +163,58 @@ class ExtrusionTaskPanel:
 
         self.updateGuiDimensionType()
     
+    def updateGuiStartingOffset(self):
+        if self.extrusion.StartingOffset:
+            if self.extrusion.StartingOffsetType == "Blind":
+                self.sOffestBlindWidget.show()
+                self.sOffsetSelectorWidget.hide()
+                self.sOffsetSelectorWidget.toggleSelections(False)
+            elif self.extrusion.StartingOffsetType == "UpToEntity":
+                self.sOffestBlindWidget.hide()
+                self.sOffsetSelectorWidget.show()
+                self.sOffsetSelectorWidget.toggleSelections(True)
+    
     def updateGuiDimensionType(self):
         if self.extrusion.DimensionType == "Blind":
-            if self.selector != None:
-                self.selector.cleanup()
-                self.layout.removeWidget(self.selector)
-
-                self.selector = None
-
-            print("add length row")
-            self.oldLength = self.extrusion.Length
-
-            self.blindDimensionRow = QtWidgets.QHBoxLayout()
-            self.blindLabel = QtWidgets.QLabel("Length:")
-            self.blindInput = QtWidgets.QDoubleSpinBox()
-            self.blindInput.setMinimum(-100000)
-            self.blindInput.setMaximum(100000)
-            self.blindInput.setSingleStep(1)
-            self.blindInput.setValue(self.oldLength)
-
-            self.blindDimensionRow.addWidget(self.blindLabel)
-            self.blindDimensionRow.addWidget(self.blindInput)
-            self.blindDimensionRow.addStretch()
-
-            self.layout.addLayout(self.blindDimensionRow)
+            self.selectorWidget.hide()
+            self.selectorWidget.toggleSelections(False)
+            
+            self.blindDimensionWidget.show()
+                
         elif self.extrusion.DimensionType == "UpToEntity":
-            if self.blindDimensionRow != None:
-                self.blindDimensionRow.deleteLater()
-                self.blindDimensionRow = None
+            self.blindDimensionWidget.hide()
+            Gui.Selection.clearSelection()
 
-            self.selector = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+            self.selectorWidget.toggleSelections(True)
+            self.selectorWidget.show()
+
             self.oldUpToEntity = self.extrusion.UpToEntity
-
-            self.layout.addWidget(self.selector)
 
     def update(self):
         if self.extrusion.DimensionType == "Blind":
             self.extrusion.Length = self.blindInput.value()
         elif self.extrusion.DimensionType == "UpToEntity":
-            selection = self.selector.getSelection()
+            selection = self.selectorWidget.getSelection()
 
             if len(selection) != 0:
                 self.extrusion.UpToEntity = selection[0]
+        
+        if self.extrusion.StartingOffset:
+            if self.extrusion.StartingOffsetType == "Blind":
+                self.extrusion.StartingOffsetLength = self.sOffsetBlindInput.value()
+            elif self.extrusion.StartingOffsetType == "UpToEntity":
+                selection = self.sOffsetSelectorWidget.getSelection()
+
+                if len(selection) != 0:
+                    self.extrusion.StartingOffsetUpToEntity = selection[0]
 
         self.container.recompute()
     
     def accept(self):
         self.update()
 
-        if self.selector != None:
-            self.selector.cleanup()
+        if self.selectorWidget != None:
+            self.selectorWidget.cleanup()
         Gui.Control.closeDialog()
 
     def reject(self):
@@ -130,8 +226,8 @@ class ExtrusionTaskPanel:
         self.extrusion.DimensionType = self.oldType
 
         self.container.recompute()
-        if self.selector != None:
-            self.selector.cleanup()
+        if self.selectorWidget != None:
+            self.selectorWidget.cleanup()
         Gui.Control.closeDialog()
 
     def getStandardButtons(self):
@@ -195,6 +291,21 @@ class Extrusion(Entity):
         if not hasattr(obj, "UpToEntity"):
             obj.addProperty("App::PropertyString", "UpToEntity", "ConstraintDesign")
             obj.UpToEntity = ""
+
+        if not hasattr(obj, "StartingOffset"):
+            obj.addProperty("App::PropertyBool", "StartingOffset", "ConstraintDesign", "Use Starting Offset")
+            obj.StartingOffset = False
+        
+        if not hasattr(obj, "StartingOffsetType"):
+            obj.addProperty("App::PropertyEnumeration", "StartingOffsetType", "ConstraintDesign", "Type of Starting Offset.")
+            obj.StartingOffsetType = startingOffsetTypes
+            obj.StartingOffsetType = "Blind"
+        
+        if not hasattr(obj, "StartingOffsetUpToEntity"):
+            obj.addProperty("App::PropertyString", "StartingOffsetUpToEntity", "ConstraintDesign")
+        
+        if not hasattr(obj, "StartingOffsetLength"):
+            obj.addProperty("App::PropertyFloat", "StartingOffsetLength", "ConstraintDesign")
     
     def showGui(self, obj, addOldSelection = True, startSelection = []):
         Gui.Control.showDialog(ExtrusionTaskPanel(obj))
@@ -267,34 +378,31 @@ class Extrusion(Entity):
             extrudeLength = 1
 
             print(obj.DimensionType)
-
-            if obj.DimensionType == "Blind":
-                extrudeLength = obj.Length
-            elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
-                boundary, elementName = getElementFromHash(obj, obj.UpToEntity)
-                element = boundary.Shape.getElement(elementName)
-
-                startPoint = sketch.Placement.Base
-                entityPoint = None
-
-                if isinstance(element, Part.Vertex):
-                    entityPoint = element.Point
-                else:
-                    entityPoint = element.CenterOfMass
-
-                vec = entityPoint - startPoint
-
-                extrudeLength = vec.dot(normal)
-            
             print(extrudeLength)
 
             if obj.Symmetric:
-                ZOffset += -extrudeLength / 2
+                if not obj.StartingOffset:
+                    ZOffset += -extrudeLength / 2
+                else:
+                    App.Console.PrintWarning(f"({obj.Label}) Cannot enable symmetry and starting offset in one extrusion!\n")
+                        
+            if obj.StartingOffset:
+                if obj.StartingOffsetType == "Blind":
+                    ZOffset += obj.StartingOffsetLength
+                elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
+                    ZOffset += getDistanceToEntity(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal)
+            
+            offsetVector = normal * ZOffset
+            
+            if obj.DimensionType == "Blind":
+                extrudeLength = obj.Length
+            elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
+                extrudeLength = getDistanceToEntity(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
+
             
             print("ZOffset: " + str(ZOffset))
 
             extrudeVector = normal * extrudeLength
-            offsetVector = normal * ZOffset
 
             extrusion = face.extrude(extrudeVector)
             extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
@@ -499,6 +607,7 @@ class ViewProviderExtrusion:
         return
 
     def setEdit(self, vobj, mode):
+        vobj.Object.Document.openTransaction("EditExtrusion")
         vobj.Object.Proxy.showGui(vobj.Object)
 
         return False

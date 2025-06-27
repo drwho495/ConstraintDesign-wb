@@ -3,6 +3,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 import random
 import string
+import Part
 
 featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive"]
 datumTypes = ["ExposedGeometry"]
@@ -29,6 +30,21 @@ def getParent(obj, parentType):
                 return item
     
     return None
+
+def getDistanceToEntity(feature, stringID, startPoint, normal):
+    boundary, elementName = getElementFromHash(feature, stringID)
+    element = boundary.Shape.getElement(elementName)
+
+    entityPoint = None
+
+    if isinstance(element, Part.Vertex):
+        entityPoint = element.Point
+    else:
+        entityPoint = element.CenterOfMass
+
+    vec = entityPoint - startPoint
+
+    return vec.dot(normal)
 
 def getElementFromHash(activeContainer, fullHash, asList = False):
     """
@@ -70,7 +86,7 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
                     
                     elements.append((boundary, elementName))
                 else:
-                    App.Console.PrintError("Hash: " + str(hash) + " cannot be found in " + feature.Label)
+                    App.Console.PrintError(f"Hash: {str(hash)} cannot be found in {feature.Label}\n")
             else:
                 App.Console.PrintError("Feature has no ElementMap!\nPlease report this!\n")
     
