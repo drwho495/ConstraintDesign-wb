@@ -8,23 +8,21 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection, getElementFromHash
+from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection, getElementFromHash, makeBoundaryCompound
 from Commands.SketchUtils import positionSketch
-from Entities.Entity import Entity
+from Entities.Feature import Feature
 
-class PartMirror(Entity):
+class PartMirror(Feature):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
         
     def updateProps(self, obj):
+        super(PartMirror, self).updateProps(obj)
+
         if not hasattr(obj, "Boundary"):
             obj.addProperty("App::PropertyXLink", "Boundary", "ConstraintDesign")
             obj.setEditorMode("Boundary", 3)
-        
-        if not hasattr(obj, "Suppressed"):
-            obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
-            obj.Suppressed = False
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyXLink", "Support", "ConstraintDesign", "Part container to Mirror")
@@ -41,10 +39,6 @@ class PartMirror(Entity):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "PartMirror"
         
-        if not hasattr(obj, "ElementMap"):
-            obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")
-            obj.ElementMap = "{}"
-
         if not hasattr(obj, "PlaneType"):
             obj.addProperty("App::PropertyString", "PlaneType", "ConstraintDesign", "The type of plane to mirror about.")
             obj.PlaneType = "None"
@@ -163,7 +157,9 @@ class PartMirror(Entity):
                 normal = face.normalAt(0, 0)
                 print(normal)
 
-                datumShape, elementMap = obj.Support.Proxy.getBoundariesCompound(obj.Support, True, obj.Boundary.Name)
+                features = obj.Support.Proxy.getGroup(obj.Support, False)
+
+                datumShape, elementMap = makeBoundaryCompound(features, True, obj.Boundary.Name)
                 datumShape = datumShape.mirror(planeCenter, normal)
                 newShape = tip.Shape.mirror(planeCenter, normal)
 
@@ -172,14 +168,15 @@ class PartMirror(Entity):
                 print("tip none")
                 
         obj.Boundary.Shape = datumShape
-        obj.Shape = newShape
         obj.Boundary.ViewObject.LineWidth = 2
         obj.ViewObject.LineWidth = 1
-
         obj.Boundary.purgeTouched()
+        obj.IndividualShape = newShape.copy()
 
         if not prevShape.isNull():
             newShape = Part.Compound([prevShape, newShape])
+        
+        obj.Shape = newShape
 
         return newShape
 

@@ -10,7 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
 from Utils import isType, getDistanceToEntity, generateHashName
-from Entities.Entity import Entity
+from Entities.Feature import Feature
 from PySide import QtWidgets
 from GuiUtils import SelectorWidget
 import copy
@@ -75,6 +75,7 @@ class ExtrusionTaskPanel:
         self.oldStartingOffsetType = obj.StartingOffsetType
         self.oldStartingOffsetEnabled = obj.StartingOffset
         self.oldStartingOffsetLength = obj.StartingOffsetLength
+        self.oldStartingOffsetUTE = obj.StartingOffsetUpToEntity
 
         self.sOffestBlindWidget = self.createSOffsetBlind()
         self.sOffsetSelectorWidget = self.createSOffsetUTE()
@@ -143,7 +144,6 @@ class ExtrusionTaskPanel:
         self.blindDimensionRow.addWidget(self.blindInput)
         self.blindDimensionRow.addStretch()
 
-
         widget.setLayout(self.blindDimensionRow)
 
         return widget
@@ -175,6 +175,10 @@ class ExtrusionTaskPanel:
                 self.sOffestBlindWidget.hide()
                 self.sOffsetSelectorWidget.show()
                 self.sOffsetSelectorWidget.toggleSelections(True)
+        else:
+            self.sOffestBlindWidget.hide()
+            self.sOffsetSelectorWidget.hide()
+            self.sOffsetSelectorWidget.toggleSelections(False)
     
     def updateGuiDimensionType(self):
         if self.extrusion.DimensionType == "Blind":
@@ -227,6 +231,10 @@ class ExtrusionTaskPanel:
             self.extrusion.UpToEntity = self.oldUpToEntity
 
         self.extrusion.DimensionType = self.oldType
+        self.extrusion.StartingOffset = self.oldStartingOffsetEnabled
+        self.extrusion.StartingOffsetType = self.oldStartingOffsetType
+        self.extrusion.StartingOffsetLength = self.oldStartingOffsetLength
+        self.extrusion.StartingOffsetUpToEntity = self.oldStartingOffsetUTE
 
         self.container.recompute()
 
@@ -244,19 +252,17 @@ class ExtrusionTaskPanel:
     def IsModal(self):
         return False
 
-class Extrusion(Entity):
+class Extrusion(Feature):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
         
     def updateProps(self, obj):
+        super(Extrusion, self).updateProps(obj)
+
         if not hasattr(obj, "WiresDatum"):
             obj.addProperty("App::PropertyXLink", "WiresDatum", "ConstraintDesign")
             obj.setEditorMode("WiresDatum", 3)
-        
-        if not hasattr(obj, "Suppressed"):
-            obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
-            obj.Suppressed = False
         
         if not hasattr(obj, "SketchProjection"):
             obj.addProperty("App::PropertyXLink", "SketchProjection", "ConstraintDesign")
@@ -273,18 +279,10 @@ class Extrusion(Entity):
             obj.addProperty("App::PropertyEnumeration", "DimensionType", "ConstraintDesign", "Determines the type of dimension that controls the length of extrusion.")
             obj.DimensionType = dimensionTypes
             obj.DimensionType = "Blind"
-        
-        if not hasattr(obj, "ElementMap"):
-            obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")
-            obj.ElementMap = "{}"
 
         if not hasattr(obj, "Symmetric"):
             obj.addProperty("App::PropertyBool", "Symmetric", "ConstraintDesign", "Determines if this extrusion will be symmetric to the extrusion plane.")
             obj.Symmetric = False
-
-        if not hasattr(obj, "Remove"):
-            obj.addProperty("App::PropertyBool", "Remove", "ConstraintDesign", "Determines the type of boolean operation to perform.")
-            obj.Remove = False
         
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
@@ -312,7 +310,7 @@ class Extrusion(Entity):
         if not hasattr(obj, "StartingOffsetLength"):
             obj.addProperty("App::PropertyFloat", "StartingOffsetLength", "ConstraintDesign")
     
-    def showGui(self, obj, addOldSelection = True, startSelection = []):
+    def showGui(self, obj):
         Gui.Control.showDialog(ExtrusionTaskPanel(obj))
 
     def setDatums(self, obj, wiresDatum, sketchProjection):
@@ -404,6 +402,8 @@ class Extrusion(Entity):
 
             extrusion = face.extrude(extrudeVector)
             extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
+
+            obj.IndividualShape = extrusion.copy()
 
             if not prevShape.isNull():
                 if obj.Remove:
@@ -689,6 +689,8 @@ def makeExtrusion():
 
             activeObject.Proxy.addObject(activeObject, obj, True)
             activeObject.Proxy.setTip(activeObject, obj)
+
+            obj.Proxy.showGui(obj)
         else:
             App.Console.PrintError("Selected object is not a sketch!\n")
     else:

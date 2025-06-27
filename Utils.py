@@ -5,7 +5,8 @@ import random
 import string
 import Part
 
-featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive"]
+featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern"]
+dressupTypes = ["Fillet", "Countersink", "Chamfer"]
 datumTypes = ["ExposedGeometry"]
 boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
 
@@ -197,3 +198,73 @@ def getObjectsFromScope(activeContainer, hashName):
     elementName = scopeArray[scopeLen - 1]
 
     return document, container, feature, elementName
+
+def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
+    """
+        This method makes a Part.Compound out of all of all the selected boundaries
+
+        `features` sets which to find the necessary boundaries to compound
+        `generateElementMap` creates (and returns) and elementMap with the boundaries
+        `boundaryName` is necessary to generate an element map, it is the name of the boundary in which this compound will be set to
+    """
+
+    boundaryArray = []
+    elementMap = {}
+    newEdgeNum = 0
+    newVertexNum = 0
+    edgeIndex = 0
+    vertexIndex = 0
+
+    for item in features:
+        if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
+            boundaries = []
+
+            if generateElementMap:
+                boundaries = item.Proxy.getBoundaries(item, False)
+            else:
+                boundaries = item.Proxy.getBoundaries(item, True)
+
+            if generateElementMap and boundaryName != "" and hasattr(item, "ElementMap"):
+                itemElementMap = json.loads(item.ElementMap)
+                
+                for boundary in boundaries:
+                    boundaryArray.append(boundary.Shape)
+                
+                    for hash, value in itemElementMap.items():
+                        elementArray = value["Element"].split(".")
+                        featureName = elementArray[0]
+                        elementName = elementArray[1]
+
+                        if featureName == boundary.Name:
+                            if elementName.startswith("Edge"):
+                                elementNum = int(elementName[4:])
+                                elementNum += edgeIndex
+                                elementName = "Edge" + str(elementNum)
+                            elif elementName.startswith("Vertex"):
+                                elementNum = int(elementName[6:])
+                                elementNum += vertexIndex
+                                elementName = "Vertex" + str(elementNum)
+
+                            value["Element"] = boundaryName + "." + elementName
+                            elementMap[hash] = value
+                    
+                    edgeIndex += len(boundary.Shape.Edges) + 0
+                    vertexIndex += len(boundary.Shape.Vertexes) + 0
+            # print(elementMap)        
+        else: 
+            print(item.Label)
+            # boundaryArray.extend(boundaries)
+        
+        print("edge index: " + str(edgeIndex))
+        print("vertex index: " + str(vertexIndex))
+
+        edgeIndex += newEdgeNum
+        vertexIndex += newVertexNum
+
+    
+    print("array: " + str(boundaryArray))
+    
+    if generateElementMap:
+        return Part.Compound(boundaryArray), elementMap
+    else:
+        return Part.Compound(boundaryArray)

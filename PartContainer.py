@@ -89,69 +89,69 @@ class PartContainer:
                 obj.Tip = group[len(group) - 1]
             #obj.Tip.Visibility = True
 
-    # Format {"HashName": {"Element:" edge, "GeoId", sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
-    def getBoundariesCompound(self, obj, generateElementMap = False, elementMapFeatureName = ""):
-        boundaryArray = []
-        elementMap = {}
-        newEdgeNum = 0
-        newVertexNum = 0
-        edgeIndex = 0
-        vertexIndex = 0
-        group = self.getGroup(obj, False)
+    # # Format {"HashName": {"Element:" edge, "GeoId", sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
+    # def getBoundariesCompound(self, obj, generateElementMap = False, elementMapFeatureName = ""):
+    #     boundaryArray = []
+    #     elementMap = {}
+    #     newEdgeNum = 0
+    #     newVertexNum = 0
+    #     edgeIndex = 0
+    #     vertexIndex = 0
+    #     group = self.getGroup(obj, False)
 
-        for item in group:
-            if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
-                boundaries = []
+    #     for item in group:
+    #         if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
+    #             boundaries = []
 
-                if generateElementMap:
-                    boundaries = item.Proxy.getBoundaries(item, False)
-                else:
-                    boundaries = item.Proxy.getBoundaries(item, True)
+    #             if generateElementMap:
+    #                 boundaries = item.Proxy.getBoundaries(item, False)
+    #             else:
+    #                 boundaries = item.Proxy.getBoundaries(item, True)
 
-                if generateElementMap and elementMapFeatureName != "" and hasattr(item, "ElementMap"):
-                    itemElementMap = json.loads(item.ElementMap)
+    #             if generateElementMap and elementMapFeatureName != "" and hasattr(item, "ElementMap"):
+    #                 itemElementMap = json.loads(item.ElementMap)
                     
-                    for boundary in boundaries:
-                        boundaryArray.append(boundary.Shape)
+    #                 for boundary in boundaries:
+    #                     boundaryArray.append(boundary.Shape)
                     
-                        for hash, value in itemElementMap.items():
-                            elementArray = value["Element"].split(".")
-                            featureName = elementArray[0]
-                            elementName = elementArray[1]
+    #                     for hash, value in itemElementMap.items():
+    #                         elementArray = value["Element"].split(".")
+    #                         featureName = elementArray[0]
+    #                         elementName = elementArray[1]
 
-                            if featureName == boundary.Name:
-                                if elementName.startswith("Edge"):
-                                    elementNum = int(elementName[4:])
-                                    elementNum += edgeIndex
-                                    elementName = "Edge" + str(elementNum)
-                                elif elementName.startswith("Vertex"):
-                                    elementNum = int(elementName[6:])
-                                    elementNum += vertexIndex
-                                    elementName = "Vertex" + str(elementNum)
+    #                         if featureName == boundary.Name:
+    #                             if elementName.startswith("Edge"):
+    #                                 elementNum = int(elementName[4:])
+    #                                 elementNum += edgeIndex
+    #                                 elementName = "Edge" + str(elementNum)
+    #                             elif elementName.startswith("Vertex"):
+    #                                 elementNum = int(elementName[6:])
+    #                                 elementNum += vertexIndex
+    #                                 elementName = "Vertex" + str(elementNum)
 
-                                value["Element"] = elementMapFeatureName + "." + elementName
-                                elementMap[hash] = value
+    #                             value["Element"] = elementMapFeatureName + "." + elementName
+    #                             elementMap[hash] = value
                         
-                        edgeIndex += len(boundary.Shape.Edges) + 0
-                        vertexIndex += len(boundary.Shape.Vertexes) + 0
-                # print(elementMap)        
-            else: 
-                print(item.Label)
-                # boundaryArray.extend(boundaries)
+    #                     edgeIndex += len(boundary.Shape.Edges) + 0
+    #                     vertexIndex += len(boundary.Shape.Vertexes) + 0
+    #             # print(elementMap)        
+    #         else: 
+    #             print(item.Label)
+    #             # boundaryArray.extend(boundaries)
             
-            print("edge index: " + str(edgeIndex))
-            print("vertex index: " + str(vertexIndex))
+    #         print("edge index: " + str(edgeIndex))
+    #         print("vertex index: " + str(vertexIndex))
 
-            edgeIndex += newEdgeNum
-            vertexIndex += newVertexNum
+    #         edgeIndex += newEdgeNum
+    #         vertexIndex += newVertexNum
 
         
-        print("array: " + str(boundaryArray))
+    #     print("array: " + str(boundaryArray))
         
-        if generateElementMap:
-            return Part.Compound(boundaryArray), elementMap
-        else:
-            return Part.Compound(boundaryArray)
+    #     if generateElementMap:
+    #         return Part.Compound(boundaryArray), elementMap
+    #     else:
+    #         return Part.Compound(boundaryArray)
     
     def recalculateShapes(self, obj, startObj = None):
         prevShape = Part.Shape()

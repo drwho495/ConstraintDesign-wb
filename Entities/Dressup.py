@@ -9,7 +9,7 @@ from Utils import getIDsFromSelection, getElementFromHash, generateHashName, get
 from GuiUtils import SelectorWidget
 from PySide import QtWidgets
 import json
-from Entities.Entity import Entity
+from Entities.Feature import Feature
 
 dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
 
@@ -158,15 +158,39 @@ class DressupTaskPanel:
     def IsModal(self):
         return False
 
-class FeatureDressup(Entity):
+class FeatureDressup(Feature):
     def __init__(self, obj, dressupType):
         obj.Proxy = self
         self.updateProps(obj, dressupType)
     
     def showGui(self, obj, addOldSelection = True, startSelection = []):
         Gui.Control.showDialog(DressupTaskPanel(obj, addOldSelection, startSelection))
+    
+    def getIndividualShapes(self, obj):
+        if obj.DressupType == 2:
+            if hasattr(obj, "IndividualShape"):
+                return {0: {"Shape": obj.IndividualShape, "Remove": True}}
+            else:
+                return {}
+        else:
+            container = self.getContainer(obj)
+            features = container.Proxy.getGroup(container, False, True)
+            index = features.index(obj)
+            prevShape = features[index - 1].Shape
+            
+            removeShape = prevShape.cut(obj.Shape)
+            addShape = obj.Shape.cut(prevShape)
+
+            return {0: {"Shape": removeShape, "Remove": True}, 1: {"Shape": addShape, "Remove": False}}
 
     def updateProps(self, obj, dressupType = 0):
+        hasIndividualShape = False
+
+        if dressupType == 2:
+            hasIndividualShape = True
+
+        super(FeatureDressup, self).updateProps(obj, hasIndividualShape, False)
+
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
         
@@ -175,10 +199,6 @@ class FeatureDressup(Entity):
             obj.DressupType = dressupType
             obj.setEditorMode("DressupType", 3)
         
-        if not hasattr(obj, "Suppressed"):
-            obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
-            obj.Suppressed = False
-
         if hasattr(obj, "DressupType") and obj.DressupType == 0:
             obj.Type = "Fillet"
 
@@ -212,10 +232,6 @@ class FeatureDressup(Entity):
             if not hasattr(obj, "Group"):
                 obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group of this dressup")
 
-            if not hasattr(obj, "ElementMap"):
-                obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "Element map of this dressup")
-                obj.ElementMap = "{}"
-        
         if not hasattr(obj, "Edges"):
             obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
     
@@ -263,6 +279,14 @@ class FeatureDressup(Entity):
         identifiers = []
         skipHashes = []
 
+        self.updateProps(obj, obj.DressupType)
+
+        if hasattr(obj, "Boundary") and obj.Boundary == None:
+            boundary = makeBoundary(obj.Document)
+
+            container.Proxy.addObject(container, boundary, False) # needed for global placement
+            obj.Boundary = boundary
+
         if container == None:
             App.Console.PrintError(obj.Label + " is unable to find parent container!")
 
@@ -290,12 +314,22 @@ class FeatureDressup(Entity):
                                 correctEdge = True
                             else:
                                 try:
-                                    intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                                    if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
+                                        correctEdge = False
+                                    else:
+                                        print("run intersection test")
+                                        try:
+                                            intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                                        except:
+                                            intersectionPoints = -1
+                                        
+                                        if intersectionPoints > 2 or intersectionPoints == -1:
+                                            correctEdge = True
                                 except:
-                                    intersectionPoints = -1
+                                    correctEdge = False
                             
                             try:
-                                if correctEdge or (intersectionPoints > 2 or intersectionPoints == -1) and edge.Curve.TypeId == datumEdge.Curve.TypeId:
+                                if correctEdge:
                                     # elementsToDressup.append(edge)
                                     print(stringID)
                                     _, _, _, singleID = getObjectsFromScope(container, stringID)
@@ -329,7 +363,7 @@ class FeatureDressup(Entity):
                         # the cone each time.
                         forwardCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
                         reversedCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
-                        cutCompound = []
+                        cutCompoundArray = []
                         map = json.loads(obj.ElementMap)
                         boundaryShape = Part.Shape()
 
@@ -386,10 +420,10 @@ class FeatureDressup(Entity):
 
                                 if forward:
                                     forwardCone.Placement = placement
-                                    cutCompound.append(forwardCone.copy())
+                                    cutCompoundArray.append(forwardCone.copy())
                                 else:
                                     reversedCone.Placement = placement
-                                    cutCompound.append(reversedCone.copy())
+                                    cutCompoundArray.append(reversedCone.copy())
                             else:
                                 print("edge is not a circle")
 
@@ -399,7 +433,9 @@ class FeatureDressup(Entity):
                         
                         obj.Boundary.Shape = boundaryShape
                         obj.ElementMap = json.dumps(map)
-                        dressupShape = prevShape.cut(Part.Compound(cutCompound))
+                        cutCompound = Part.Compound(cutCompoundArray)
+                        obj.IndividualShape = cutCompound.copy()
+                        dressupShape = prevShape.cut(cutCompound)
 
                         obj.Boundary.purgeTouched()
                     except Exception as e:
@@ -415,7 +451,13 @@ class FeatureDressup(Entity):
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
     def getBoundaries(self, obj, isShape=False):
-        return []
+        if hasattr(obj, "Boundary"):
+            if isShape:
+                return [obj.Boundary.Shape]
+            else:
+                return [obj.Boundary]
+        else:
+            return []
 
     def execute(self, obj):
         self.updateProps(obj)
@@ -522,7 +564,7 @@ class ViewProviderDressup:
             """
     
     def claimChildren(self):
-        if hasattr(self, "Object") and self.Object.Object.DressupType == 2:
+        if hasattr(self, "Object") and hasattr(self.Object.Object, "Group") and self.Object.Object.DressupType == 2:
             if len(self.Object.Object.Group) == 0:
                 self.Object.Object.Group = [self.Object.Object.Boundary]
                 
@@ -540,6 +582,13 @@ class ViewProviderDressup:
         # Called when restoring
         return None
 
+def makeBoundary(document):
+    boundary = document.addObject("Part::Feature", "Boundary")
+    boundary.addProperty("App::PropertyString", "Type")
+    boundary.Type = "Boundary"
+
+    return boundary
+
 """ Method to create a FeatureDressup. """
 def makeDressup(dressupType):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
@@ -556,9 +605,7 @@ def makeDressup(dressupType):
         elif dressupType == 2:
             name = "Countersink"
 
-            boundary = doc.addObject("Part::Feature", "Boundary")
-            boundary.addProperty("App::PropertyString", "Type")
-            boundary.Type = "Boundary"
+            boundary = makeBoundary(doc)
 
         obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
         FeatureDressup(obj, dressupType)

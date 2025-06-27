@@ -2,8 +2,10 @@ from pivy import coin
 import FreeCADGui as Gui
 import FreeCAD as App
 
+# todo: add to preferences!
 gridSpacing = 30
 gridExtent = 10_000
+showGrid = True
 
 grids = []
 
@@ -19,6 +21,11 @@ class Grid:
                 self.sceneGraph = Gui.getDocument(self.document.Name).ActiveView.getSceneGraph()
             
             self.sceneGraph.addChild(self.gridRoot)
+    
+    def hideGrid(self):
+        if self.gridRoot != None:
+            if self.sceneGraph == None:
+                self.sceneGraph.removeChild(self.gridRoot)
 
     def createGrid(self):
         internalExtent = round(gridExtent/gridSpacing)*gridSpacing
@@ -87,7 +94,7 @@ class Grid:
 
         points = []
         numVerts = []
-        for i in range(-internalExtent, internalExtent, 10):
+        for i in range(-internalExtent, internalExtent, gridSpacing):
             points.append(coin.SbVec3f(-internalExtent, i, 0))
             points.append(coin.SbVec3f(internalExtent, i, 0))
             numVerts.append(2)
@@ -101,7 +108,10 @@ class Grid:
 
         return self.gridRoot
 
-def addGrid(document):
+def addGrid(document, showOveride=False):
+    if not showOveride and not showGrid:
+        return False
+
     for grid in grids:
         if grid.document.Name == document.Name:
             return False
@@ -114,8 +124,27 @@ def addGrid(document):
 
     return True
 
+def hideAllGrids():
+    for grid in grids:
+        try:
+            grid.hideGrid()
+        except:
+            print("hiding grid failed")
+
+def showAllGrids():
+    for grid in grids:
+        try:
+            grid.showGrid()
+        except:
+            print("showing grid failed")
+
 def removeDocument(document):
     for grid in grids:
+        try:
+            grid.hideGrid()
+        except:
+            pass
+
         if grid.document.Name == document.Name:
             grids.remove(grid)
             break

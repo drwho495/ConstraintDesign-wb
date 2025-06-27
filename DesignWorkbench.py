@@ -3,6 +3,7 @@ import sys
 import locater
 from Commands.CreatePartContainer import CreatePartContainer  # Add this import
 from Commands.CreateExtrusion import CreateExtrusion
+from Commands.CreateLinearPattern import CreateLinearPattern
 from Commands.CreatePartMirror import CreatePartMirror
 from Commands.CreateFillet import CreateFillet
 from Commands.CreateChamfer import CreateChamfer
@@ -43,6 +44,8 @@ class ConstraintDesign(Gui.Workbench):
 
     commands = [
     ]
+    def __init__(self):
+        self.documentObserver = None
 
     def GetClassName(self):
         return "Gui::PythonWorkbench"
@@ -60,6 +63,7 @@ class ConstraintDesign(Gui.Workbench):
             'CreateExtrusion',
             'CreatePartMirror',
             'CreateDerive',
+            'CreateLinearPattern',
         ]
 
         dressupCommands = [
@@ -102,12 +106,17 @@ class ConstraintDesign(Gui.Workbench):
         self.appendMenu("Datum Commands", datumCommands)
 
     def Activated(self):
+        GridManager.showAllGrids()
+
         if App.ActiveDocument != None:
             GridManager.addGrid(App.ActiveDocument)
 
-        documentObserver = GridDocumentObserver()
+        self.documentObserver = GridDocumentObserver()
 
-        App.addDocumentObserver(documentObserver)
+        App.addDocumentObserver(self.documentObserver)
 
     def Deactivated(self):
-        pass
+        if self.documentObserver != None:
+            App.removeDocumentObserver(self.documentObserver)
+        
+        GridManager.hideAllGrids()
