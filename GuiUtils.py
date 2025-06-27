@@ -119,8 +119,6 @@ class SelectorWidget(QtWidgets.QWidget):
             else:
                 entry = f"{sel}{hashToElementSplitStr}{missingStr}"
 
-            print(entry)
-
             try:
                 if self.sizeLimit != -1 and self.sizeLimit <= self.listWidget.count():
                     continue
@@ -171,8 +169,6 @@ class SelectorWidget(QtWidgets.QWidget):
             if initialLen != self.listWidget.count():
                 self.hashList.append(sel)
 
-            print(f"new entry: {entry}")
-
             item = None
             entry = None
 
@@ -193,8 +189,6 @@ class SelectorWidget(QtWidgets.QWidget):
     def removeItem(self, entry):
         initialLen = self.listWidget.count()
 
-        print(entry)
-
         hash = entry.split(hashToElementSplitStr)[0]
 
         if hash == self.preselected:
@@ -206,8 +200,6 @@ class SelectorWidget(QtWidgets.QWidget):
 
         if initialLen != self.listWidget.count():
             self.hashList.pop(row)
-
-        print(self.hashList)
 
         self.updateBoxSize()
         self.emitSelection()
@@ -231,15 +223,24 @@ class SelectorWidget(QtWidgets.QWidget):
         self.listWidget.deleteLater()
         self.clearButton.deleteLater()
 
-        Gui.Selection.removeObserver(self._observer)
+        self._observer.cleanup()
 
 
 class _SelectorWidgetObserver:
     def __init__(self, widget):
         self.widget = widget
+        self.stop = False
         Gui.Selection.addObserver(self)
+    
+    def cleanup(self):
+        Gui.Selection.removeObserver(self)
+
+        self.stop = True
 
     def addSelection(self, _, _2, _3, _4):
+        if self.stop:
+            return
+
         if self.widget:
             self.widget.addSelection(Gui.Selection.getCompleteSelection())
 

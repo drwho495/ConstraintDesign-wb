@@ -22,8 +22,6 @@ def getParent(obj, parentType):
     elif type(parentType) == list:
         typeLs = parentType
     
-    print(typeLs)
-
     if hasattr(obj, "InList"):
         for item in obj.InList:
             if hasattr(item, "Type") and item.Type in typeLs and hasattr(item, "Group") and obj in item.Group:
@@ -136,13 +134,8 @@ def getStringID(activeContainer, element, fullScope=False):
 
             if map != None:
                 for hash, value in map.items():
-                    print(boundary.Name + "." + elementName)
-                    print(value["Element"])
-
                     if value["Element"] == boundary.Name + "." + elementName:
                         return scopeStart + feature.Name + "." + hash
-        else:
-            print("no map")
 
 def generateHashName(map):
         keys = map.keys()

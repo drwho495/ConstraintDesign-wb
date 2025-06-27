@@ -58,10 +58,13 @@ class ExtrusionTaskPanel:
         self.dimensionTypeComboLayout.addWidget(self.dimensionTypeCombo)
         self.layout.addLayout(self.dimensionTypeComboLayout)
 
-        self.createBlindDimension()
-        self.createUTEDimension()
+        self.blindDimensionWidget = self.createBlindDimension()
+        self.selectorWidget = self.createUTEDimension()
         self.updateGuiDimensionType()
+
         self.dimensionTypeCombo.currentIndexChanged.connect(self.dimensionTypeChanged)
+        self.layout.addWidget(self.selectorWidget)
+        self.layout.addWidget(self.blindDimensionWidget)
 
         # Starting offset section start
         self.startingOffsetLayout = QtWidgets.QVBoxLayout()
@@ -75,7 +78,6 @@ class ExtrusionTaskPanel:
 
         self.sOffestBlindWidget = self.createSOffsetBlind()
         self.sOffsetSelectorWidget = self.createSOffsetUTE()
-        self.createUTEDimension()
 
         self.startingOffsetComboRow.addWidget(self.offsetLabel)
         self.startingOffsetComboRow.addWidget(self.startOffsetCombo)
@@ -98,8 +100,6 @@ class ExtrusionTaskPanel:
         
         self.updateGuiStartingOffset()
         # Starting offset section end
-
-        print(self.extrusion.DimensionType)
     
     def createSOffsetUTE(self):
         widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
@@ -123,13 +123,13 @@ class ExtrusionTaskPanel:
         return self.sOffestBlindWidget
     
     def createUTEDimension(self):
-        self.selectorWidget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
-        self.layout.addWidget(self.selectorWidget)
+        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+        return widget
 
     def createBlindDimension(self):
         self.oldLength = self.extrusion.Length
 
-        self.blindDimensionWidget = QtWidgets.QWidget()
+        widget = QtWidgets.QWidget()
         self.blindDimensionRow = QtWidgets.QHBoxLayout()
         self.blindLabel = QtWidgets.QLabel("Length:")
         self.blindInput = QtWidgets.QDoubleSpinBox()
@@ -143,8 +143,10 @@ class ExtrusionTaskPanel:
         self.blindDimensionRow.addWidget(self.blindInput)
         self.blindDimensionRow.addStretch()
 
-        self.blindDimensionWidget.setLayout(self.blindDimensionRow)
-        self.layout.addWidget(self.blindDimensionWidget)
+
+        widget.setLayout(self.blindDimensionRow)
+
+        return widget
     
     def offsetTypeChanged(self, index):
         newType = self.startOffsetCombo.itemData(index)
@@ -213,8 +215,9 @@ class ExtrusionTaskPanel:
     def accept(self):
         self.update()
 
-        if self.selectorWidget != None:
-            self.selectorWidget.cleanup()
+        self.selectorWidget.cleanup()
+        self.sOffsetSelectorWidget.cleanup()
+
         Gui.Control.closeDialog()
 
     def reject(self):
@@ -226,8 +229,10 @@ class ExtrusionTaskPanel:
         self.extrusion.DimensionType = self.oldType
 
         self.container.recompute()
-        if self.selectorWidget != None:
-            self.selectorWidget.cleanup()
+
+        self.selectorWidget.cleanup()
+        self.sOffsetSelectorWidget.cleanup()
+
         Gui.Control.closeDialog()
 
     def getStandardButtons(self):
@@ -322,8 +327,6 @@ class Extrusion(Entity):
             group = obj.Group
             group.append(newObj)
 
-            print("add " + newObj.Label)
-
             obj.Group = group
     
     def getBoundaries(self, obj, isShape=False):
@@ -377,9 +380,6 @@ class Extrusion(Entity):
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))
             extrudeLength = 1
 
-            print(obj.DimensionType)
-            print(extrudeLength)
-
             if obj.Symmetric:
                 if not obj.StartingOffset:
                     ZOffset += -extrudeLength / 2
@@ -400,8 +400,6 @@ class Extrusion(Entity):
                 extrudeLength = getDistanceToEntity(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
 
             
-            print("ZOffset: " + str(ZOffset))
-
             extrudeVector = normal * extrudeLength
 
             extrusion = face.extrude(extrudeVector)
@@ -514,18 +512,9 @@ class Extrusion(Entity):
 
                     element = (obj.SketchProjection, geoType + str(sketchIndexVertices))
                 
-                print(projElement[1])
-                print(element[1])
-                print(geoFacade.Id)
-                
-                print("ProjElement: " + projElement[0].Label + "." + projElement[1])
-                print("Element: " + element[0].Label + "." + element[1])
-
                 newShape = geoShape.copy()
                 newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base + extrudeVector)) + offsetVector
                 newShape.Placement.Rotation = sketch.Placement.Rotation
-
-                print(sketch.Placement.Rotation)
 
                 obj.SketchProjection.Shape = Part.Compound([obj.SketchProjection.Shape, newShape])
 

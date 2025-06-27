@@ -12,6 +12,8 @@ from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.SketchUtils import CreateSketch, CreateExternalGeo
 from GuiUtils import SelectorWidget
+import Grid.GridManager as GridManager
+from DesignWorkbench import ConstraintDesign
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
 
@@ -72,79 +74,6 @@ if sys.version_info[0] == 3 and sys.version_info[1] >= 11:
             )
         )
 
-class ConstraintDesign(Workbench):
-    global __dirname__
 
-    MenuText = App.Qt.translate("Workbench", "Constraint Design")
-    ToolTip = App.Qt.translate("Workbench", "Constraint Design Workbench")
-    Icon = os.path.join(__dirname__, "icons", "ConstraintPart.svg")
-
-    App.Console.PrintLog(Icon)
-
-    commands = [
-    ]
-
-    def GetClassName(self):
-        return "Gui::PythonWorkbench"
-
-    def Initialize(self):
-        """
-        Initialize the workbench commands
-        """
-        # List the commands to be added to the workbench
-        mainCommands = [
-            'CreatePartContainer'
-        ]
-
-        featureCommands = [
-            'CreateExtrusion',
-            'CreatePartMirror',
-            'CreateDerive',
-        ]
-
-        dressupCommands = [
-            'CreateFillet',
-            'CreateChamfer',
-            'CreateCountersink'
-        ]
-
-        treeCommands = [
-            "MoveDesignObjectUp",
-            "MoveDesignObjectDown"
-        ]
-
-        sketchUtils = [
-            'CreateExternalGeo',
-            'CreateSketch'
-        ]
-
-        datumCommands = [
-            'CreateExposedGeo'
-        ]
-        
-        # Register the commands
-        self.appendToolbar("Part Container", mainCommands)
-        self.appendMenu("Part Container", mainCommands)
-
-        self.appendToolbar("Features", featureCommands)
-        self.appendMenu("Features", featureCommands)
-
-        self.appendToolbar("Dressups", dressupCommands)
-        self.appendMenu("Dressups", dressupCommands)
-
-        self.appendToolbar("Tree Commands", treeCommands)
-        self.appendMenu("Tree Commands", treeCommands)
-
-        self.appendToolbar("Sketcher Utilities", sketchUtils)
-        self.appendMenu("Sketcher Utilities", sketchUtils)
-
-        self.appendToolbar("Datum Commands", datumCommands)
-        self.appendMenu("Datum Commands", datumCommands)
-
-    def Activated(self):
-        pass
-
-    def Deactivated(self):
-        pass
 
 Gui.addWorkbench(ConstraintDesign())
