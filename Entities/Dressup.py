@@ -145,7 +145,7 @@ class DressupTaskPanel:
             self.dressup.Diameter = self.oldDiameter
             self.dressup.Angle = self.oldAngle
 
-        self.container.recompute()
+        # self.container.recompute()
         self.selector.cleanup()
         Gui.Control.closeDialog()
 

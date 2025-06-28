@@ -5,10 +5,19 @@ import random
 import string
 import Part
 
-featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern"]
+featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern", "Loft"]
 dressupTypes = ["Fillet", "Countersink", "Chamfer"]
 datumTypes = ["ExposedGeometry"]
 boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
+
+# will add many more test cases; this is only used in one area as of right now (will be used more later)
+def getDependencies(obj, activeContainer):
+    if isType(obj, "ExposedGeometry"):
+        _, _, feature, _ = getObjectsFromScope(activeContainer, obj.Support)
+
+        return [feature.Name]
+    else:
+        return []
 
 def isType(obj, typeObj):
     if type(typeObj) == str:
@@ -30,7 +39,11 @@ def getParent(obj, parentType):
     
     return None
 
-def getDistanceToEntity(feature, stringID, startPoint, normal):
+def getP2PDistanceAlongNormal(startPoint, endPoint, normal):
+    vec = endPoint - startPoint
+    return vec.dot(normal)
+
+def getDistanceToElement(feature, stringID, startPoint, normal):
     boundary, elementName = getElementFromHash(feature, stringID)
     element = boundary.Shape.getElement(elementName)
 
@@ -41,9 +54,7 @@ def getDistanceToEntity(feature, stringID, startPoint, normal):
     else:
         entityPoint = element.CenterOfMass
 
-    vec = entityPoint - startPoint
-
-    return vec.dot(normal)
+    return getP2PDistanceAlongNormal(startPoint, entityPoint, normal)
 
 def getElementFromHash(activeContainer, fullHash, asList = False):
     """

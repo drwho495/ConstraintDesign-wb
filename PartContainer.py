@@ -3,7 +3,7 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-from Utils import featureTypes, isType, datumTypes, getParent
+from Utils import featureTypes, isType, datumTypes, getDependencies
 from Commands.SketchUtils import positionSketch
 import json
 
@@ -42,8 +42,15 @@ class PartContainer:
         if customAfterFeature == None or (customAfterFeature != None and customAfterFeature not in group):
             if afterTip and obj.Tip != None and obj.Tip in group:
                 index = group.index(obj.Tip)
+                addIndex = index
 
-                group.insert(index + 1, objToAdd)
+                for i, feature in enumerate(group):
+                    deps = getDependencies(feature, obj)
+
+                    if len(deps) != 0 and obj.Tip.Name in deps:
+                        if i > index: addIndex += 1
+
+                group.insert(addIndex + 1, objToAdd)
             else:
                 group.append(objToAdd)
         elif customAfterFeature != None and customAfterFeature in group:

@@ -9,18 +9,13 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, dressupTypes, getElementFromHash
+from Utils import isType, getP2PDistanceAlongNormal, generateHashName
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from GuiUtils import SelectorWidget
 import copy
 
-dimensionTypes = ["Blind", "UpToEntity"]
-startingOffsetTypes = ["Blind", "UpToEntity"]
-
-# 0 for linear, 1 for circular
-
-class PatternTaskPanel:
+class LoftTaskPanel:
     def __init__(self, obj):
         self.form = QtWidgets.QWidget()
         self.layout = QtWidgets.QVBoxLayout(self.form)
@@ -77,6 +72,7 @@ class PatternTaskPanel:
         self.oldStartingOffsetType = obj.StartingOffsetType
         self.oldStartingOffsetEnabled = obj.StartingOffset
         self.oldStartingOffsetLength = obj.StartingOffsetLength
+        self.oldStartingOffsetUTE = obj.StartingOffsetUpToEntity
 
         self.sOffestBlindWidget = self.createSOffsetBlind()
         self.sOffsetSelectorWidget = self.createSOffsetUTE()
@@ -145,7 +141,6 @@ class PatternTaskPanel:
         self.blindDimensionRow.addWidget(self.blindInput)
         self.blindDimensionRow.addStretch()
 
-
         widget.setLayout(self.blindDimensionRow)
 
         return widget
@@ -177,6 +172,10 @@ class PatternTaskPanel:
                 self.sOffestBlindWidget.hide()
                 self.sOffsetSelectorWidget.show()
                 self.sOffsetSelectorWidget.toggleSelections(True)
+        else:
+            self.sOffestBlindWidget.hide()
+            self.sOffsetSelectorWidget.hide()
+            self.sOffsetSelectorWidget.toggleSelections(False)
     
     def updateGuiDimensionType(self):
         if self.extrusion.DimensionType == "Blind":
@@ -229,8 +228,12 @@ class PatternTaskPanel:
             self.extrusion.UpToEntity = self.oldUpToEntity
 
         self.extrusion.DimensionType = self.oldType
+        self.extrusion.StartingOffset = self.oldStartingOffsetEnabled
+        self.extrusion.StartingOffsetType = self.oldStartingOffsetType
+        self.extrusion.StartingOffsetLength = self.oldStartingOffsetLength
+        self.extrusion.StartingOffsetUpToEntity = self.oldStartingOffsetUTE
 
-        self.container.recompute()
+        # self.container.recompute()
 
         self.selectorWidget.cleanup()
         self.sOffsetSelectorWidget.cleanup()
@@ -246,66 +249,30 @@ class PatternTaskPanel:
     def IsModal(self):
         return False
 
-class Pattern(Feature):
+class Loft(Feature):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
         
-    def updateProps(self, obj, patternType=0):
-        super(Pattern, self).updateProps(obj, hasRemove=False)
+    def updateProps(self, obj):
+        super(Loft, self).updateProps(obj)
 
         if not hasattr(obj, "Boundary"):
             obj.addProperty("App::PropertyXLink", "Boundary", "ConstraintDesign")
             obj.setEditorMode("Boundary", 3)
         
-        if not hasattr(obj, "Features"):
-            obj.addProperty("App::PropertyLinkList", "Features", "ConstraintDesign")
-        
-        if not hasattr(obj, "PatternType"):
-            obj.addProperty("App::PropertyInteger", "PatternType", "ConstraintDesign", "Pattern type.")
-            obj.setEditorMode("PatternType", 3)
-            obj.PatternType = patternType
-        
-        if patternType == 0:
-            if not hasattr(obj, "XAxisCount"):
-                obj.addProperty("App::PropertyInteger", "XAxisCount", "ConstraintDesign", "Number of features propogated along the X axis.")
-                obj.XAxisCount = 2
-            
-            if not hasattr(obj, "XAxisLength"):
-                obj.addProperty("App::PropertyFloat", "XAxisLength", "ConstraintDesign")
-                obj.XAxisLength = 10
-            
-            if not hasattr(obj, "YAxisCount"):
-                obj.addProperty("App::PropertyInteger", "YAxisCount", "ConstraintDesign", "Number of features propogated along the Y axis.")
-                obj.YAxisCount = 2
-            
-            if not hasattr(obj, "YAxisLength"):
-                obj.addProperty("App::PropertyFloat", "YAxisLength", "ConstraintDesign")
-                obj.YAxisLength = 10
-            
-            if not hasattr(obj, "DirectionLine"):
-                obj.addProperty("App::PropertyString", "DirectionLine", "ConstraintDesign")
-        
-        if not hasattr(obj, "Support"):
-            obj.addProperty("App::PropertyXLink", "Support", "ConstraintDesign", "Support object (ex: A sketch)")
+        if not hasattr(obj, "Supports"):
+            obj.addProperty("App::PropertyLinkList", "Supports", "ConstraintDesign", "Support objects (ex: Two sketches)")
         
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
-
-            if obj.PatternType == 0:
-                obj.Type = "LinearPattern"
-            elif obj.PatternType == 1:
-                obj.Type = "CircularPattern"
-
-        if not hasattr(obj, "SkipMerge"):
-            obj.addProperty("App::PropertyBool", "SkipMerge", "ConstraintDesign", "Determines whether to perform boolean operations on the previous shape or not.")
-            obj.SkipMerge = False
+            obj.Type = "Loft"
         
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
         
     def showGui(self, obj):
-        Gui.Control.showDialog(PatternTaskPanel(obj))
+        Gui.Control.showDialog(LoftTaskPanel(obj))
 
     def setBoundary(self, obj, boundary):
         obj.Boundary = boundary
@@ -321,186 +288,203 @@ class Pattern(Feature):
     
     def getBoundaries(self, obj, isShape=False):
         if isShape:
-            return [obj.WiresDatum.Shape, obj.SketchProjection.Shape]
+            return [obj.Boundary.Shape]
         else:
-            return [obj.WiresDatum, obj.SketchProjection]
+            return [obj.Boundary]
         
-    def setSupport(self, obj, support):
-        obj.Support = support
+    def setSupports(self, obj, supports):
+        obj.Supports = supports
 
-        self.addObject(obj, support)
+        for support in supports:
+            self.addObject(obj, support)
     
     def getContainer(self, obj):
-        return super(Pattern, self).getContainer(obj)
+        return super(Loft, self).getContainer(obj)
 
-    # Format {"HashName": {"Element:" edge, "GeoId", "ElType": Vertex/Edge, sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
-    # def updateElement(self, element, id, map, elType, occurrence = 0, featureType = "Sketch"):
-        # hasElement = False
+    def makeIdentifer(self, id = "0:1:2:3:", elementType="Edge", boundaryType="Sketch", supportName="Sketch001"):
+        return f"{str(id)};{elementType};{boundaryType};{supportName}"
 
-        # for key, value in map.items():
-        #     if value["GeoId"] == id and value["Occurrence"] == occurrence and ((value.get("ElType") == None and value["Element"].split(".")[1].startswith(element[1])) or (value.get("ElType") != None and value["ElType"] == elType)) and value["FeatureType"] == featureType:
-        #         map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
-        #         map[key]["ElType"] = elType
+    # Format {"HashName": {"Element:" edge, "Identifier": "GeoId;ElType<V(1/2)>;<Sketch/Wires>;SupportName;"}}
+    def updateElement(self, element, identifier, map):
+        hasElement = False
 
-        #         hasElement = True
+        for key, value in map.items():
+            if value["Identifer"] == identifier:
+                map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
 
-        # if hasElement == False:
-        #     hash = generateHashName(map)
+                print("does have element")
+
+                hasElement = True
+
+        if hasElement == False:
+            hash = generateHashName(map)
+
+            print("doesnt have element")
             
-        #     map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType, "ElType": elType}
+            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Identifer": identifier}
         
-        # return map
+        return map
     
     def generateShape(self, obj, prevShape):
         self.updateProps(obj)
-        finalShape = prevShape.copy()
-        individualShape = Part.Shape()
-        finalIndividualShape = Part.Shape()
-        baseBoundarySh, initialMap = makeBoundaryCompound(obj.Features, True, obj.Boundary.Name)
-        finalMap = {}
-        boundaryCompound = Part.Shape()
-        occurence = 0 # necessary because of X and Y instances
-        numEdges = len(baseBoundarySh.Edges)
-        numVertexes = len(baseBoundarySh.Vertexes)
-        addShape = Part.Shape()
-        removeShape = Part.Shape()
-        finalAddArray = []
-        finalRemoveArray = []
-        directionVector = App.Vector(1, 0, 0)
 
-        if obj.DirectionLine != "":
-            container = self.getContainer(obj)
-            boundary, elementName = getElementFromHash(container, obj.DirectionLine)
+        outerWires = []
+        innerWires = []
 
-            if boundary != None:
-                if elementName != None and elementName != "":
-                    element = boundary.Shape.getElement(elementName)
+        print("run loft")
 
-                    directionVector = element.tangentAt(.5)
-        
-        rot = App.Rotation(App.Vector(1, 0, 0), directionVector)
+        for support in obj.Supports:
+            wires = support.Shape.Wires
 
-        for feature in obj.Features:
-            featureShapes = feature.Proxy.getIndividualShapes(feature)
-
-            for _, v in featureShapes.items():
-                featureShape = v["Shape"].copy()
-                remove = v["Remove"]
-
-                print("add shape")
-
-                if remove:
-                    removeShape = Part.Compound([removeShape, featureShape])
-                else:
-                    addShape = Part.Compound([addShape, featureShape])
-
-                if individualShape.isNull():
-                    individualShape = featureShape
-                    print("set shape")
-                else:
-                    if remove:
-                        individualShape = individualShape.cut(featureShape)
-                        print("cut")
-                    else:
-                        individualShape = individualShape.fuse(featureShape)
-                        print("fuse")
-        
-        print(numEdges)
-        print(numVertexes)
-
-        if obj.PatternType == 0:
-            placementLocations = []
+            if len(wires) == 0:
+                raise Exception(f"{support.Label} needs a closed wire!\n")
             
-            for Yi in range(obj.YAxisCount):
-                y = Yi * obj.YAxisLength
-
-                for Xi in range(obj.XAxisCount):
-                    x = Xi * obj.XAxisLength
-
-                    if x == 0 and y == 0:
-                        continue
-
-                    placementLocations.append(rot.multVec(App.Vector(x, y, 0)))
-
-            for location in placementLocations:
-                print(location)
-
-                newBoundary = baseBoundarySh.copy()
-                newBoundary.Placement.Base = location
-                boundaryCompound = Part.Compound([boundaryCompound, newBoundary])
-
-                newAddShape = addShape.copy()
-                newAddShape.Placement.Base = location
-
-                newRemoveShape = removeShape.copy()
-                newRemoveShape.Placement.Base = location
-
-                if not newAddShape.isNull():
-                    finalAddArray.append(newAddShape)
-                if not newRemoveShape.isNull():
-                    finalRemoveArray.append(newRemoveShape)
-
-
-                # newIndividualShape = individualShape.copy()
-                # newIndividualShape.Placement.Base = location
-                # finalIndividualShape = Part.Compound([finalIndividualShape, newIndividualShape])
-                    
-                for k,v in initialMap.items():
-                    newKey = f"{k}:;{str(occurence)}"
-                    elementNumber = 0
-                    elementSplit = v["Element"].split(".")
-                    element = elementSplit[1]
-                    newElement = v["Element"] # set to old element as a backup
-
-                    if element.startswith("Edge"):
-                        elementNumber = int(element.removeprefix("Edge"))
-                        elementNumber += (numEdges * occurence)
-
-                        newElement = f"{elementSplit[0]}.Edge{elementNumber}"
-                    elif element.startswith("Vertex"):
-                        elementNumber = int(element.removeprefix("Vertex"))
-                        elementNumber += (numVertexes * occurence)
-
-                        newElement = f"{elementSplit[0]}.Vertex{elementNumber}"
-                    
-                    finalMap[newKey] = copy.copy(v)
-                    finalMap[newKey]["Element"] = copy.copy(newElement)
-                
-                occurence += 1
+            sortedWires = sorted(wires, key=lambda w: abs(Part.Face(w).Area), reverse=True)
+            outerWires.append(sortedWires[0])
+            innerWires.extend(sortedWires[1:])
         
-        obj.IndividualShape = finalIndividualShape.copy()
+        outerShape = Part.Shape()
+        innerShape = Part.Shape()
 
-        if not obj.SkipMerge:
-            if len(finalAddArray) != 0:
-                finalShape = finalShape.fuse(Part.Compound(finalAddArray))
-            
-            if len(finalRemoveArray) != 0:
-                finalShape = finalShape.cut(Part.Compound(finalRemoveArray))
+        if len(outerWires) == 2:
+            outerShape = Part.makeLoft(outerWires, True)
+        else:
+            raise Exception("Not enough wires to create a loft!\n This could mean that one of your sketches has no geometry, or it means that the geometry doesn't close into a wire!\n")
         
-        obj.Shape = finalShape
-        obj.Boundary.Shape = boundaryCompound
+        if len(innerWires) == 2:
+            innerShape = Part.makeLoft(innerWires, True)
+        else:
+            print("no inner shape")
+        
+        finalShape = outerShape.copy()
 
-        obj.Boundary.purgeTouched()
-
+        if not finalShape.isNull() and not innerShape.isNull():
+            finalShape = finalShape.cut(innerShape)
+        else:
+            print("couldnt make cut")
+        
         try:
-            finalStringMap = json.dumps(finalMap)
+            elementMap = json.loads(obj.ElementMap)
         except:
-            finalStringMap = "{}"
+            raise Exception("The Element Map is an invalid json string!")
 
-            App.Console.PrintError("Unable to stringify elementMap!")
+        # {"g<num>v<1/2>": Vector}
+        points = {}
+        geoType = ""
+        identifierList = []
+
+        startTime = time.time()
+        obj.Boundary.Shape = Part.Shape()
+
+        for sketch in obj.Supports:
+            sketch.Visibility = False
+
+            for geoFacade in sketch.GeometryFacadeList:
+                line = Part.Shape()
+                geo = geoFacade.Geometry
+
+                geoShape = geo.toShape()
+                sketchIndexEdges = len(obj.Boundary.Shape.Edges)
+                sketchIndexVertices = len(obj.Boundary.Shape.Vertexes)
+
+                newShape = geoShape.copy()
+                newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base))
+                newShape.Placement.Rotation = sketch.Placement.Rotation
+
+                if isinstance(geoShape, Part.Edge):
+                    element = (obj.Boundary, "Edge" + str(sketchIndexEdges + 1))
+
+                    geoType = "Edge"
+
+                    for i, vt in enumerate(newShape.Vertexes):
+                        points[f"{support.Name}_g{str(geoFacade.Id)}v{str(i + 1)}"] = vt.Point
+                    
+                elif isinstance(geoShape, Part.Vertex):
+                    element = (obj.Boundary, "Vertex" + str(sketchIndexVertices + 1))
+
+                    geoType = "Vertex"
+                    points[f"{support.Name}_g{str(geoFacade.Id)}"] = newShape.Point
+                
+                obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, newShape])
+                
+                identifier = self.makeIdentifer(str(geoFacade.Id), geoType, "Sketch", sketch.Name)
+                identifierList.append(identifier)
+
+                elementMap = self.updateElement(element, identifier, elementMap)
         
-        obj.ElementMap = finalStringMap
+        tol = 3
+
+        print(points)
+
+        for i, edge in enumerate(finalShape.Edges):
+            # avoid another for loop for better speed
+            distance1 = getP2PDistanceAlongNormal(obj.Supports[0].Placement.Base, edge.CenterOfMass, obj.Supports[0].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
+            distance2 = getP2PDistanceAlongNormal(obj.Supports[1].Placement.Base, edge.CenterOfMass, obj.Supports[1].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
+
+            print(distance1)
+            print(distance2)
+            print(obj.Supports[0].Placement.Base)
+            print(obj.Supports[1].Placement.Base)
+
+            # could cause issues with really small lofts, but i dont really care right now
+            if abs(distance1) > tol and abs(distance2) > tol:
+                ids = ""
+
+                # ignore what i said about for loops earlier
+                for geoId, pt in points.items():
+                    if pt.isEqual(edge.Vertexes[0].Point, 1e-5):
+                        ids += f"{geoId}:"
+                    
+                    if pt.isEqual(edge.Vertexes[1].Point, 1e-5):
+                        ids += f"{geoId}:"
+                    
+                if ids != "":
+                    obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, edge.copy()])
+
+                    element = (obj.Boundary, "Edge" + str(len(obj.Boundary.Shape.Edges)))
+                    identifier = self.makeIdentifer(ids, geoType, "WiresDatum", "")
+                    identifierList.append(identifier)
+
+                    print(identifier)
+
+                    elementMap = self.updateElement(element, identifier, elementMap)
+            
+        App.Console.PrintLog(obj.Label + " update datums time: " + str(time.time() - startTime) + "\n")
+        
+        for hash, value in elementMap.copy().items():
+            if value["Identifer"] not in identifierList:
+                elementMap.pop(hash)
+
+        obj.ElementMap = json.dumps(elementMap)
+        
+        # obj.Boundary.Placement = obj.Supports[0].Placement
+        obj.Boundary.ViewObject.LineWidth = 2
+        obj.Boundary.purgeTouched()
+        obj.Boundary.Visibility = True
+
+        obj.IndividualShape = finalShape
+
+        if not prevShape.isNull():
+            if obj.Remove:
+                finalShape = prevShape.cut(finalShape)
+            else:
+                finalShape = prevShape.fuse(finalShape)
+
+        obj.Shape = finalShape
 
         return finalShape
 
     def execute(self, obj):
+        if obj.Group == []:
+            obj.Group = [obj.Boundary].extend(obj.Supports)
+
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
         if prop == "Length":
             obj.touch()
 
-        super(Pattern, self).onChanged(obj, prop)
+        super(Loft, self).onChanged(obj, prop)
             
     def __getstate__(self):
         return None
@@ -508,21 +492,17 @@ class Pattern(Feature):
     def __setstate__(self, state):
         return None
 
-class ViewProviderPattern:
+class ViewProviderExtrusion:
     def __init__(self, obj):
         obj.Proxy = self
         obj.Selectable = False
         self.Origin = None
     
     def onDelete(self, vobj, subelements):
-        if hasattr(vobj.Object, "WiresDatum"):
-            if vobj.Object.WiresDatum != None:
-                vobj.Object.Document.removeObject(vobj.Object.WiresDatum.Name)
+        if hasattr(vobj.Object, "Boundary"):
+            if vobj.Object.Boundary != None:
+                vobj.Object.Document.removeObject(vobj.Object.Boundary.Name)
 
-        if hasattr(vobj.Object, "SketchProjection"):
-            if vobj.Object.SketchProjection != None:
-                vobj.Object.Document.removeObject(vobj.Object.SketchProjection.Name)
-        
         return True
     
     def attach(self, vobj):
@@ -533,8 +513,8 @@ class ViewProviderPattern:
         return
 
     def setEdit(self, vobj, mode):
-        # vobj.Object.Document.openTransaction("EditPattern")
-        # vobj.Object.Proxy.showGui(vobj.Object)
+        vobj.Object.Document.openTransaction("EditExtrusion")
+        vobj.Object.Proxy.showGui(vobj.Object)
 
         return False
 
@@ -581,25 +561,25 @@ class ViewProviderPattern:
         # Called when restoring
         return None
     
-def makePattern(patternType):
+def makeLoft():
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if isType(activeObject, "PartContainer"):
+    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
         selectedObjects = Gui.Selection.getSelection()
         doc = activeObject.Document
-        doc.openTransaction("CreatePattern")
+        doc.openTransaction("CreateExtrusion")
 
-        if len(selectedObjects) != 0:
-            obj = doc.addObject("Part::FeaturePython", "Pattern")
+        if len(selectedObjects) == 2:
+            obj = doc.addObject("Part::FeaturePython", "Extrusion")
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
             boundary.Type = "Boundary"
 
-            Pattern(obj)
-            ViewProviderPattern(obj.ViewObject)
+            Loft(obj)
+            ViewProviderExtrusion(obj.ViewObject)
 
+            obj.Proxy.setSupports(obj, selectedObjects)
             obj.Proxy.setBoundary(obj, boundary)
-            obj.Features = selectedObjects
 
             activeObject.Proxy.addObject(activeObject, obj, True)
             activeObject.Proxy.setTip(activeObject, obj)

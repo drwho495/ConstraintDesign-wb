@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Commands.SketchUtils import positionSketch
-from Utils import isType, getDistanceToEntity, generateHashName
+from Utils import isType, getDistanceToElement, generateHashName
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from GuiUtils import SelectorWidget
@@ -236,7 +236,7 @@ class ExtrusionTaskPanel:
         self.extrusion.StartingOffsetLength = self.oldStartingOffsetLength
         self.extrusion.StartingOffsetUpToEntity = self.oldStartingOffsetUTE
 
-        self.container.recompute()
+        # self.container.recompute()
 
         self.selectorWidget.cleanup()
         self.sOffsetSelectorWidget.cleanup()
@@ -388,14 +388,14 @@ class Extrusion(Feature):
                 if obj.StartingOffsetType == "Blind":
                     ZOffset += obj.StartingOffsetLength
                 elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
-                    ZOffset += getDistanceToEntity(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal)
+                    ZOffset += getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal)
             
             offsetVector = normal * ZOffset
             
             if obj.DimensionType == "Blind":
                 extrudeLength = obj.Length
             elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
-                extrudeLength = getDistanceToEntity(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
+                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
 
             
             extrudeVector = normal * extrudeLength
@@ -447,7 +447,7 @@ class Extrusion(Feature):
                 
                 if isinstance(geo, Part.Point):
                     startPoint = App.Vector(geo.X, geo.Y, geo.Z)
-                    endPoint = startPoint + App.Vector(0, 0, obj.Length)
+                    endPoint = startPoint + App.Vector(0, 0, extrudeLength)
                     
                     if startPoint not in vertexList and endPoint not in vertexList:
                         line = Part.LineSegment(startPoint, endPoint).toShape()
@@ -463,7 +463,7 @@ class Extrusion(Feature):
                 elif isinstance(geo, Part.LineSegment) or isinstance(geo, Part.ArcOfCircle):
                     for i, point in enumerate([geo.StartPoint, geo.EndPoint]):
                         startPoint = point
-                        endPoint = point + App.Vector(0, 0, obj.Length)
+                        endPoint = point + App.Vector(0, 0, extrudeLength)
                         
                         if startPoint not in vertexList and endPoint not in vertexList:
                             line = Part.LineSegment(startPoint, endPoint).toShape()

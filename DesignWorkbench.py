@@ -8,6 +8,7 @@ from Commands.CreatePartMirror import CreatePartMirror
 from Commands.CreateFillet import CreateFillet
 from Commands.CreateChamfer import CreateChamfer
 from Commands.CreateCountersink import CreateCountersink
+from Commands.CreateLoft import CreateLoft
 from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
@@ -64,6 +65,7 @@ class ConstraintDesign(Gui.Workbench):
             'CreatePartMirror',
             'CreateDerive',
             'CreateLinearPattern',
+            'CreateLoft'
         ]
 
         dressupCommands = [
