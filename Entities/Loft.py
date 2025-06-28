@@ -304,23 +304,36 @@ class Loft(Feature):
     def makeIdentifer(self, id = "0:1:2:3:", elementType="Edge", boundaryType="Sketch", supportName="Sketch001"):
         return f"{str(id)};{elementType};{boundaryType};{supportName}"
 
+    def identifierIsSame(self, identifier1, identifier2):
+        identifier1Array = identifier1.split(";")
+        identifier2Array = identifier2.split(";")
+        identifier1GeoIDs = identifier1Array[0].split(":")
+        identifier2GeoIDs = identifier2Array[0].split(":")
+
+        if len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) > 1:
+            print(identifier1GeoIDs)
+            print(identifier2GeoIDs)
+            print("")
+
+        if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 2):
+            return True
+        else:
+            return False
+
     # Format {"HashName": {"Element:" edge, "Identifier": "GeoId;ElType<V(1/2)>;<Sketch/Wires>;SupportName;"}}
-    def updateElement(self, element, identifier, map):
+    def updateElement(self, element, identifier, map, complexCheck=False):
         hasElement = False
 
         for key, value in map.items():
-            if value["Identifer"] == identifier:
+            if (complexCheck == False and value["Identifer"] == identifier) or (complexCheck == True and self.identifierIsSame(identifier, value["Identifer"])):
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
-
-                print("does have element")
+                map[key]["Identifer"] = identifier
 
                 hasElement = True
 
         if hasElement == False:
             hash = generateHashName(map)
 
-            print("doesnt have element")
-            
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Identifer": identifier}
         
         return map
@@ -330,8 +343,6 @@ class Loft(Feature):
 
         outerWires = []
         innerWires = []
-
-        print("run loft")
 
         for support in obj.Supports:
             wires = support.Shape.Wires
@@ -353,15 +364,11 @@ class Loft(Feature):
         
         if len(innerWires) == 2:
             innerShape = Part.makeLoft(innerWires, True)
-        else:
-            print("no inner shape")
-        
+
         finalShape = outerShape.copy()
 
         if not finalShape.isNull() and not innerShape.isNull():
             finalShape = finalShape.cut(innerShape)
-        else:
-            print("couldnt make cut")
         
         try:
             elementMap = json.loads(obj.ElementMap)
@@ -397,13 +404,13 @@ class Loft(Feature):
                     geoType = "Edge"
 
                     for i, vt in enumerate(newShape.Vertexes):
-                        points[f"{support.Name}_g{str(geoFacade.Id)}v{str(i + 1)}"] = vt.Point
+                        points[f"{sketch.Name}_g{str(geoFacade.Id)}v{str(i + 1)}"] = vt.Point
                     
                 elif isinstance(geoShape, Part.Vertex):
                     element = (obj.Boundary, "Vertex" + str(sketchIndexVertices + 1))
 
                     geoType = "Vertex"
-                    points[f"{support.Name}_g{str(geoFacade.Id)}"] = newShape.Point
+                    points[f"{sketch.Name}_g{str(geoFacade.Id)}"] = newShape.Point
                 
                 obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, newShape])
                 
@@ -412,19 +419,12 @@ class Loft(Feature):
 
                 elementMap = self.updateElement(element, identifier, elementMap)
         
-        tol = 3
-
-        print(points)
+        tol = 1e-3
 
         for i, edge in enumerate(finalShape.Edges):
             # avoid another for loop for better speed
             distance1 = getP2PDistanceAlongNormal(obj.Supports[0].Placement.Base, edge.CenterOfMass, obj.Supports[0].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
             distance2 = getP2PDistanceAlongNormal(obj.Supports[1].Placement.Base, edge.CenterOfMass, obj.Supports[1].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
-
-            print(distance1)
-            print(distance2)
-            print(obj.Supports[0].Placement.Base)
-            print(obj.Supports[1].Placement.Base)
 
             # could cause issues with really small lofts, but i dont really care right now
             if abs(distance1) > tol and abs(distance2) > tol:
@@ -442,12 +442,10 @@ class Loft(Feature):
                     obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, edge.copy()])
 
                     element = (obj.Boundary, "Edge" + str(len(obj.Boundary.Shape.Edges)))
-                    identifier = self.makeIdentifer(ids, geoType, "WiresDatum", "")
+                    identifier = self.makeIdentifer(ids, "Edge", "WiresDatum", "")
                     identifierList.append(identifier)
 
-                    print(identifier)
-
-                    elementMap = self.updateElement(element, identifier, elementMap)
+                    elementMap = self.updateElement(element, identifier, elementMap, True)
             
         App.Console.PrintLog(obj.Label + " update datums time: " + str(time.time() - startTime) + "\n")
         
