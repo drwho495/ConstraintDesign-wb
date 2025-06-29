@@ -3,8 +3,8 @@ import FreeCADGui as Gui
 import FreeCAD as App
 
 # todo: add to preferences!
-gridSpacing = 30
-gridExtent = 10_000
+gridSpacing = 15
+gridExtent = 20_000
 showGrid = True
 
 grids = []

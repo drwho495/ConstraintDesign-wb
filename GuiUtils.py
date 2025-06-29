@@ -1,6 +1,6 @@
 from PySide import QtWidgets, QtCore, QtGui
 import FreeCADGui as Gui
-from Utils import getIDsFromSelection, getElementFromHash
+from Utils import getIDsFromSelection, getElementFromHash, getStringID
 import copy
 
 hashToElementSplitStr = "   "
@@ -68,7 +68,7 @@ class SelectorWidget(QtWidgets.QWidget):
             self.addSelection(startSelection)
 
         # Gui.Selection.setSelectionStyle(Gui.Selection.SelectionStyle.GreedySelection)
-        self._observer = _SelectorWidgetObserver(self)
+        self._observer = SelectorWidgetObserver(self)
         self.destroyed.connect(self.cleanup)
     
     def toggleSelections(self, set):
@@ -226,7 +226,7 @@ class SelectorWidget(QtWidgets.QWidget):
         self._observer.cleanup()
 
 
-class _SelectorWidgetObserver:
+class SelectorWidgetObserver:
     def __init__(self, widget):
         self.widget = widget
         self.stop = False

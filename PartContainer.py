@@ -4,7 +4,7 @@ import Part
 import time
 import os
 from Utils import featureTypes, isType, datumTypes, getDependencies
-from Commands.SketchUtils import positionSketch
+from Commands.SketchUtils import positionSketch, updateSketch
 import json
 
 class PartContainer:
@@ -177,7 +177,7 @@ class PartContainer:
         for i, child in enumerate(group):
             if hasattr(child, "TypeId") and child.TypeId == "Sketcher::SketchObject":
                 
-                positionSketch(child, obj)
+                updateSketch(child, obj)
             elif isType(child, featureTypes):
                 print(child.Label)
                 print(child.Type)

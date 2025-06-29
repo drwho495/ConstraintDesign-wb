@@ -59,6 +59,7 @@ class ExposedGeo(Entity):
         
         obj.ViewObject.Selectable = True
         obj.ViewObject.LineWidth = 4 
+        obj.purgeTouched()
         
         return shape
     
@@ -149,8 +150,9 @@ class ViewProviderExposedGeo:
         # Called when restoring
         return None
     
-def makeExposedGeo():
-    activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
+def makeExposedGeo(stringID = None, activeObject = None):
+    if activeObject == None:
+        activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
     if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
         doc = activeObject.Document
@@ -160,10 +162,14 @@ def makeExposedGeo():
         ExposedGeo(obj)
         ViewProviderExposedGeo(obj.ViewObject)
 
-        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+        if stringID == None:
+            hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+        else:
+            hashes = [stringID]
 
         if type(hashes) == list and len(hashes) == 0:
             App.Console.PrintError("Unable to find string IDs from selection!")
+            return None
         else:
             _, _, afterFeature, _ = getObjectsFromScope(activeObject, hashes[0])
 
@@ -171,5 +177,8 @@ def makeExposedGeo():
 
             obj.Support = hashes[0]
             activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
+
+            return obj
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")
+        return None
