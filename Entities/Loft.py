@@ -8,7 +8,6 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Commands.SketchUtils import positionSketch
 from Utils import isType, getP2PDistanceAlongNormal, generateHashName
 from Entities.Feature import Feature
 from PySide import QtWidgets

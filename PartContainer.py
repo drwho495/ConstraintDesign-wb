@@ -4,7 +4,6 @@ import Part
 import time
 import os
 from Utils import featureTypes, isType, datumTypes, getDependencies
-from Commands.SketchUtils import positionSketch, updateSketch
 import json
 
 class PartContainer:
@@ -83,7 +82,7 @@ class PartContainer:
     def getGroup(self, obj, withNonFeatureEntities = False, skipSketch=False):
         filteredGroup = []
         for item in obj.Group:
-            if (hasattr(item, "Type") and item.Type in featureTypes) or (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject" and not skipSketch) or (withNonFeatureEntities and isType(item, "ExposedGeometry")):
+            if (hasattr(item, "Type") and item.Type in featureTypes) or (isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and isType(item, "ExposedGeometry")):
                 filteredGroup.append(item)
         
         return filteredGroup
@@ -175,9 +174,8 @@ class PartContainer:
             startIndex = group.index(startObj)
 
         for i, child in enumerate(group):
-            if hasattr(child, "TypeId") and child.TypeId == "Sketcher::SketchObject":
-                
-                updateSketch(child, obj)
+            if isType(child, "BoundarySketch"):
+                child.Proxy.updateSketch(child, obj)
             elif isType(child, featureTypes):
                 print(child.Label)
                 print(child.Type)

@@ -12,7 +12,7 @@ from Commands.CreateLoft import CreateLoft
 from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
-from Commands.SketchUtils import CreateSketch, CreateExternalGeo
+from Commands.CreateSketch import CreateConstraintSketch
 from GuiUtils import SelectorWidget
 import Grid.GridManager as GridManager
 import FreeCAD as App
@@ -79,9 +79,8 @@ class ConstraintDesign(Gui.Workbench):
             "MoveDesignObjectDown"
         ]
 
-        sketchUtils = [
-            'CreateExternalGeo',
-            'CreateSketch'
+        sketchCommands = [
+            'CreateConstraintSketch'
         ]
 
         datumCommands = [
@@ -101,8 +100,8 @@ class ConstraintDesign(Gui.Workbench):
         self.appendToolbar("Tree Commands", treeCommands)
         self.appendMenu("Tree Commands", treeCommands)
 
-        self.appendToolbar("Sketcher Utilities", sketchUtils)
-        self.appendMenu("Sketcher Utilities", sketchUtils)
+        self.appendToolbar("Sketch Commands", sketchCommands)
+        self.appendMenu("Sketch Commands", sketchCommands)
 
         self.appendToolbar("Datum Commands", datumCommands)
         self.appendMenu("Datum Commands", datumCommands)

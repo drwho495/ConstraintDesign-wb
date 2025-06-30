@@ -4,16 +4,12 @@ import Part
 import sys
 import os
 import json
-import string
-import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Commands.SketchUtils import positionSketch, updateSketch
 from Utils import isType, getDistanceToElement, generateHashName
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from GuiUtils import SelectorWidget
-import copy
 
 dimensionTypes = ["Blind", "UpToEntity"]
 startingOffsetTypes = ["Blind", "UpToEntity"]
@@ -346,11 +342,6 @@ class Extrusion(Feature):
         identifier1GeoIDs = identifier1Array[0].split(":")
         identifier2GeoIDs = identifier2Array[0].split(":")
 
-        if len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1:
-            print(identifier1GeoIDs)
-            print(identifier2GeoIDs)
-            print("")
-
         if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1):
             return True
         else:
@@ -377,14 +368,11 @@ class Extrusion(Feature):
     def generateShape(self, obj, prevShape):
         self.updateProps(obj)
 
-        if obj.Support.TypeId == "Sketcher::SketchObject" or isType(obj.Support, "BoundarySketch"):
+        if hasattr(obj,"Support") and isType(obj.Support, "BoundarySketch"):
             sketch = obj.Support
+            container = self.getContainer(obj)
 
-            if hasattr(sketch, "Support"):
-                container = self.getContainer(obj)
-
-                updateSketch(sketch, container)
-
+            sketch.Proxy.updateSketch(sketch, container)
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
             face = Part.makeFace(sketchWires)
             ZOffset = 0
@@ -393,8 +381,6 @@ class Extrusion(Feature):
 
             if obj.DimensionType == "Blind":
                 extrudeLength = obj.Length
-            elif obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
-                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
 
             if obj.Symmetric:
                 if not obj.StartingOffset:
@@ -408,25 +394,30 @@ class Extrusion(Feature):
                 elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
                     ZOffset += getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal)
             
-            offsetVector = normal * ZOffset            
+            offsetVector = normal * ZOffset       
+
+            if obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
+                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
+
             extrudeVector = normal * extrudeLength
 
-            extrusion = face.extrude(extrudeVector)
-            extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
+            if extrudeLength != 0:
+                extrusion = face.extrude(extrudeVector)
 
-            print(f"zOffset: {ZOffset}")
+                obj.IndividualShape = extrusion.copy()
 
-            obj.IndividualShape = extrusion.copy()
+                if not prevShape.isNull():
+                    if obj.Remove:
+                        extrusion = prevShape.cut(extrusion)
+                    else:
+                        extrusion = prevShape.fuse(extrusion)
+            else:
+                obj.IndividualShape = Part.Shape()
+                extrusion = prevShape
+                extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
 
-            if not prevShape.isNull():
-                if obj.Remove:
-                    extrusion = prevShape.cut(extrusion)
-                else:
-                    extrusion = prevShape.fuse(extrusion)
-            
             obj.Shape = extrusion
-            obj.Boundary.Shape = Part.Shape()
-
+        
             if not hasattr(obj, "ElementMap"):
                 try:
                     self.updateProps(obj)
@@ -446,6 +437,7 @@ class Extrusion(Feature):
             unsupportedVertexes = {} # i want to check if vertexes have already been generated, so they can be supported properly later
 
             startTime = time.time()
+            boundaryShape = Part.Shape()
             tol = 1e-5
 
             for geoF in sketch.GeometryFacadeList:
@@ -479,12 +471,10 @@ class Extrusion(Feature):
                         points[len(points)] = {"Vector": vec, "IDs": [f"g{geoF.Id}"]}
                 
                 geoShape = geo.toShape()
-                oldVertNum = len(obj.Boundary.Shape.Vertexes)
-                obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, geoShape])
-                newVertNum = len(obj.Boundary.Shape.Vertexes)
-                newVertexList = obj.Boundary.Shape.Vertexes[oldVertNum:newVertNum]
-
-                print(f"new vertex list size: {str(len(newVertexList))}")
+                oldVertNum = len(boundaryShape.Vertexes)
+                boundaryShape = Part.Compound([boundaryShape, geoShape])
+                newVertNum = len(boundaryShape.Vertexes)
+                newVertexList = boundaryShape.Vertexes[oldVertNum:newVertNum]
 
                 for i, vec in enumerate(newVertexList):
                     unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": vec.Point, "Type": "Sketch"}
@@ -493,66 +483,93 @@ class Extrusion(Feature):
                     # Create Base Sketch Boundary
                     identifier = self.makeIdentifier([f"g{geoF.Id}"], "Edge", 0, "Sketch")
                     identifierList.append(identifier)
-                    element = (obj.Boundary, f"Edge{str(len(obj.Boundary.Shape.Edges))}")
+                    element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
                     
                     self.updateElement(element, identifier, elementMap, False)
                 
-                geoShape = geo.toShape()
-                geoShape.Placement.Base += extrudeVector
-                oldVertNum = len(obj.Boundary.Shape.Vertexes)
-                obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, geoShape])
-                newVertNum = len(obj.Boundary.Shape.Vertexes)
-                newVertexList = obj.Boundary.Shape.Vertexes[oldVertNum:newVertNum]
+                if extrudeLength != 0:
+                    geoShape = geo.toShape()
+                    geoShape.Placement.Base += App.Vector(0, 0, extrudeLength)
+                    oldVertNum = len(boundaryShape.Vertexes)
+                    boundaryShape = Part.Compound([boundaryShape, geoShape])
+                    newVertNum = len(boundaryShape.Vertexes)
+                    newVertexList = boundaryShape.Vertexes[oldVertNum:newVertNum]
 
-                print(f"new vertex list size: {str(len(newVertexList))}")
+                    for i, vec in enumerate(newVertexList):
+                        unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": (vec.Point - extrudeVector), "Type": "SketchProjection"}
 
-                for i, vec in enumerate(newVertexList):
-                    unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": (vec.Point - extrudeVector), "Type": "SketchProjection"}
-
-                if isinstance(geoShape, Part.Edge):
-                    # Create Base Sketch Boundary
-                    identifier = self.makeIdentifier([f"g{geoF.Id}"], "Edge", 0, "SketchProjection")
-                    identifierList.append(identifier)
-                    element = (obj.Boundary, f"Edge{str(len(obj.Boundary.Shape.Edges))}")
-                    
-                    self.updateElement(element, identifier, elementMap, False)
-
-            print(points)
+                    if isinstance(geoShape, Part.Edge):
+                        # Create Base Sketch Boundary
+                        identifier = self.makeIdentifier([f"g{geoF.Id}"], "Edge", 0, "SketchProjection")
+                        identifierList.append(identifier)
+                        element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
+                        
+                        self.updateElement(element, identifier, elementMap, False)
 
             App.Console.PrintLog(f"{obj.Label} create points time: {str(time.time() - startTime)}")
+
+            geoIDs = []
 
             # Generate WiresBoundary and map Vertexes appended by the prior loop
             for _,v in points.items():
                 # Start with edges
-                print(v["Vector"])
+                if extrudeLength != 0:
+                    startPoint = v["Vector"]
+                    endPoint = v["Vector"] + App.Vector(0, 0, extrudeLength)
+                    
+                    line = Part.LineSegment(startPoint, endPoint).toShape()
+                    oldVertNum = len(boundaryShape.Vertexes)
+                    boundaryShape = Part.Compound([boundaryShape, line])
+                    newVertNum = len(boundaryShape.Vertexes)
 
-                startPoint = v["Vector"]
-                endPoint = v["Vector"] + App.Vector(0, 0, extrudeLength)
-                
-                line = Part.LineSegment(startPoint, endPoint).toShape()
-                obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, line])
+                    newVertexes = boundaryShape.Vertexes[oldVertNum:newVertNum]
+                    startVertex = None
+                    endVertex = None
 
-                print(f"Edge{str(len(obj.Boundary.Shape.Edges))}")
+                    if newVertexes[0].Point.isEqual(startPoint, tol):
+                        startVertex = f"Vertex{str(oldVertNum+1)}"
+                        endVertex = f"Vertex{str(oldVertNum+2)}"
+                    elif newVertexes[1].Point.isEqual(startPoint, tol):
+                        startVertex = f"Vertex{str(oldVertNum+2)}"
+                        endVertex = f"Vertex{str(oldVertNum+1)}"
+                    
+                    # Handle start vertex
+                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", "BottomPoint")
+                    identifierList.append(identifier)
+                    element = (obj.Boundary, startVertex)
+                    self.updateElement(element, identifier, elementMap)
 
-                identifier = self.makeIdentifier(v["IDs"], "Edge", 0, "WiresBoundary")
-                identifierList.append(identifier)
-                element = (obj.Boundary, f"Edge{str(len(obj.Boundary.Shape.Edges))}")
-                self.updateElement(element, identifier, elementMap)
+                    # Handle end vertex
+                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", "TopPoint")
+                    identifierList.append(identifier)
+                    element = (obj.Boundary, endVertex)
+                    self.updateElement(element, identifier, elementMap)
+
+                    # Handle wire boundary
+                    identifier = self.makeIdentifier(v["IDs"], "Edge", 0, "WiresBoundary")
+                    identifierList.append(identifier)
+                    element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
+                    self.updateElement(element, identifier, elementMap)
 
                 # Handle old loop vertexes
                 for elementName, uV in unsupportedVertexes.items():
                     if v["Vector"].isEqual(uV["Vector"], tol):
-                        identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, uV["Type"])
+                        identifier = self.makeIdentifier(v["IDs"], "Vertex", geoIDs.count(v["IDs"]), uV["Type"])
                         identifierList.append(identifier)
                         element = (obj.Boundary, elementName)
                         self.updateElement(element, identifier, elementMap)
+
+                        geoIDs.append(v["IDs"])
             
             for hash, value in elementMap.copy().items():
                 if value["Identifier"] not in identifierList:
                     elementMap.pop(hash)
 
+            App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}")
+
             obj.ElementMap = json.dumps(elementMap)
             
+            obj.Boundary.Shape = boundaryShape
             obj.Boundary.Placement = sketch.Placement
             obj.Boundary.Placement.Base += offsetVector
 
@@ -561,8 +578,6 @@ class Extrusion(Feature):
 
             obj.Boundary.Visibility = True
             obj.Support.Visibility = False
-
-            App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}")
 
             return extrusion
 

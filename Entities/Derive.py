@@ -9,7 +9,6 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import featureTypes, isType, boundaryTypes, makeBoundaryCompound
-from Commands.SketchUtils import positionSketch
 from Entities.Feature import Feature
 
 class Derive(Feature):

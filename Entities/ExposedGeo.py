@@ -8,14 +8,21 @@ from Utils import isType, getParent, featureTypes, boundaryTypes, getIDsFromSele
 from Entities.Entity import Entity
 
 class ExposedGeo(Entity):
-    def __init__(self, obj):
+    def __init__(self, obj, useCase="Generic"):
         obj.Proxy = self
+        self.updateProps(obj, useCase)
+    
+    def attach(self, obj):
         self.updateProps(obj)
 
-    def updateProps(self, obj):
+    def updateProps(self, obj, useCase="Generic"):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "ExposedGeometry"
+        
+        if not hasattr(obj, "UseCase"):
+            obj.addProperty("App::PropertyString", "UseCase", "ConstraintDesign", "Type of constraint design feature.")
+            obj.UseCase = useCase
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyString", "Support", "ConstraintDesign", "Element to expose.")
@@ -39,26 +46,39 @@ class ExposedGeo(Entity):
         container = self.getContainer(obj)
         elementName = None
         hashStr = obj.Support
+        placement = App.Placement()
+
+        print(container.Label)
+        print(obj.Support)
 
         feature, elementName = getElementFromHash(container, obj.Support)
         scoreDocument, scopeContainer, _, _ = getObjectsFromScope(container, hashStr)
         
         if elementName != None:
-            element = feature.Shape.getElement(elementName)
+            element = feature.Shape.getElement(elementName).copy()
             if element != None:
-                shape = Part.Shape(Part.Compound([element]))
-                if scoreDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
-                    globalP = feature.getGlobalPlacement()
+                placement.Base = element.CenterOfMass
+                element.applyTranslation(element.CenterOfMass * -1)
+                shape = Part.Compound([element])
 
-                    print(globalP)
+                print(obj.Label)
+                print(f"placement: {str(shape.Edges[0].Placement)}")
 
-                    shape.Placement.Base += globalP.Base
-                    shape.Placement.Rotation = globalP.Rotation
+                # if scoreDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
+                    # globalP = feature.getGlobalPlacement()
+
+                    # print(globalP)
+
+                    # placement.Base += globalP.Base
+                    # placement.Rotation = globalP.Rotation
 
                 obj.Shape = shape
+
+                print(f"placement: {str(obj.Shape.Edges[0].Placement)}")
         
         obj.ViewObject.Selectable = True
         obj.ViewObject.LineWidth = 4 
+        obj.Placement = placement
         obj.purgeTouched()
         
         return shape
@@ -150,7 +170,7 @@ class ViewProviderExposedGeo:
         # Called when restoring
         return None
     
-def makeExposedGeo(stringID = None, activeObject = None):
+def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
     if activeObject == None:
         activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
@@ -159,7 +179,7 @@ def makeExposedGeo(stringID = None, activeObject = None):
         doc.openTransaction("CreateExposedGeo")
 
         obj = App.ActiveDocument.addObject("Part::FeaturePython", "ExposedGeo")
-        ExposedGeo(obj)
+        ExposedGeo(obj, useCase)
         ViewProviderExposedGeo(obj.ViewObject)
 
         if stringID == None:

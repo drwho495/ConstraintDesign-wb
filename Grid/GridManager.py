@@ -79,8 +79,8 @@ class Grid:
 
         yAxisCoords = coin.SoCoordinate3()
         yAxisCoords.point.setValues(0, 2, [
-            coin.SbVec3f(0, -9990, 0),
-            coin.SbVec3f(0, 9990, 0)
+            coin.SbVec3f(0, -internalExtent, 0),
+            coin.SbVec3f(0, internalExtent, 0)
         ])
 
         yAxisLines = coin.SoLineSet()

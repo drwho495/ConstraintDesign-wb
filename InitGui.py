@@ -10,7 +10,7 @@ from Commands.CreateCountersink import CreateCountersink
 from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
-from Commands.SketchUtils import CreateSketch, CreateExternalGeo
+from Commands.CreateSketch import CreateConstraintSketch
 from GuiUtils import SelectorWidget
 import Grid.GridManager as GridManager
 from DesignWorkbench import ConstraintDesign

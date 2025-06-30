@@ -8,7 +8,6 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Commands.SketchUtils import positionSketch
 from Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, dressupTypes, getElementFromHash
 from Entities.Feature import Feature
 from PySide import QtWidgets
@@ -321,9 +320,9 @@ class Pattern(Feature):
     
     def getBoundaries(self, obj, isShape=False):
         if isShape:
-            return [obj.WiresDatum.Shape, obj.SketchProjection.Shape]
+            return [obj.Boundary.Shape]
         else:
-            return [obj.WiresDatum, obj.SketchProjection]
+            return [obj.Boundary]
         
     def setSupport(self, obj, support):
         obj.Support = support

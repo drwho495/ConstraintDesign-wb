@@ -14,10 +14,6 @@ class Entity(ABC):
         pass
 
     @abstractmethod
-    def getBoundaries(self, obj, isShape=False):
-        return []
-
-    @abstractmethod
     def updateProps(self, obj):
         pass
 
@@ -31,6 +27,5 @@ class Entity(ABC):
             else:
                 App.Console.PrintWarning("No container found in onChanged!")
 
-    @abstractmethod
     def getContainer(self, obj):
         return getParent(obj, "PartContainer")

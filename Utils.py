@@ -7,6 +7,7 @@ import Part
 
 featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern", "Loft"]
 dressupTypes = ["Fillet", "Countersink", "Chamfer"]
+supportTypes = ["BoundarySketch"]
 datumTypes = ["ExposedGeometry"]
 boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
 
@@ -99,6 +100,8 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
                     App.Console.PrintError(f"Hash: {str(hash)} cannot be found in {feature.Label}\n")
             else:
                 App.Console.PrintError("Feature has no ElementMap!\nPlease report this!\n")
+        else:
+            print("invalid feature type")
     
     if asList:
         return elements
@@ -112,42 +115,62 @@ def getStringID(activeContainer, element, fullScope=False):
         boundary = element[0]
         elementName = element[1]
         scopeStart = ""
+        feature = None
 
         if isType(boundary, boundaryTypes):
             feature = getParent(boundary, featureTypes)
         elif isType(boundary, featureTypes):
             feature = boundary
-        
-        featurePartContainer = getParent(feature, "PartContainer")
+        elif isType(boundary, "ExposedGeometry"):
+            if hasattr(boundary, "Support"):
+                exposedGeoContainer = getParent(boundary, "PartContainer")
+                supportDocument, supportContainer, supportFeature, supportID = getObjectsFromScope(exposedGeoContainer, boundary.Support)
+                scopeStart = ""
 
-        if not isType(activeContainer, "PartContainer"):
-            objPartContainer = featurePartContainer
-        else:
-            objPartContainer = activeContainer
+                sameDocument = supportDocument.Name == activeContainer.Document.Name
+                sameParent = activeContainer.Name == supportContainer.Name
 
-        sameDocument = feature.Document.Name == activeContainer.Document.Name
-        if featurePartContainer != None and objPartContainer != None:
-            sameParent = objPartContainer.Name == featurePartContainer.Name
-        else:
-            sameParent = True
+                if not sameDocument and supportContainer != None and supportContainer != None or fullScope:
+                    scopeStart = supportFeature.Document.Name + "." + supportContainer.Name + "."
+                
+                if not sameParent and sameDocument:
+                    scopeStart = supportContainer.Name + "."
 
-        if not sameDocument and featurePartContainer != None and objPartContainer != None or fullScope:
-            scopeStart = feature.Document.Name + "." + featurePartContainer.Name + "."
-        
-        if not sameParent and sameDocument:
-            scopeStart = featurePartContainer.Name + "."
+                return scopeStart + f"{supportFeature.Name}.{supportID}"
+            
+        if feature != None:
+            featurePartContainer = getParent(feature, "PartContainer")
 
-        if hasattr(feature, "ElementMap"):
-            try:
-                map = json.loads(feature.ElementMap)
-            except:
-                map = None
-                App.Console.PrintError("Unable to load json from ElementMap of " + feature.Label)
+            if not isType(activeContainer, "PartContainer"):
+                objPartContainer = featurePartContainer
+            else:
+                objPartContainer = activeContainer
 
-            if map != None:
-                for hash, value in map.items():
-                    if value["Element"] == boundary.Name + "." + elementName:
-                        return scopeStart + feature.Name + "." + hash
+            sameDocument = feature.Document.Name == activeContainer.Document.Name
+            if featurePartContainer != None and objPartContainer != None:
+                sameParent = objPartContainer.Name == featurePartContainer.Name
+            else:
+                sameParent = True
+
+            if not sameDocument and featurePartContainer != None and objPartContainer != None or fullScope:
+                scopeStart = feature.Document.Name + "." + featurePartContainer.Name + "."
+            
+            if not sameParent and sameDocument:
+                scopeStart = featurePartContainer.Name + "."
+
+            if hasattr(feature, "ElementMap"):
+                try:
+                    map = json.loads(feature.ElementMap)
+                except:
+                    map = None
+                    App.Console.PrintError("Unable to load json from ElementMap of " + feature.Label)
+
+                if map != None:
+                    for hash, value in map.items():
+                        if value["Element"] == boundary.Name + "." + elementName:
+                            return scopeStart + feature.Name + "." + hash
+                else:
+                    return None
 
 def generateHashName(map):
         keys = map.keys()
@@ -193,17 +216,23 @@ def getObjectsFromScope(activeContainer, hashName):
     scopeArray = hashName.split(".")
     scopeLen = len(scopeArray)
 
+    if hasattr(activeContainer, "LinkedObject"):
+        activeContainer = activeContainer.LinkedObject
+
     if scopeLen == 4:
         document = App.getDocument(scopeArray[0])
         container = document.getObject(scopeArray[1])
         feature = document.getObject(scopeArray[2])
     elif scopeLen == 3:
-        document = App.ActiveDocument
+        document = activeContainer.Document
         container = document.getObject(scopeArray[0])
         feature = document.getObject(scopeArray[1])
     elif scopeLen == 2:
-        document = App.ActiveDocument
+        document = activeContainer.Document
+        print(document.Name)
         container = activeContainer
+        print(container.Name)
+        print(scopeArray[0])
         feature = document.getObject(scopeArray[0])
     
     elementName = scopeArray[scopeLen - 1]
