@@ -3,10 +3,42 @@ import FreeCAD as App
 import FreeCADGui as Gui
 import Part
 from PySide import QtGui
-from Utils import getElementFromHash, getIDsFromSelection, getStringID, getParent, isType
+from Utils.Utils import isType
+from Utils.Preferences import *
 from Entities.ExposedGeo import makeExposedGeo
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
+
+def getIDDict(sketch):
+    #"ID": geometry
+    idDict = {}
+
+    for geoF in sketch.GeometryFacadeList:
+        idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
+    
+    externalGeo = sketch.ExternalGeo.copy()
+
+    if len(externalGeo) > 2:
+        externalGeo.pop(0) # external geo has two unsupported entries that need to be removed
+        externalGeo.pop(0)
+
+    if len(externalGeo) != 0 and len(sketch.ExternalGeometry) != 0:
+        if len(externalGeo) == len(sketch.ExternalGeometry):
+            for i, geo in enumerate(externalGeo):
+                element = sketch.ExternalGeometry[i]
+                exposedGeo = element[0]
+
+                if isType(exposedGeo, "ExposedGeometry"):
+                    if hasattr(exposedGeo, "Support"):
+                        idDict[f"eg({exposedGeo.Support})"] = geo
+                    else:
+                        App.Console.PrintWarning(f"{exposedGeo.Label} does not have the proper `support` property!\n")
+        else:
+            App.Console.PrintError(f"Unable to properly generate a map of external geometry in {sketch.Label}\nReport this please! Make sure to include files that show the issue.\nMore info: the length of ExternalGeo and ExternalGeometry were not the same!\n")
+        
+    print(idDict)
+
+    return idDict
 
 # def updateSketch(sketch, container):
     # for item in sketch.OutList:
@@ -66,35 +98,35 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 #         elif sketch.SupportType == "Plane":
 #             sketch.Placement = sketch.SupportPlane.Placement
 
-def makeSketch(hashes):
-    activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
+# def makeSketch(hashes):
+#     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if activeObject is not None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
-        newSketch = activeObject.Document.addObject("Sketcher::SketchObject", "Sketch")
-        activeObject.Proxy.addObject(activeObject, newSketch)
+#     if activeObject is not None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
+#         newSketch = activeObject.Document.addObject("Sketcher::SketchObject", "Sketch")
+#         activeObject.Proxy.addObject(activeObject, newSketch)
 
-        newSketch.setEditorMode("AttacherEngine", 3)
-        newSketch.setEditorMode("AttachmentSupport", 3)
-        newSketch.setEditorMode("MapMode", 3)
+#         newSketch.setEditorMode("AttacherEngine", 3)
+#         newSketch.setEditorMode("AttachmentSupport", 3)
+#         newSketch.setEditorMode("MapMode", 3)
 
-        newSketch.addProperty("App::PropertyStringList", "SupportHashes", "Base")
-        newSketch.addProperty("App::PropertyXLink", "SupportPlane", "Base")
-        newSketch.addProperty("App::PropertyString", "Type", "Base")
-        newSketch.addProperty("App::PropertyEnumeration", "SupportType", "Base")
+#         newSketch.addProperty("App::PropertyStringList", "SupportHashes", "Base")
+#         newSketch.addProperty("App::PropertyXLink", "SupportPlane", "Base")
+#         newSketch.addProperty("App::PropertyString", "Type", "Base")
+#         newSketch.addProperty("App::PropertyEnumeration", "SupportType", "Base")
 
-        newSketch.Type = "BoundarySketch"
-        newSketch.SupportType = ["Plane", "Hashes"]
-        if len(hashes) != 0:
-            newSketch.SupportType = "Hashes"
-            newSketch.SupportHashes = hashes
-        else:
-            newSketch.SupportType = "Plane"
-            newSketch.SupportPlane = activeObject.Origin.OutList[3]
+#         newSketch.Type = "BoundarySketch"
+#         newSketch.SupportType = ["Plane", "Hashes"]
+#         if len(hashes) != 0:
+#             newSketch.SupportType = "Hashes"
+#             newSketch.SupportHashes = hashes
+#         else:
+#             newSketch.SupportType = "Plane"
+#             newSketch.SupportPlane = activeObject.Origin.OutList[3]
 
 
-        positionSketch(newSketch, activeObject)
-    else:
-        App.Console.PrintError("You need to select a part container as your active object!\n")
+#         positionSketch(newSketch, activeObject)
+#     else:
+#         App.Console.PrintError("You need to select a part container as your active object!\n")
 
 # class CreateSketch:
 #     def GetResources(self):

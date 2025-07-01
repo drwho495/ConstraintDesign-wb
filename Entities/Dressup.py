@@ -5,8 +5,9 @@ import sys
 import math
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
-from GuiUtils import SelectorWidget
+from Utils.Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
+from Utils.GuiUtils import SelectorWidget
+from Utils.Preferences import *
 from PySide import QtWidgets
 import json
 from Entities.Feature import Feature
@@ -303,13 +304,14 @@ class FeatureDressup(Feature):
                             App.Console.PrintError(str(e) + "\n")
                             continue
                         
+                        if element == None or (element[0] == None or (len(element) == 2 and element[1] == None)):
+                            continue
+                        
                         if element != None:
                             datumEdge = element[0].Shape.getElement(element[1])
                             correctEdge = False
                             intersectionPoints = 0
 
-                            
-                            
                             if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
                                 correctEdge = True
                             else:

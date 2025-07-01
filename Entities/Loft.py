@@ -8,10 +8,11 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getP2PDistanceAlongNormal, generateHashName
+from Utils.Utils import isType, getP2PDistanceAlongNormal, generateHashName
+from Utils.Preferences import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
-from GuiUtils import SelectorWidget
+from Utils.GuiUtils import SelectorWidget
 import copy
 
 class LoftTaskPanel:
@@ -309,17 +310,17 @@ class Loft(Feature):
         identifier1GeoIDs = identifier1Array[0].split(":")
         identifier2GeoIDs = identifier2Array[0].split(":")
 
-        if len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) > 1:
+        if len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) > 0:
             print(identifier1GeoIDs)
             print(identifier2GeoIDs)
             print("")
 
-        if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 2):
+        if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1):
             return True
         else:
             return False
 
-    # Format {"HashName": {"Element:" edge, "Identifier": "GeoId;ElType<V(1/2)>;<Sketch/Wires>;SupportName;"}}
+    # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "GeoId;ElType<V(1/2)>;<Sketch/Wires>;SupportName;"}}
     def updateElement(self, element, identifier, map, complexCheck=False):
         hasElement = False
 
@@ -327,13 +328,14 @@ class Loft(Feature):
             if (complexCheck == False and value["Identifer"] == identifier) or (complexCheck == True and self.identifierIsSame(identifier, value["Identifer"])):
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
                 map[key]["Identifer"] = identifier
+                map[key]["Stale"] = False
 
                 hasElement = True
 
         if hasElement == False:
             hash = generateHashName(map)
 
-            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Identifer": identifier}
+            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Stale": False, "Identifer": identifier}
         
         return map
     
@@ -386,7 +388,6 @@ class Loft(Feature):
             sketch.Visibility = False
 
             for geoFacade in sketch.GeometryFacadeList:
-                line = Part.Shape()
                 geo = geoFacade.Geometry
 
                 geoShape = geo.toShape()
@@ -427,15 +428,17 @@ class Loft(Feature):
 
             # could cause issues with really small lofts, but i dont really care right now
             if abs(distance1) > tol and abs(distance2) > tol:
-                ids = ""
+                idsArray = []
 
                 # ignore what i said about for loops earlier
                 for geoId, pt in points.items():
                     if pt.isEqual(edge.Vertexes[0].Point, 1e-5):
-                        ids += f"{geoId}:"
+                        idsArray.append(f"{geoId}")
                     
                     if pt.isEqual(edge.Vertexes[1].Point, 1e-5):
-                        ids += f"{geoId}:"
+                        idsArray.append(f"{geoId}")
+                
+                ids = ":".join(idsArray)
                     
                 if ids != "":
                     obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, edge.copy()])
@@ -450,12 +453,13 @@ class Loft(Feature):
         
         for hash, value in elementMap.copy().items():
             if value["Identifer"] not in identifierList:
-                elementMap.pop(hash)
+                # elementMap.pop(hash)
+                elementMap[hash]["Stale"] = True
 
         obj.ElementMap = json.dumps(elementMap)
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
-        obj.Boundary.ViewObject.LineWidth = 2
+        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
         obj.Boundary.purgeTouched()
         obj.Boundary.Visibility = True
 

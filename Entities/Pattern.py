@@ -8,10 +8,11 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, dressupTypes, getElementFromHash
+from Utils.Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, getElementFromHash
 from Entities.Feature import Feature
+from Utils.Preferences import *
 from PySide import QtWidgets
-from GuiUtils import SelectorWidget
+from Utils.GuiUtils import SelectorWidget
 import copy
 
 dimensionTypes = ["Blind", "UpToEntity"]

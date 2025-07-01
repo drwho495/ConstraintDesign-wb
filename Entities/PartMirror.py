@@ -8,7 +8,8 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import featureTypes, isType, boundaryTypes, getIDsFromSelection, getElementFromHash, makeBoundaryCompound
+from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBoundaryCompound
+from Utils.Preferences import *
 from Entities.Feature import Feature
 
 class PartMirror(Feature):
@@ -167,7 +168,7 @@ class PartMirror(Feature):
                 print("tip none")
                 
         obj.Boundary.Shape = datumShape
-        obj.Boundary.ViewObject.LineWidth = 2
+        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
         obj.ViewObject.LineWidth = 1
         obj.Boundary.purgeTouched()
         obj.IndividualShape = newShape.copy()

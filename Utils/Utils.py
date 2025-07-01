@@ -4,12 +4,7 @@ import FreeCADGui as Gui
 import random
 import string
 import Part
-
-featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern", "Loft"]
-dressupTypes = ["Fillet", "Countersink", "Chamfer"]
-supportTypes = ["BoundarySketch"]
-datumTypes = ["ExposedGeometry"]
-boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
+from Utils.Preferences import *
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
 def getDependencies(obj, activeContainer):
@@ -87,7 +82,7 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
             if hasattr(feature, "ElementMap"):
                 map = json.loads(feature.ElementMap)
 
-                if hashName in map:
+                if hashName in map and (map[hashName].get("Stale") == None or map[hashName]["Stale"] == False):
                     element = map[hashName]["Element"]
                     elementArray = element.split(".")
 
@@ -109,7 +104,7 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
         if len(elements) != 0:
             return elements[0]
         else:
-            return None    
+            return None, None   
 
 def getStringID(activeContainer, element, fullScope=False):
         boundary = element[0]
@@ -167,7 +162,7 @@ def getStringID(activeContainer, element, fullScope=False):
 
                 if map != None:
                     for hash, value in map.items():
-                        if value["Element"] == boundary.Name + "." + elementName:
+                        if value["Element"] == boundary.Name + "." + elementName and (map[hash].get("Stale") == None or map[hash]["Stale"] == False):
                             return scopeStart + feature.Name + "." + hash
                 else:
                     return None
@@ -256,7 +251,8 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     vertexIndex = 0
 
     for item in features:
-        if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
+        if not ((hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject") or isType(item, "BoundarySketch")):
+            print(f"add {item.Label}")
             boundaries = []
 
             if generateElementMap:

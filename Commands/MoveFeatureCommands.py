@@ -3,7 +3,8 @@ import FreeCAD
 import FreeCADGui
 import Part
 from PySide import QtGui
-from Utils import getParent, isType, featureTypes, boundaryTypes, datumTypes
+from Utils.Utils import getParent, isType
+from Utils.Preferences import *
 
 class MoveDesignObject:
     def __init__(self, dir):

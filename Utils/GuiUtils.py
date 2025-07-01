@@ -1,6 +1,7 @@
 from PySide import QtWidgets, QtCore, QtGui
 import FreeCADGui as Gui
-from Utils import getIDsFromSelection, getElementFromHash, getStringID
+from Utils.Utils import getIDsFromSelection, getElementFromHash, getStringID
+from Utils.Preferences import *
 import copy
 
 hashToElementSplitStr = "   "
@@ -113,7 +114,7 @@ class SelectorWidget(QtWidgets.QWidget):
 
             element = getElementFromHash(self.activeContainer, sel)
 
-            if element != None:
+            if element[0] != None and element[1] != None:
                 Gui.Selection.removeSelection(self.activeContainer.Document.Name, self.activeContainer.Name, f'{element[0].Name}.{element[1]}')
                 entry = f"{sel}{hashToElementSplitStr}({element[1]})"
             else:

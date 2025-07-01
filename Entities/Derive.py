@@ -8,7 +8,8 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import featureTypes, isType, boundaryTypes, makeBoundaryCompound
+from Utils.Utils import isType, makeBoundaryCompound
+from Utils.Preferences import *
 from Entities.Feature import Feature
 
 class Derive(Feature):
@@ -96,7 +97,7 @@ class Derive(Feature):
 
         obj.Shape = newShape
         obj.Boundary.ViewObject.LineWidth = 2
-        obj.ViewObject.LineWidth = 1
+        obj.ViewObject.LineWidth = boundaryLineWidth
 
         obj.Boundary.purgeTouched()
 

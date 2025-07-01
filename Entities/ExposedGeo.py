@@ -4,8 +4,11 @@ import Part
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getParent, featureTypes, boundaryTypes, getIDsFromSelection, getObjectsFromScope, getElementFromHash
+from Utils.Utils import isType, getParent, getIDsFromSelection, getObjectsFromScope, getElementFromHash
+from Utils.Preferences import *
 from Entities.Entity import Entity
+
+missingStr = "(MISSING) "
 
 class ExposedGeo(Entity):
     def __init__(self, obj, useCase="Generic"):
@@ -40,7 +43,7 @@ class ExposedGeo(Entity):
         return super(ExposedGeo, self).getContainer(obj)
         
     def generateShape(self, obj, prevShape):
-        print(obj.Label)
+        self.updateProps(obj)
 
         shape = Part.Shape()
         container = self.getContainer(obj)
@@ -48,21 +51,35 @@ class ExposedGeo(Entity):
         hashStr = obj.Support
         placement = App.Placement()
 
-        print(container.Label)
-        print(obj.Support)
-
         feature, elementName = getElementFromHash(container, obj.Support)
+
+        if feature == None or elementName == None: # do not add error here, getElementFromHash already errors
+            if not obj.Label.startswith(missingStr):
+                obj.Label = f"{missingStr}{obj.Label}"
+
+            if hasattr(obj, "UseCase") and obj.UseCase == "Sketch":
+                obj.ViewObject.ShowInTree = True
+            
+            return obj.Shape
+        else:
+            if obj.Label.startswith(missingStr):
+                obj.Label = obj.Label.removeprefix("(MISSING) ")
+
+            if hasattr(obj, "UseCase") and obj.UseCase == "Sketch":
+                obj.ViewObject.ShowInTree = False
+
         scoreDocument, scopeContainer, _, _ = getObjectsFromScope(container, hashStr)
         
         if elementName != None:
             element = feature.Shape.getElement(elementName).copy()
             if element != None:
-                placement.Base = element.CenterOfMass
-                element.applyTranslation(element.CenterOfMass * -1)
-                shape = Part.Compound([element])
+                if isinstance(element, Part.Edge):
+                    placement.Base = element.CenterOfMass
+                elif isinstance(element, Part.Vertex):
+                    placement.Base = element.Point
 
-                print(obj.Label)
-                print(f"placement: {str(shape.Edges[0].Placement)}")
+                element.applyTranslation(placement.Base * -1)
+                shape = Part.Compound([element])
 
                 # if scoreDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
                     # globalP = feature.getGlobalPlacement()
@@ -73,8 +90,6 @@ class ExposedGeo(Entity):
                     # placement.Rotation = globalP.Rotation
 
                 obj.Shape = shape
-
-                print(f"placement: {str(obj.Shape.Edges[0].Placement)}")
         
         obj.ViewObject.Selectable = True
         obj.ViewObject.LineWidth = 4 
@@ -116,8 +131,6 @@ class ViewProviderExposedGeo:
         except Exception as e:
             App.Console.PrintWarning("Deleting Fillet Errored, reason: " + str(e))
         
-        print("delete: fillet")
-
         return True
     
     def attach(self, vobj):
@@ -177,8 +190,12 @@ def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
     if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
         doc = activeObject.Document
         doc.openTransaction("CreateExposedGeo")
+        name = "ExposedGeo"
 
-        obj = App.ActiveDocument.addObject("Part::FeaturePython", "ExposedGeo")
+        if useCase == "Sketch":
+            name = "ExternalSketchGeometry"
+
+        obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
         ExposedGeo(obj, useCase)
         ViewProviderExposedGeo(obj.ViewObject)
 
@@ -192,8 +209,6 @@ def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
             return None
         else:
             _, _, afterFeature, _ = getObjectsFromScope(activeObject, hashes[0])
-
-            print(afterFeature.Name)
 
             obj.Support = hashes[0]
             activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)

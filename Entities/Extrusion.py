@@ -6,10 +6,12 @@ import os
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getDistanceToElement, generateHashName
+from Utils.Utils import isType, getDistanceToElement, generateHashName
+from Utils.SketchUtils import getIDDict
+from Utils.Preferences import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
-from GuiUtils import SelectorWidget
+from Utils.GuiUtils import SelectorWidget
 
 dimensionTypes = ["Blind", "UpToEntity"]
 startingOffsetTypes = ["Blind", "UpToEntity"]
@@ -334,6 +336,8 @@ class Extrusion(Feature):
     def makeIdentifier(self, geoIDs = ["g1v1", "g2"], elementType = "Edge", occurence = 0, boundaryType = "Sketch", extraInfo=""):
         geoIDString = ":".join(geoIDs)
 
+        if not extraInfo.endswith(";"): extraInfo += ";"
+
         return f"{geoIDString};{elementType};{str(occurence)};{boundaryType};;;{extraInfo}"
     
     def identifierIsSame(self, identifier1, identifier2):
@@ -347,7 +351,7 @@ class Extrusion(Feature):
         else:
             return False
 
-    # Format {"HashName": {"Element:" edge, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/WiresBoundary)>;;;<extraInfo>"}}
+    # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/WiresBoundary)>;;;<extraInfo>"}}
     def updateElement(self, element, identifier, map, complexCheck=True):
         hasElement = False
 
@@ -355,13 +359,14 @@ class Extrusion(Feature):
             if (not complexCheck and value["Identifier"] == identifier) or (complexCheck and self.identifierIsSame(value["Identifier"], identifier)):
                 map[key]["Identifier"] = identifier
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
+                map[key]["Stale"] = False
 
                 hasElement = True
 
         if hasElement == False:
             hash = generateHashName(map)
             
-            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Identifier": identifier}
+            map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Stale": False, "Identifier": identifier}
         
         return map
     
@@ -439,10 +444,9 @@ class Extrusion(Feature):
             startTime = time.time()
             boundaryShape = Part.Shape()
             tol = 1e-5
+            facadeDict = getIDDict(sketch)
 
-            for geoF in sketch.GeometryFacadeList:
-                geo = geoF.Geometry
-
+            for id, geo in facadeDict.items():
                 if hasattr(geo, "StartPoint") and hasattr(geo, "EndPoint"):
                     vertexes = [geo.StartPoint, geo.EndPoint]
 
@@ -453,10 +457,10 @@ class Extrusion(Feature):
                             if v["Vector"].isEqual(vec, tol):
                                 hasVector = True
 
-                                v["IDs"].append(f"g{geoF.Id}v{str(i + 1)}")
+                                v["IDs"].append(f"{id}v{str(i + 1)}")
                     
                         if not hasVector:
-                            points[len(points)] = {"Vector": vec, "IDs": [f"g{geoF.Id}v{str(i + 1)}"]}
+                            points[len(points)] = {"Vector": vec, "IDs": [f"{id}v{str(i + 1)}"]}
                 elif hasattr(geo, "X") and hasattr(geo, "Y") and hasattr(geo, "Z"):
                     vec = App.Vector(geo.X, geo.Y, geo.Z)
                     hasVector = False
@@ -465,10 +469,10 @@ class Extrusion(Feature):
                         if v["Vector"].isEqual(vec, tol):
                             hasVector = True
 
-                            v["IDs"].append(f"g{geoF.Id}")
+                            v["IDs"].append(f"{id}")
         
                     if not hasVector:
-                        points[len(points)] = {"Vector": vec, "IDs": [f"g{geoF.Id}"]}
+                        points[len(points)] = {"Vector": vec, "IDs": [f"{id}"]}
                 
                 geoShape = geo.toShape()
                 oldVertNum = len(boundaryShape.Vertexes)
@@ -481,7 +485,7 @@ class Extrusion(Feature):
 
                 if isinstance(geoShape, Part.Edge):
                     # Create Base Sketch Boundary
-                    identifier = self.makeIdentifier([f"g{geoF.Id}"], "Edge", 0, "Sketch")
+                    identifier = self.makeIdentifier([f"{id}"], "Edge", 0, "Sketch")
                     identifierList.append(identifier)
                     element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
                     
@@ -500,7 +504,7 @@ class Extrusion(Feature):
 
                     if isinstance(geoShape, Part.Edge):
                         # Create Base Sketch Boundary
-                        identifier = self.makeIdentifier([f"g{geoF.Id}"], "Edge", 0, "SketchProjection")
+                        identifier = self.makeIdentifier([f"{id}"], "Edge", 0, "SketchProjection")
                         identifierList.append(identifier)
                         element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
                         
@@ -563,13 +567,15 @@ class Extrusion(Feature):
             
             for hash, value in elementMap.copy().items():
                 if value["Identifier"] not in identifierList:
-                    elementMap.pop(hash)
+                    # elementMap.pop(hash)
+                    elementMap[hash]["Stale"] = True
 
             App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}")
 
             obj.ElementMap = json.dumps(elementMap)
             
             obj.Boundary.Shape = boundaryShape
+            obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
             obj.Boundary.Placement = sketch.Placement
             obj.Boundary.Placement.Base += offsetVector
 

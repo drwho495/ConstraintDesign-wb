@@ -3,12 +3,13 @@ import FreeCADGui as Gui
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import isType, getElementFromHash, getParent, getStringID
+from Utils.Utils import isType, getElementFromHash, getParent, getStringID
+from Utils.Preferences import *
 from Entities.ExposedGeo import makeExposedGeo
 from Entities.Entity import Entity
 from PySide import QtWidgets
 import Part
-from GuiUtils import SelectorWidget
+from Utils.GuiUtils import SelectorWidget
 
 class ExternalGeoSelector:
     def __init__(self, sketch):
@@ -168,8 +169,18 @@ class ConstraintSketchViewObject:
         vobj.Proxy = self
         self.observer = None
     
+    # def onDelete(self, vobj, _):
+    #     try:
+    #         for item in vobj.Object.OutList:
+    #             if isType(item, "ExposedGeometry") and hasattr(item, "UseCase") and item.UseCase == "Sketch":
+    #                 item.Document.removeObject(item.Name)
+    #     except Exception as e:
+    #         App.Console.PrintWarning(f"{str(e)} occured while trying to delete sketch dependencies!\n")
+        
+    #     return True
+    
     def setEdit(self, vobj, _):
-        print(f"{vobj.Object.Label} was opened.")
+        App.Console.PrintLog(f"{vobj.Object.Label} was opened.\n")
         
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
@@ -179,12 +190,15 @@ class ConstraintSketchViewObject:
         self.observer = ExternalGeoSelector(vobj.Object)
 
     def unsetEdit(self, vobj, _):
-        print(f"{vobj.Object.Label} was closed.")
+        App.Console.PrintLog(f"{vobj.Object.Label} was closed.\n")
 
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
         if self.observer != None:
             self.observer.cleanup()
+    
+    def getIcon(self):
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "Sketch.svg")
     
     def __getstate__(self):
         return None
@@ -192,7 +206,7 @@ class ConstraintSketchViewObject:
     def __setstate__(self, state):
         return None
 
-def makeSketch(stringIDs):
+def makeSketch(stringIDs, editAfter=True):
     obj = App.ActiveDocument.addObject("Sketcher::SketchObjectPython", "ConstraintSketch")
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
     ConstraintSketch(obj)
@@ -203,6 +217,9 @@ def makeSketch(stringIDs):
 
     if activeObject != None and isType(activeObject, "PartContainer"):
         activeObject.Proxy.addObject(activeObject, obj)
+    
+    if editAfter:
+        Gui.ActiveDocument.setEdit(obj)
 
     # obj.recompute()
     # obj.ViewObject.Proxy = 0

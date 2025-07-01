@@ -3,7 +3,8 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-from Utils import featureTypes, isType, datumTypes, getDependencies
+from Utils.Utils import isType, getDependencies
+from Utils.Preferences import *
 import json
 
 class PartContainer:

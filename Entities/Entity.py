@@ -6,7 +6,7 @@ import sys
 import os
 import FreeCAD as App
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils import getParent
+from Utils.Utils import getParent
 
 class Entity(ABC):
     @abstractmethod

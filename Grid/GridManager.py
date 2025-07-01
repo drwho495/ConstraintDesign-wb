@@ -1,11 +1,16 @@
 from pivy import coin
 import FreeCADGui as Gui
 import FreeCAD as App
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
+
+from Utils.Preferences import *
 
 # todo: add to preferences!
-gridSpacing = 15
-gridExtent = 20_000
-showGrid = True
+_gridSpacing = gridSquareSize
+_gridExtent = gridSize
+_showGrid = True
 
 grids = []
 
@@ -28,7 +33,7 @@ class Grid:
                 self.sceneGraph.removeChild(self.gridRoot)
 
     def createGrid(self):
-        internalExtent = round(gridExtent/gridSpacing)*gridSpacing
+        internalExtent = round(_gridExtent/_gridSpacing)*_gridSpacing
 
         self.gridRoot = coin.SoSeparator()
 
@@ -94,7 +99,7 @@ class Grid:
 
         points = []
         numVerts = []
-        for i in range(-internalExtent, internalExtent, gridSpacing):
+        for i in range(-internalExtent, internalExtent, _gridSpacing):
             points.append(coin.SbVec3f(-internalExtent, i, 0))
             points.append(coin.SbVec3f(internalExtent, i, 0))
             numVerts.append(2)
@@ -109,7 +114,7 @@ class Grid:
         return self.gridRoot
 
 def addGrid(document, showOveride=False):
-    if not showOveride and not showGrid:
+    if not showOveride and not _showGrid:
         return False
 
     for grid in grids:
