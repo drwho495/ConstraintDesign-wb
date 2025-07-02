@@ -122,14 +122,10 @@ class ConstraintSketch(Entity):
                     p2 = vectors[1]
                     p3 = vectors[2]
 
-                    x_axis = (p2 - p1).normalize()
-                    normal = (p2 - p1).cross(p3 - p1).normalize()
-                    y_axis = normal.cross(x_axis)
+                    plane = Part.Plane(p1, p2, p3)
+                    position = plane.projectPoint(container.Origin.Placement.Base)
 
-                    rot = App.Rotation(x_axis, y_axis, normal)
-                    translation = p1 - rot.multVec(App.Vector(0, 0, 0))
-
-                    obj.Placement = App.Placement(translation, rot)
+                    obj.Placement = App.Placement(position, plane.Rotation)
             elif obj.SupportType == "Plane":
                 obj.Placement = obj.SupportPlane.Placement
         obj.recompute()

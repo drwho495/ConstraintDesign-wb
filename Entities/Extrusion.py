@@ -699,7 +699,7 @@ def makeExtrusion():
             boundary.addProperty("App::PropertyString", "Type")
             boundary.Type = "Boundary"
 
-            boundary.ViewObject.ShowInTree = False
+            boundary.ViewObject.ShowInTree = True
 
             Extrusion(obj)
             ViewProviderExtrusion(obj.ViewObject)

@@ -104,10 +104,6 @@ class FeatureJoint(Entity):
         Gui.Control.showDialog(JointTaskPanel(obj, addOldSelection, startSelection))
     
     def updateProps(self, obj, useCase = "Generic"):
-        obj.setEditorMode("AttachmentSupport", 2)
-        obj.setEditorMode("AttacherEngine", 2)
-        obj.setEditorMode("MapMode", 2)
-
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "Joint"
@@ -128,6 +124,15 @@ class FeatureJoint(Entity):
         if not hasattr(obj, "SupportType"):
             obj.addProperty("App::PropertyEnumeration", "SupportType", "ConstraintDesign")
             obj.SupportType = ["Deactivated"]
+        
+        if hasattr(obj, "AttachmentSupport"):
+            obj.setEditorMode("AttachmentSupport", 2)
+
+        if hasattr(obj, "AttacherEngine"):
+            obj.setEditorMode("AttacherEngine", 2)
+
+        if hasattr(obj, "MapMode"):
+            obj.setEditorMode("MapMode", 2)
     
     def generateEquations(self):
         pass
@@ -163,7 +168,7 @@ class FeatureJoint(Entity):
         obj.MapMode = obj.SupportType
 
         if container != None:
-            elements = getElementFromHash(container, obj.Support, True, requestingObjectLabel=obj.Label)
+            elements = getElementFromHash(container, obj.Support, asList=True, requestingObjectLabel=obj.Label)
 
             for fullElement in elements:
                 if fullElement[0] != None and fullElement[1] != None and len(fullElement) < 4:

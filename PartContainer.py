@@ -37,20 +37,24 @@ class PartContainer:
             self.updateProps(obj)
     
     def updateSupportVisibility(self, obj, supportObject):
-        if obj.ObjectVisibilityDict != "{}" or obj.ObjectVisibilityDict != "":
+        if obj.ObjectVisibilityDict != "{}":
             self.resetVisibility(obj)
         
         objectVisibilityDict = {}
 
+        if not hasattr(obj, "ObjectVisibilityDict"):
+            self.updateProps(obj)
+
         if isType(supportObject, supportTypes):
             feature = getParent(supportObject, featureTypes)
             group = self.getGroup(obj, True, True)
-            cutoffIndex = group.index(feature)
-
-            for item in obj.Group:
-                objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
 
             if feature != None:
+                cutoffIndex = group.index(feature)
+
+                for item in obj.Group:
+                    objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
+
                 for item in group:
                     itemGroup = [item]
                     hide = False
@@ -71,6 +75,9 @@ class PartContainer:
     
     def resetVisibility(self, obj): # i store and recieve object's visibility like this because the user might want to have a specifc datum hidden/shown
         visibilityList = None
+
+        if not hasattr(obj, "ObjectVisibilityDict"):
+            self.updateProps(obj)
         
         try:
             visibilityList = json.loads(obj.ObjectVisibilityDict)
@@ -146,7 +153,7 @@ class PartContainer:
     def getGroup(self, obj, withNonFeatureEntities = False, skipSketch=False):
         filteredGroup = []
         for item in obj.Group:
-            if (hasattr(item, "Type") and item.Type in featureTypes) or (isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and isType(item, "ExposedGeometry")):
+            if (hasattr(item, "Type") and item.Type in featureTypes) or (isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and isType(item, datumTypes)):
                 filteredGroup.append(item)
         
         return filteredGroup
@@ -178,14 +185,13 @@ class PartContainer:
         prevShape = Part.Shape()
         startTime = time.time()
         inEdit = Gui.ActiveDocument.getInEdit()
+        self.updateProps(obj)
 
         if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
             return
-
-        self.updateProps(obj)
-
-        if not hasattr(obj, "Tip"):
-            self.updateProps(obj)
+        
+        if obj.ObjectVisibilityDict != "{}":
+            self.resetVisibility(obj)
 
         tipFound = False
         group = self.getGroup(obj, True)
