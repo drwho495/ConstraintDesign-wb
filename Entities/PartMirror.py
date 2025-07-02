@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBoundaryCompound
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.Feature import Feature
 
 class PartMirror(Feature):
@@ -125,10 +125,10 @@ class PartMirror(Feature):
                                 normalHash = ".".join(hashArray[1:])
                                 print(normalHash)
 
-                                feature, elementName = getElementFromHash(container, normalHash)
+                                feature, elementName = getElementFromHash(container, normalHash, requestingObjectLabel=obj.Label)
                                 element = feature.Shape.getElement(elementName)
 
-                                if element != None:
+                                if feature != None and element != None:
                                     if type(element).__name__ == "Edge":
                                         for vertex in element.Vertexes:
                                             points.append(vertex.Point)
@@ -169,6 +169,7 @@ class PartMirror(Feature):
                 
         obj.Boundary.Shape = datumShape
         obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = boundaryPointSize
         obj.ViewObject.LineWidth = 1
         obj.Boundary.purgeTouched()
         obj.IndividualShape = newShape.copy()

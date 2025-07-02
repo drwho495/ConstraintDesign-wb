@@ -7,12 +7,15 @@ import os
 import FreeCAD as App
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Entities.Entity import Entity
-from Utils.Preferences import *
+from Utils.Constants import *
 from Utils.Utils import getParent
 
 class Feature(Entity):
     @abstractmethod
     def getBoundaries(self, obj, isShape=False):
+        return []
+
+    def getSupports(self, obj):
         return []
 
     @abstractmethod

@@ -5,7 +5,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 
-from Utils.Preferences import *
+from Utils.Constants import *
 
 # todo: add to preferences!
 _gridSpacing = gridSquareSize

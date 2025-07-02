@@ -4,7 +4,7 @@ import FreeCADGui as Gui
 import random
 import string
 import Part
-from Utils.Preferences import *
+from Utils.Constants import *
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
 def getDependencies(obj, activeContainer):
@@ -39,8 +39,8 @@ def getP2PDistanceAlongNormal(startPoint, endPoint, normal):
     vec = endPoint - startPoint
     return vec.dot(normal)
 
-def getDistanceToElement(feature, stringID, startPoint, normal):
-    boundary, elementName = getElementFromHash(feature, stringID)
+def getDistanceToElement(feature, stringID, startPoint, normal, requestingObjectLabel=""):
+    boundary, elementName = getElementFromHash(feature, stringID, requestingObjectLabel=requestingObjectLabel)
     element = boundary.Shape.getElement(elementName)
 
     entityPoint = None
@@ -52,7 +52,7 @@ def getDistanceToElement(feature, stringID, startPoint, normal):
 
     return getP2PDistanceAlongNormal(startPoint, entityPoint, normal)
 
-def getElementFromHash(activeContainer, fullHash, asList = False):
+def getElementFromHash(activeContainer, fullHash, requestingObjectLabel = "", printMissingError = True, asList = False):
     """
         Get an element (or elements) from a hash or list of hashes
 
@@ -92,7 +92,11 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
                     
                     elements.append((boundary, elementName))
                 else:
-                    App.Console.PrintError(f"Hash: {str(hash)} cannot be found in {feature.Label}\n")
+                    if printMissingError:
+                        if requestingObjectLabel != "":
+                            App.Console.PrintError(f"{requestingObjectLabel}: {str(fullHash)} cannot be found\n")
+                        else:
+                            App.Console.PrintError(f"{str(fullHash)} cannot be found\n")
             else:
                 App.Console.PrintError("Feature has no ElementMap!\nPlease report this!\n")
         else:
@@ -106,7 +110,17 @@ def getElementFromHash(activeContainer, fullHash, asList = False):
         else:
             return None, None   
 
-def getStringID(activeContainer, element, fullScope=False):
+def getStringID(activeContainer, element, fullScope=False, suppressErrors = False):
+        """
+            This returns the string ID of an element, with context of the scope in which the element resides.
+            Returns a string if successful, returns `None` if not.
+
+            `element` is the element to find. It needs to be formatted like this: (baseObject, elementName)
+            `fullScope` makes it so that the full scope is returned with the string ID base
+            `suppressErrors` disables error printing in the FreeCAD Console.
+
+            full string ID format: documentName.partContainerName.featureName.stringIDBase
+        """
         boundary = element[0]
         elementName = element[1]
         scopeStart = ""
@@ -158,7 +172,8 @@ def getStringID(activeContainer, element, fullScope=False):
                     map = json.loads(feature.ElementMap)
                 except:
                     map = None
-                    App.Console.PrintError("Unable to load json from ElementMap of " + feature.Label)
+                    if not suppressErrors:
+                        App.Console.PrintError("Unable to load json from ElementMap of " + feature.Label)
 
                 if map != None:
                     for hash, value in map.items():

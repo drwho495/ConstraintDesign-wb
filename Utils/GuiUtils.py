@@ -1,7 +1,7 @@
 from PySide import QtWidgets, QtCore, QtGui
 import FreeCADGui as Gui
 from Utils.Utils import getIDsFromSelection, getElementFromHash, getStringID
-from Utils.Preferences import *
+from Utils.Constants import *
 import copy
 
 hashToElementSplitStr = "   "

@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, makeBoundaryCompound
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.Feature import Feature
 
 class Derive(Feature):
@@ -97,7 +97,8 @@ class Derive(Feature):
 
         obj.Shape = newShape
         obj.Boundary.ViewObject.LineWidth = 2
-        obj.ViewObject.LineWidth = boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = boundaryLineWidth
+        obj.ViewObject.LineWidth = boundaryPointSize
 
         obj.Boundary.purgeTouched()
 

@@ -17,15 +17,5 @@ class Entity(ABC):
     def updateProps(self, obj):
         pass
 
-    @abstractmethod
-    def onChanged(self, obj, prop):
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
-
-            if container != None:
-                container.Proxy.setShownObj(container, obj)
-            else:
-                App.Console.PrintWarning("No container found in onChanged!")
-
     def getContainer(self, obj):
         return getParent(obj, "PartContainer")

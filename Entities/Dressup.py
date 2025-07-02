@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
 from Utils.GuiUtils import SelectorWidget
-from Utils.Preferences import *
+from Utils.Constants import *
 from PySide import QtWidgets
 import json
 from Entities.Feature import Feature
@@ -252,7 +252,7 @@ class FeatureDressup(Feature):
         """ Used to make development easier, won't need to update 10 different instances of id generation """
         return f"{supportHash};{placement};{elementType}"
 
-    # {"<String ID>": {"Identifier": "<SupportHash>;Top/Bottom;ElementType", "Element": <BoundaryName>.<Vertex1/Edge2/Face3>}}
+    # {"<String ID>": {"Identifier": "<SupportHash>;Top/Bottom;ElementType", "Stale": <True/False>, "Element": <BoundaryName>.<Vertex1/Edge2/Face3>}}
     def updateElement(self, map, identifier, element):
         foundElement = False
 
@@ -261,11 +261,12 @@ class FeatureDressup(Feature):
                 foundElement = True
 
                 map[stringId]["Element"] = f"{element[0].Name}.{element[1]}"
+                map[stringId]["Stale"] = False
         
         if not foundElement:
             newId = generateHashName(map)
 
-            map[newId] = {"Identifier": identifier, "Element": f"{element[0].Name}.{element[1]}"}
+            map[newId] = {"Identifier": identifier, "Stale": False, "Element": f"{element[0].Name}.{element[1]}"}
         
         return map
         
@@ -299,7 +300,7 @@ class FeatureDressup(Feature):
                         if stringID in skipHashes: continue
 
                         try:
-                            element = getElementFromHash(container, stringID)
+                            element = getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
                         except Exception as e:
                             App.Console.PrintError(str(e) + "\n")
                             continue
@@ -431,9 +432,12 @@ class FeatureDressup(Feature):
 
                         for k,v in map.copy().items():
                             if v["Identifier"] not in identifiers:
-                                map.pop(k)
+                                # map.pop(k)
+                                map[k]["Stale"] = True
                         
                         obj.Boundary.Shape = boundaryShape
+                        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+                        obj.Boundary.ViewObject.PointSize = boundaryPointSize
                         obj.ElementMap = json.dumps(map)
                         cutCompound = Part.Compound(cutCompoundArray)
                         obj.IndividualShape = cutCompound.copy()

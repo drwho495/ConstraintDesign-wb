@@ -10,7 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, getElementFromHash
 from Entities.Feature import Feature
-from Utils.Preferences import *
+from Utils.Constants import *
 from PySide import QtWidgets
 from Utils.GuiUtils import SelectorWidget
 import copy
@@ -370,7 +370,7 @@ class Pattern(Feature):
 
         if obj.DirectionLine != "":
             container = self.getContainer(obj)
-            boundary, elementName = getElementFromHash(container, obj.DirectionLine)
+            boundary, elementName = getElementFromHash(container, obj.DirectionLine, requestingObjectLabel=obj.Label)
 
             if boundary != None:
                 if elementName != None and elementName != "":
@@ -479,6 +479,8 @@ class Pattern(Feature):
         
         obj.Shape = finalShape
         obj.Boundary.Shape = boundaryCompound
+        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = boundaryPointSize
 
         obj.Boundary.purgeTouched()
 

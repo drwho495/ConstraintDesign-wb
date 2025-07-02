@@ -5,10 +5,11 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getParent, getIDsFromSelection, getObjectsFromScope, getElementFromHash
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.Entity import Entity
 
 missingStr = "(MISSING) "
+useCases = ["Generic", "Sketch"]
 
 class ExposedGeo(Entity):
     def __init__(self, obj, useCase="Generic"):
@@ -25,7 +26,8 @@ class ExposedGeo(Entity):
         
         if not hasattr(obj, "UseCase"):
             obj.addProperty("App::PropertyString", "UseCase", "ConstraintDesign", "Type of constraint design feature.")
-            obj.UseCase = useCase
+            if useCase in useCases:
+                obj.UseCase = useCase
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyString", "Support", "ConstraintDesign", "Element to expose.")
@@ -51,7 +53,7 @@ class ExposedGeo(Entity):
         hashStr = obj.Support
         placement = App.Placement()
 
-        feature, elementName = getElementFromHash(container, obj.Support)
+        feature, elementName = getElementFromHash(container, obj.Support, requestingObjectLabel=obj.Label)
 
         if feature == None or elementName == None: # do not add error here, getElementFromHash already errors
             if not obj.Label.startswith(missingStr):
@@ -93,6 +95,7 @@ class ExposedGeo(Entity):
         
         obj.ViewObject.Selectable = True
         obj.ViewObject.LineWidth = 4 
+        obj.ViewObject.PointSize = 6
         obj.Placement = placement
         obj.purgeTouched()
         
@@ -102,9 +105,6 @@ class ExposedGeo(Entity):
 
     def getElement(self, obj, hash):
         return None, None
-
-    def getBoundaries(self, obj, isShape=False):
-        return []
 
     def execute(self, obj):
         self.updateProps(obj)

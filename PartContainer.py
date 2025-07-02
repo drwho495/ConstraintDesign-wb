@@ -3,8 +3,8 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-from Utils.Utils import isType, getDependencies
-from Utils.Preferences import *
+from Utils.Utils import isType, getDependencies, getParent
+from Utils.Constants import *
 import json
 
 class PartContainer:
@@ -19,6 +19,11 @@ class PartContainer:
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "PartContainer"
         
+        if not hasattr(obj, "ObjectVisibilityDict"):
+            obj.addProperty("App::PropertyString", "ObjectVisibilityDict", "ConstraintDesign", "Type of constraint design feature.")
+            obj.setEditorMode("ObjectVisibilityDict", 3)
+            obj.ObjectVisibilityDict = "{}"
+        
         if not hasattr(obj, "Tip"):
             obj.addProperty("App::PropertyXLink", "Tip", "ConstraintDesign", "The tip feature of the container.")
 
@@ -30,6 +35,55 @@ class PartContainer:
             obj.Proxy = self
 
             self.updateProps(obj)
+    
+    def updateSupportVisibility(self, obj, supportObject):
+        if obj.ObjectVisibilityDict != "{}" or obj.ObjectVisibilityDict != "":
+            self.resetVisibility(obj)
+        
+        objectVisibilityDict = {}
+
+        if isType(supportObject, supportTypes):
+            feature = getParent(supportObject, featureTypes)
+            group = self.getGroup(obj, True, True)
+            cutoffIndex = group.index(feature)
+
+            for item in obj.Group:
+                objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
+
+            if feature != None:
+                for item in group:
+                    itemGroup = [item]
+                    hide = False
+
+                    if item in supportObject.OutList or isType(supportObject, datumTypes) or item == feature or group.index(item) > cutoffIndex:
+                        hide = True
+
+                    if hasattr(item, "Group"):
+                        itemGroup.extend(item.Group)
+                    
+                    for hideItem in itemGroup:
+                        hideItem.Visibility = not hide
+            
+        try:
+            obj.ObjectVisibilityDict = json.dumps(objectVisibilityDict)
+        except:
+            obj.ObjectVisibilityDict = "{}"
+    
+    def resetVisibility(self, obj): # i store and recieve object's visibility like this because the user might want to have a specifc datum hidden/shown
+        visibilityList = None
+        
+        try:
+            visibilityList = json.loads(obj.ObjectVisibilityDict)
+        except:
+            pass
+
+        if visibilityList != None:
+            for objName, val in visibilityList.items():
+                object = obj.Document.getObject(objName) # object object object object
+
+                if object != None and isinstance(val, bool):
+                    object.Visibility = val
+            obj.ObjectVisibilityDict = "{}"
     
     def attach(self, obj):
         self.updateProps(obj)
@@ -74,6 +128,15 @@ class PartContainer:
         obj.ShownFeature = obj.Tip # Make setting in pref?
 
     def setShownObj(self, obj, feature):
+        print("set shown object called")
+
+        inEdit = Gui.ActiveDocument.getInEdit()
+
+        if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
+            return
+        
+        print("set shown object ran")
+
         obj.ShownFeature = feature
         group = self.getGroup(obj, False)
         group.remove(feature)
@@ -87,6 +150,21 @@ class PartContainer:
                 filteredGroup.append(item)
         
         return filteredGroup
+
+    def getGroupOfTypes(self, obj, type = [], excludeObjectNames = []):
+        """
+            returns a group of a specific type (or types) of object in an `obj`
+            `obj` should be a container
+            `type` should be a string or list of strings
+            `excludeObjectNames` excludes objects with certain names. Needs to be a list.
+        """
+        sortedGroup = []
+
+        for item in obj.Group:
+            if isType(item, type) and item.Name not in excludeObjectNames:
+                sortedGroup.append(item)
+        
+        return sortedGroup
     
     def fixTip(self, obj):
         if not obj.Tip in obj.Group:
@@ -96,73 +174,15 @@ class PartContainer:
                 obj.Tip = group[len(group) - 1]
             #obj.Tip.Visibility = True
 
-    # # Format {"HashName": {"Element:" edge, "GeoId", sketchGeoId, "Occurrence": 0-∞, "FeatureType": Sketch, SketchProj, WiresDatum}}
-    # def getBoundariesCompound(self, obj, generateElementMap = False, elementMapFeatureName = ""):
-    #     boundaryArray = []
-    #     elementMap = {}
-    #     newEdgeNum = 0
-    #     newVertexNum = 0
-    #     edgeIndex = 0
-    #     vertexIndex = 0
-    #     group = self.getGroup(obj, False)
-
-    #     for item in group:
-    #         if not (hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject"):
-    #             boundaries = []
-
-    #             if generateElementMap:
-    #                 boundaries = item.Proxy.getBoundaries(item, False)
-    #             else:
-    #                 boundaries = item.Proxy.getBoundaries(item, True)
-
-    #             if generateElementMap and elementMapFeatureName != "" and hasattr(item, "ElementMap"):
-    #                 itemElementMap = json.loads(item.ElementMap)
-                    
-    #                 for boundary in boundaries:
-    #                     boundaryArray.append(boundary.Shape)
-                    
-    #                     for hash, value in itemElementMap.items():
-    #                         elementArray = value["Element"].split(".")
-    #                         featureName = elementArray[0]
-    #                         elementName = elementArray[1]
-
-    #                         if featureName == boundary.Name:
-    #                             if elementName.startswith("Edge"):
-    #                                 elementNum = int(elementName[4:])
-    #                                 elementNum += edgeIndex
-    #                                 elementName = "Edge" + str(elementNum)
-    #                             elif elementName.startswith("Vertex"):
-    #                                 elementNum = int(elementName[6:])
-    #                                 elementNum += vertexIndex
-    #                                 elementName = "Vertex" + str(elementNum)
-
-    #                             value["Element"] = elementMapFeatureName + "." + elementName
-    #                             elementMap[hash] = value
-                        
-    #                     edgeIndex += len(boundary.Shape.Edges) + 0
-    #                     vertexIndex += len(boundary.Shape.Vertexes) + 0
-    #             # print(elementMap)        
-    #         else: 
-    #             print(item.Label)
-    #             # boundaryArray.extend(boundaries)
-            
-    #         print("edge index: " + str(edgeIndex))
-    #         print("vertex index: " + str(vertexIndex))
-
-    #         edgeIndex += newEdgeNum
-    #         vertexIndex += newVertexNum
-
-        
-    #     print("array: " + str(boundaryArray))
-        
-    #     if generateElementMap:
-    #         return Part.Compound(boundaryArray), elementMap
-    #     else:
-    #         return Part.Compound(boundaryArray)
-    
     def recalculateShapes(self, obj, startObj = None):
         prevShape = Part.Shape()
         startTime = time.time()
+        inEdit = Gui.ActiveDocument.getInEdit()
+
+        if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
+            return
+
+        self.updateProps(obj)
 
         if not hasattr(obj, "Tip"):
             self.updateProps(obj)
@@ -171,9 +191,12 @@ class PartContainer:
         group = self.getGroup(obj, True)
         startIndex = 0
 
+        recomputedNameList = []
+
         if startObj != None and startObj in group:
             startIndex = group.index(startObj)
 
+        # handle features
         for i, child in enumerate(group):
             if isType(child, "BoundarySketch"):
                 child.Proxy.updateSketch(child, obj)
@@ -182,7 +205,23 @@ class PartContainer:
                 print(child.Type)
 
                 if i >= startIndex and not child.Suppressed:
+                    if hasattr(child.Proxy, "getSupports"):
+                        supports = child.Proxy.getSupports(child)
+
+                        if len(supports) != 0:
+                            depList = []
+                            
+                            for support in supports:
+                                depList.extend(support.OutList)
+
+                            for item in depList:
+                                print(f"dependency: {item.Label}")
+                                if isType(item, datumTypes) and item.Name not in recomputedNameList:
+                                    item.Proxy.generateShape(item, Part.Shape())
+                                    recomputedNameList.append(item.Name)
+
                     newShape = child.Proxy.generateShape(child, prevShape)
+                    recomputedNameList.append(child.Name)
 
                     if not newShape.isNull():
                         prevShape = newShape
@@ -195,10 +234,13 @@ class PartContainer:
 
                 if child == obj.Tip:
                     tipFound = True
-            elif hasattr(child, "Type") and child.Type in datumTypes:
-                child.Proxy.generateShape(child, prevShape)
 
             child.purgeTouched()
+
+        #handle datums that haven't already been recomputed
+        for item in self.getGroupOfTypes(obj, datumTypes, recomputedNameList):
+            print(f"recompute datum: {item.Label}")
+            item.Proxy.generateShape(item, Part.Shape())
         
         if not tipFound:
             self.fixTip(obj)
@@ -215,7 +257,6 @@ class PartContainer:
         self.addObject(obj, origin)
         
     def execute(self, obj):
-        self.updateProps(obj)
         self.recalculateShapes(obj)
     
     def getFullGroup(self, obj):
@@ -230,37 +271,6 @@ class PartContainer:
     def onChanged(self, obj, prop):
         pass
     
-    """ Element format: featureName.hash """
-    # def getElement(self, obj, element):
-    #     elementArray = element.split(".")
-
-    #     if len(elementArray) != 2:
-    #         App.Console.PrintError("Malformed element reference!\nPlease remove any periods in your feature names\n(If one somehow does contain a period, then you will need to recreate it)\n")
-    #     else:
-    #         featureName = elementArray[0]
-    #         hash = elementArray[1]
-    #         featureGroup = self.getFullGroup(obj)
-    #         featureInGroup = None
-
-    #         for feature in featureGroup:
-    #             if feature.Name == featureName:
-    #                 featureInGroup = feature
-            
-    #         if featureInGroup == None:
-    #             App.Console.PrintError("Feature in element reference not found!\n")
-    #         else:
-    #             try:
-    #                 return featureInGroup.Proxy.getElement(featureInGroup, hash)
-    #             except Exception as e:
-    #                 raise e
-
-    # This is for debugging
-    def highlightElement(self, obj, element):
-        feature, element = self.getElement(obj, element)
-
-        Gui.Selection.clearSelection()
-        Gui.Selection.addSelection(feature, [element])
-
 class ViewProviderPartContainer:
     def __init__(self, vobj = None):
         if vobj is not None:

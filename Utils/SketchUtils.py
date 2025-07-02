@@ -4,7 +4,7 @@ import FreeCADGui as Gui
 import Part
 from PySide import QtGui
 from Utils.Utils import isType
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.ExposedGeo import makeExposedGeo
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
@@ -18,23 +18,30 @@ def getIDDict(sketch):
     
     externalGeo = sketch.ExternalGeo.copy()
 
-    if len(externalGeo) > 2:
-        externalGeo.pop(0) # external geo has two unsupported entries that need to be removed
-        externalGeo.pop(0)
+    if len(externalGeo) != 0:
+        for geo in externalGeo:
+            print("add external")
+            geoF = None
+            externalGeoExt = None
+            defining = False
 
-    if len(externalGeo) != 0 and len(sketch.ExternalGeometry) != 0:
-        if len(externalGeo) == len(sketch.ExternalGeometry):
-            for i, geo in enumerate(externalGeo):
-                element = sketch.ExternalGeometry[i]
-                exposedGeo = element[0]
+            try:
+                geoF = geo.getExtensionOfType("Sketcher::SketchGeometryExtension")
+                externalGeoExt = geo.getExtensionOfType("Sketcher::ExternalGeometryExtension")
+            except:
+                pass
+            
+            if externalGeoExt != None:
+                try:
+                    defining = externalGeoExt.testFlag("Defining") # This needs to be checked seperately, because of older versions of FreeCAD
+                except:
+                    pass
+            
+            print(defining)
 
-                if isType(exposedGeo, "ExposedGeometry"):
-                    if hasattr(exposedGeo, "Support"):
-                        idDict[f"eg({exposedGeo.Support})"] = geo
-                    else:
-                        App.Console.PrintWarning(f"{exposedGeo.Label} does not have the proper `support` property!\n")
-        else:
-            App.Console.PrintError(f"Unable to properly generate a map of external geometry in {sketch.Label}\nReport this please! Make sure to include files that show the issue.\nMore info: the length of ExternalGeo and ExternalGeometry were not the same!\n")
+            if geoF != None and geoF.Id >= 1 and defining:
+                idDict[f"eg{geoF.Id}"] = geo
+                print("add to list")
         
     print(idDict)
 

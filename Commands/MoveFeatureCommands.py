@@ -4,7 +4,7 @@ import FreeCADGui
 import Part
 from PySide import QtGui
 from Utils.Utils import getParent, isType
-from Utils.Preferences import *
+from Utils.Constants import *
 
 class MoveDesignObject:
     def __init__(self, dir):

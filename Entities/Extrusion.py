@@ -8,7 +8,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getDistanceToElement, generateHashName
 from Utils.SketchUtils import getIDDict
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils.GuiUtils import SelectorWidget
@@ -312,6 +312,12 @@ class Extrusion(Feature):
 
         self.addObject(obj, boundary)
     
+    def getSupports(self, obj):
+        if hasattr(obj, "Support") and obj.Support != None:
+            return [obj.Support]
+        else:
+            return []
+    
     def addObject(self, obj, newObj):
         if hasattr(obj, "Group"):
             group = obj.Group
@@ -397,12 +403,12 @@ class Extrusion(Feature):
                 if obj.StartingOffsetType == "Blind":
                     ZOffset += obj.StartingOffsetLength
                 elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
-                    ZOffset += getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal)
+                    ZOffset += getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal, requestingObjectLabel=obj.Label)
             
             offsetVector = normal * ZOffset       
 
             if obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
-                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal)
+                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal, requestingObjectLabel=obj.Label)
 
             extrudeVector = normal * extrudeLength
 
@@ -576,6 +582,7 @@ class Extrusion(Feature):
             
             obj.Boundary.Shape = boundaryShape
             obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+            obj.Boundary.ViewObject.PointSize = boundaryPointSize
             obj.Boundary.Placement = sketch.Placement
             obj.Boundary.Placement.Base += offsetVector
 

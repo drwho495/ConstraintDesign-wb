@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getElementFromHash, getParent, getStringID
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.ExposedGeo import makeExposedGeo
 from Entities.Entity import Entity
 from PySide import QtWidgets
@@ -34,16 +34,15 @@ class ExternalGeoSelector:
                 if object != None and object != self.sketch:
                     container = getParent(self.sketch, "PartContainer")
                     if container != None:
-                        stringId = getStringID(container, (object, elementName))
+                        stringId = getStringID(container, (object, elementName), True)
 
-                        print(stringId)
-                        
-                        if hasattr(self.sketch, "Proxy") and hasattr(self.sketch.Proxy, "addStringIDExternalGeo"):
-                            self.sketch.Proxy.addStringIDExternalGeo(self.sketch, stringId, container)
-                        else:
-                            App.Console.PrintError("Constraint design did not setup this sketch properly!\nPlease report!\n")
-                        
-                        Gui.Selection.clearSelection()
+                        if stringId != None:
+                            if hasattr(self.sketch, "Proxy") and hasattr(self.sketch.Proxy, "addStringIDExternalGeo"):
+                                self.sketch.Proxy.addStringIDExternalGeo(self.sketch, stringId, container)
+                            else:
+                                App.Console.PrintError("Constraint design did not setup this sketch properly!\nPlease report!\n")
+                            
+                            Gui.Selection.clearSelection()
         except Exception as e:
             App.Console.PrintWarning(f"{self.sketch.Label} errored with: {str(e)}\n")
 
@@ -83,11 +82,6 @@ class ConstraintSketch(Entity):
         if container == None:
             container = getParent(obj, "PartContainer")
 
-        for item in obj.OutList:
-            print(f"dependency: {item.Label}")
-            if isType(item, "ExposedGeometry"):
-                item.Proxy.generateShape(item, Part.Shape())
-
         if hasattr(obj, "Support") and not hasattr(obj, "SupportHashes"):
             obj.addProperty("App::PropertyStringList", "SupportHashes", "Base")
             obj.SupportHashes = obj.Support
@@ -107,7 +101,10 @@ class ConstraintSketch(Entity):
                 vectors = []
 
                 for hash in obj.SupportHashes:
-                    boundary, elementName = getElementFromHash(container, hash)
+                    boundary, elementName = getElementFromHash(container, hash, requestingObjectLabel=obj.Label)
+
+                    if boundary == None or elementName == None: continue
+
                     element = boundary.Shape.getElement(elementName)
 
                     if type(element).__name__ == "Edge":
@@ -188,6 +185,10 @@ class ConstraintSketchViewObject:
             self.observer.cleanup()
 
         self.observer = ExternalGeoSelector(vobj.Object)
+        container = vobj.Object.Proxy.getContainer(vobj.Object)
+
+        if container != None:
+            container.Proxy.updateSupportVisibility(container, vobj.Object)
 
     def unsetEdit(self, vobj, _):
         App.Console.PrintLog(f"{vobj.Object.Label} was closed.\n")
@@ -196,6 +197,11 @@ class ConstraintSketchViewObject:
 
         if self.observer != None:
             self.observer.cleanup()
+        
+        container = vobj.Object.Proxy.getContainer(vobj.Object)
+
+        if container != None:
+            container.Proxy.resetVisibility(container)
     
     def getIcon(self):
         return os.path.join(os.path.dirname(__file__), "..", "icons", "Sketch.svg")
@@ -206,7 +212,7 @@ class ConstraintSketchViewObject:
     def __setstate__(self, state):
         return None
 
-def makeSketch(stringIDs, editAfter=True):
+def makeSketch(stringIDs, editAfter=False):
     obj = App.ActiveDocument.addObject("Sketcher::SketchObjectPython", "ConstraintSketch")
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
     ConstraintSketch(obj)

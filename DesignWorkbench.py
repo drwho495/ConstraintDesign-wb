@@ -13,9 +13,10 @@ from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
+from Commands.CreateJoint import CreateJoint
 from Utils.GuiUtils import SelectorWidget
 import Grid.GridManager as GridManager
-from Utils.Preferences import *
+from Utils.Constants import *
 import FreeCAD as App
 import FreeCADGui as Gui
 
@@ -58,21 +59,21 @@ class ConstraintDesign(Gui.Workbench):
         """
         # List the commands to be added to the workbench
         mainCommands = [
-            'CreatePartContainer'
+            "CreatePartContainer"
         ]
 
         featureCommands = [
-            'CreateExtrusion',
-            'CreatePartMirror',
-            'CreateDerive',
-            'CreateLinearPattern',
-            'CreateLoft'
+            "CreateExtrusion",
+            "CreatePartMirror",
+            "CreateDerive",
+            "CreateLinearPattern",
+            "CreateLoft"
         ]
 
         dressupCommands = [
-            'CreateFillet',
-            'CreateChamfer',
-            'CreateCountersink'
+            "CreateFillet",
+            "CreateChamfer",
+            "CreateCountersink"
         ]
 
         treeCommands = [
@@ -81,11 +82,12 @@ class ConstraintDesign(Gui.Workbench):
         ]
 
         sketchCommands = [
-            'CreateConstraintSketch'
+            "CreateConstraintSketch"
         ]
 
         datumCommands = [
-            'CreateExposedGeo'
+            "CreateExposedGeo",
+            "CD_CreateJoint" # Add CD_ prefix to avoid clash with Assembly
         ]
         
         # Register the commands

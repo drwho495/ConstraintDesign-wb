@@ -9,10 +9,11 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils.Utils import isType, getP2PDistanceAlongNormal, generateHashName
-from Utils.Preferences import *
+from Utils.Constants import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils.GuiUtils import SelectorWidget
+from Utils.SketchUtils import getIDDict
 import copy
 
 class LoftTaskPanel:
@@ -339,6 +340,12 @@ class Loft(Feature):
         
         return map
     
+    def getSupports(self, obj):
+        if hasattr(obj, "Supports") and len(obj.Supports) != 0:
+            return obj.Supports
+        else:
+            return []
+    
     def generateShape(self, obj, prevShape):
         self.updateProps(obj)
 
@@ -386,10 +393,9 @@ class Loft(Feature):
 
         for sketch in obj.Supports:
             sketch.Visibility = False
+            idList = getIDDict(sketch)
 
-            for geoFacade in sketch.GeometryFacadeList:
-                geo = geoFacade.Geometry
-
+            for id,geo in idList.items():
                 geoShape = geo.toShape()
                 sketchIndexEdges = len(obj.Boundary.Shape.Edges)
                 sketchIndexVertices = len(obj.Boundary.Shape.Vertexes)
@@ -404,17 +410,17 @@ class Loft(Feature):
                     geoType = "Edge"
 
                     for i, vt in enumerate(newShape.Vertexes):
-                        points[f"{sketch.Name}_g{str(geoFacade.Id)}v{str(i + 1)}"] = vt.Point
+                        points[f"{sketch.Name}_{str(id)}v{str(i + 1)}"] = vt.Point
                     
                 elif isinstance(geoShape, Part.Vertex):
                     element = (obj.Boundary, "Vertex" + str(sketchIndexVertices + 1))
 
                     geoType = "Vertex"
-                    points[f"{sketch.Name}_g{str(geoFacade.Id)}"] = newShape.Point
+                    points[f"{sketch.Name}_{str(id)}"] = newShape.Point
                 
                 obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, newShape])
                 
-                identifier = self.makeIdentifer(str(geoFacade.Id), geoType, "Sketch", sketch.Name)
+                identifier = self.makeIdentifer(str(id), geoType, "Sketch", sketch.Name)
                 identifierList.append(identifier)
 
                 elementMap = self.updateElement(element, identifier, elementMap)
@@ -460,6 +466,7 @@ class Loft(Feature):
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
         obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = boundaryPointSize
         obj.Boundary.purgeTouched()
         obj.Boundary.Visibility = True
 
