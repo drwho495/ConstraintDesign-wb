@@ -106,8 +106,6 @@ class SelectorWidget(QtWidgets.QWidget):
         else:
             stringIdSelection = selection
 
-        print(stringIdSelection)
-
         for i,sel in enumerate(stringIdSelection):
             if sel == self.preselected:
                 continue

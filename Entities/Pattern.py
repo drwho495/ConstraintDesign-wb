@@ -387,8 +387,6 @@ class Pattern(Feature):
                 featureShape = v["Shape"].copy()
                 remove = v["Remove"]
 
-                print("add shape")
-
                 if remove:
                     removeShape = Part.Compound([removeShape, featureShape])
                 else:
@@ -396,17 +394,12 @@ class Pattern(Feature):
 
                 if individualShape.isNull():
                     individualShape = featureShape
-                    print("set shape")
                 else:
                     if remove:
                         individualShape = individualShape.cut(featureShape)
-                        print("cut")
                     else:
                         individualShape = individualShape.fuse(featureShape)
-                        print("fuse")
         
-        print(numEdges)
-        print(numVertexes)
 
         if obj.PatternType == 0:
             placementLocations = []
@@ -423,8 +416,6 @@ class Pattern(Feature):
                     placementLocations.append(rot.multVec(App.Vector(x, y, 0)))
 
             for location in placementLocations:
-                print(location)
-
                 newBoundary = baseBoundarySh.copy()
                 newBoundary.Placement.Base = location
                 boundaryCompound = Part.Compound([boundaryCompound, newBoundary])

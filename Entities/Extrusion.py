@@ -425,8 +425,8 @@ class Extrusion(Feature):
             else:
                 obj.IndividualShape = Part.Shape()
                 extrusion = prevShape
-                extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
 
+            extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
             obj.Shape = extrusion
         
             if not hasattr(obj, "ElementMap"):
@@ -516,7 +516,7 @@ class Extrusion(Feature):
                         
                         self.updateElement(element, identifier, elementMap, False)
 
-            App.Console.PrintLog(f"{obj.Label} create points time: {str(time.time() - startTime)}")
+            App.Console.PrintLog(f"{obj.Label} create points time: {str(time.time() - startTime)}\n")
 
             geoIDs = []
 
@@ -576,7 +576,7 @@ class Extrusion(Feature):
                     # elementMap.pop(hash)
                     elementMap[hash]["Stale"] = True
 
-            App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}")
+            App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}\n")
 
             obj.ElementMap = json.dumps(elementMap)
             

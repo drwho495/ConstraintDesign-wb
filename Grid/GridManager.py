@@ -114,6 +114,11 @@ class Grid:
         return self.gridRoot
 
 def addGrid(document, showOveride=False):
+    try:
+        document.Name
+    except: # document was deleted
+        return False
+    
     if not showOveride and not _showGrid:
         return False
 
@@ -134,14 +139,14 @@ def hideAllGrids():
         try:
             grid.hideGrid()
         except:
-            print("hiding grid failed")
+            pass
 
 def showAllGrids():
     for grid in grids:
         try:
             grid.showGrid()
         except:
-            print("showing grid failed")
+            pass
 
 def removeDocument(document):
     for grid in grids:
@@ -149,6 +154,12 @@ def removeDocument(document):
             grid.hideGrid()
         except:
             pass
+
+        try:
+            grid.document.Name
+        except:
+            grids.remove(grid)
+            continue
 
         if grid.document.Name == document.Name:
             grids.remove(grid)

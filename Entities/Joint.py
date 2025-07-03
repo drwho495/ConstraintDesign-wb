@@ -151,7 +151,6 @@ class FeatureJoint(Entity):
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
     def execute(self, obj):
         self.updateAttachmentProperties(obj)
-        print(f"update joint: {obj.Label}")
         obj.positionBySupport()
 
         obj.purgeTouched()
@@ -202,8 +201,6 @@ class ViewProviderJoint:
         except Exception as e:
             App.Console.PrintWarning("Deleting Fillet Errored, reason: " + str(e))
         
-        print("delete: fillet")
-
         return True
 
     def makeJointShape(self):

@@ -298,17 +298,13 @@ class FeatureDressup(Feature):
                 if edge.isValid():
                     for stringID in datumEdges:
                         if stringID in skipHashes: continue
-
                         try:
                             element = getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
                         except Exception as e:
                             App.Console.PrintError(str(e) + "\n")
                             continue
-                        
-                        if element == None or (element[0] == None or (len(element) == 2 and element[1] == None)):
-                            continue
-                        
-                        if element != None:
+
+                        if element[0] != None:
                             datumEdge = element[0].Shape.getElement(element[1])
                             correctEdge = False
                             intersectionPoints = 0
@@ -320,7 +316,6 @@ class FeatureDressup(Feature):
                                     if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
                                         correctEdge = False
                                     else:
-                                        print("run intersection test")
                                         try:
                                             intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
                                         except:
@@ -334,11 +329,9 @@ class FeatureDressup(Feature):
                             try:
                                 if correctEdge:
                                     # elementsToDressup.append(edge)
-                                    print(stringID)
                                     _, _, _, singleID = getObjectsFromScope(container, stringID)
                                     elementsToDressup[singleID] = edge
 
-                                    print(f"add hash: {singleID}")
                             except Exception as e:
                                 print(e)
                         else:
@@ -371,8 +364,6 @@ class FeatureDressup(Feature):
                         boundaryShape = Part.Shape()
 
                         for hash, edge in elementsToDressup.items():
-                            print(edge.Orientation)
-
                             forward = True
 
                             if edge.Orientation == "Forward":
@@ -406,8 +397,6 @@ class FeatureDressup(Feature):
                                 if not forward:
                                     slantDist *= -1
 
-                                print(slantDist)
-
                                 moveVector = topCircleSh.Curve.Axis.normalize().multiply(slantDist)
 
                                 bottomCircle = Part.Circle()
@@ -427,8 +416,6 @@ class FeatureDressup(Feature):
                                 else:
                                     reversedCone.Placement = placement
                                     cutCompoundArray.append(reversedCone.copy())
-                            else:
-                                print("edge is not a circle")
 
                         for k,v in map.copy().items():
                             if v["Identifier"] not in identifiers:
@@ -496,8 +483,6 @@ class ViewProviderDressup:
         except Exception as e:
             App.Console.PrintWarning("Deleting Fillet Errored, reason: " + str(e))
         
-        print("delete: fillet")
-
         return True
     
     def attach(self, vobj):

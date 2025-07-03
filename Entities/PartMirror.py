@@ -116,14 +116,12 @@ class PartMirror(Feature):
 
                     for hash in obj.PlaneHash:
                         hashArray = hash.split(".")
-                        print(hashArray)
 
                         if len(hashArray) == 3:
                             container = obj.Document.getObject(hashArray[0])
 
                             if container != None:
                                 normalHash = ".".join(hashArray[1:])
-                                print(normalHash)
 
                                 feature, elementName = getElementFromHash(container, normalHash, requestingObjectLabel=obj.Label)
                                 element = feature.Shape.getElement(elementName)
@@ -134,28 +132,14 @@ class PartMirror(Feature):
                                             points.append(vertex.Point)
                                     elif type(element).__name__ == "Vertex":
                                         points.append(element.Point)
-                                else:
-                                    print("element is none")
-                            else:
-                                print("bad container")
-                        else:
-                            print("bad hash array")
                     
                     if len(points) >= 3:
                         points.append(points[0])
-                        print(points)
 
                         face = Part.Face(Part.Wire(Part.makePolygon(points)))
-                        print(face)
-                    else:
-                        print("not enough verts")
-                else:
-                    print("bad plane type")
                 
                 planeCenter = face.Vertexes[0].Point
-                print(planeCenter)
                 normal = face.normalAt(0, 0)
-                print(normal)
 
                 features = obj.Support.Proxy.getGroup(obj.Support, False)
 
@@ -164,8 +148,6 @@ class PartMirror(Feature):
                 newShape = tip.Shape.mirror(planeCenter, normal)
 
                 obj.ElementMap = json.dumps(elementMap)
-            else:
-                print("tip none")
                 
         obj.Boundary.Shape = datumShape
         obj.Boundary.ViewObject.LineWidth = boundaryLineWidth

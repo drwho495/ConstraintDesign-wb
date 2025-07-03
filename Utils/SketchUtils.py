@@ -20,7 +20,6 @@ def getIDDict(sketch):
 
     if len(externalGeo) != 0:
         for geo in externalGeo:
-            print("add external")
             geoF = None
             externalGeoExt = None
             defining = False
@@ -37,13 +36,8 @@ def getIDDict(sketch):
                 except:
                     pass
             
-            print(defining)
-
             if geoF != None and geoF.Id >= 1 and defining:
                 idDict[f"eg{geoF.Id}"] = geo
-                print("add to list")
-        
-    print(idDict)
 
     return idDict
 

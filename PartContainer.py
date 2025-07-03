@@ -36,7 +36,7 @@ class PartContainer:
 
             self.updateProps(obj)
     
-    def updateSupportVisibility(self, obj, supportObject):
+    def updateSupportVisibility(self, obj, supportObject, updateDict = True):
         if obj.ObjectVisibilityDict != "{}":
             self.resetVisibility(obj)
         
@@ -44,7 +44,7 @@ class PartContainer:
 
         if not hasattr(obj, "ObjectVisibilityDict"):
             self.updateProps(obj)
-
+        
         if isType(supportObject, supportTypes):
             feature = getParent(supportObject, featureTypes)
             group = self.getGroup(obj, True, True)
@@ -52,8 +52,9 @@ class PartContainer:
             if feature != None:
                 cutoffIndex = group.index(feature)
 
-                for item in obj.Group:
-                    objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
+                if updateDict:
+                    for item in obj.Group:
+                        objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
 
                 for item in group:
                     itemGroup = [item]
@@ -67,11 +68,12 @@ class PartContainer:
                     
                     for hideItem in itemGroup:
                         hideItem.Visibility = not hide
-            
-        try:
-            obj.ObjectVisibilityDict = json.dumps(objectVisibilityDict)
-        except:
-            obj.ObjectVisibilityDict = "{}"
+        
+        if updateDict:
+            try:
+                obj.ObjectVisibilityDict = json.dumps(objectVisibilityDict)
+            except:
+                obj.ObjectVisibilityDict = "{}"
     
     def resetVisibility(self, obj): # i store and recieve object's visibility like this because the user might want to have a specifc datum hidden/shown
         visibilityList = None
@@ -98,8 +100,6 @@ class PartContainer:
     def addObject(self, obj, objToAdd, afterTip=False, customAfterFeature = None):
         group = obj.Group
 
-        print("custom feature in group: " + str(customAfterFeature in group))
-
         if customAfterFeature == None or (customAfterFeature != None and customAfterFeature not in group):
             if afterTip and obj.Tip != None and obj.Tip in group:
                 index = group.index(obj.Tip)
@@ -115,8 +115,6 @@ class PartContainer:
             else:
                 group.append(objToAdd)
         elif customAfterFeature != None and customAfterFeature in group:
-            print("use custom feature")
-
             index = group.index(customAfterFeature)
 
             group.insert(index + 1, objToAdd)
@@ -135,15 +133,11 @@ class PartContainer:
         obj.ShownFeature = obj.Tip # Make setting in pref?
 
     def setShownObj(self, obj, feature):
-        print("set shown object called")
-
         inEdit = Gui.ActiveDocument.getInEdit()
 
         if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
             return
         
-        print("set shown object ran")
-
         obj.ShownFeature = feature
         group = self.getGroup(obj, False)
         group.remove(feature)
@@ -207,9 +201,6 @@ class PartContainer:
             if isType(child, "BoundarySketch"):
                 child.Proxy.updateSketch(child, obj)
             elif isType(child, featureTypes):
-                print(child.Label)
-                print(child.Type)
-
                 if i >= startIndex and not child.Suppressed:
                     if hasattr(child.Proxy, "getSupports"):
                         supports = child.Proxy.getSupports(child)
@@ -221,7 +212,6 @@ class PartContainer:
                                 depList.extend(support.OutList)
 
                             for item in depList:
-                                print(f"dependency: {item.Label}")
                                 if isType(item, datumTypes) and item.Name not in recomputedNameList:
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
@@ -245,7 +235,6 @@ class PartContainer:
 
         #handle datums that haven't already been recomputed
         for item in self.getGroupOfTypes(obj, datumTypes, recomputedNameList):
-            print(f"recompute datum: {item.Label}")
             item.Proxy.generateShape(item, Part.Shape())
         
         if not tipFound:
@@ -290,8 +279,6 @@ class ViewProviderPartContainer:
     def updateExtensions(self, vobj):
         if vobj.Object.hasExtension("App::OriginGroupExtensionPython"):
             vobj.addExtension("Gui::ViewProviderOriginGroupExtensionPython")
-        else:
-            print("No extension!")
     
     def onDelete(self, vobj, subelements): # TODO: Check for constraint design elements
         if hasattr(vobj.Object, "Origin"):
@@ -302,8 +289,6 @@ class ViewProviderPartContainer:
             if vobj.Object.ConstraintGroup != None:
                 vobj.Object.ConstraintGroup.Proxy.deleteConstraints(vobj.Object.ConstraintGroup)
                 vobj.Object.Document.removeObject(vobj.Object.ConstraintGroup.Name)
-        
-        print("delete: pc")
         
         # feature.Document.removeObject(feature.Name)
         return True

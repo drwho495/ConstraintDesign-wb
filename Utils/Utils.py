@@ -99,8 +99,6 @@ def getElementFromHash(activeContainer, fullHash, requestingObjectLabel = "", pr
                             App.Console.PrintError(f"{str(fullHash)} cannot be found\n")
             else:
                 App.Console.PrintError("Feature has no ElementMap!\nPlease report this!\n")
-        else:
-            print("invalid feature type")
     
     if asList:
         return elements
@@ -239,10 +237,7 @@ def getObjectsFromScope(activeContainer, hashName):
         feature = document.getObject(scopeArray[1])
     elif scopeLen == 2:
         document = activeContainer.Document
-        print(document.Name)
         container = activeContainer
-        print(container.Name)
-        print(scopeArray[0])
         feature = document.getObject(scopeArray[0])
     
     elementName = scopeArray[scopeLen - 1]
@@ -267,7 +262,6 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
 
     for item in features:
         if not ((hasattr(item, "TypeId") and item.TypeId == "Sketcher::SketchObject") or isType(item, "BoundarySketch")):
-            print(f"add {item.Label}")
             boundaries = []
 
             if generateElementMap:
@@ -301,19 +295,9 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
                     
                     edgeIndex += len(boundary.Shape.Edges) + 0
                     vertexIndex += len(boundary.Shape.Vertexes) + 0
-            # print(elementMap)        
-        else: 
-            print(item.Label)
-            # boundaryArray.extend(boundaries)
-        
-        print("edge index: " + str(edgeIndex))
-        print("vertex index: " + str(vertexIndex))
-
         edgeIndex += newEdgeNum
         vertexIndex += newVertexNum
 
-    
-    print("array: " + str(boundaryArray))
     
     if generateElementMap:
         return Part.Compound(boundaryArray), elementMap

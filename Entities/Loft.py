@@ -305,28 +305,53 @@ class Loft(Feature):
     def makeIdentifer(self, id = "0:1:2:3:", elementType="Edge", boundaryType="Sketch", supportName="Sketch001"):
         return f"{str(id)};{elementType};{boundaryType};{supportName}"
 
-    def identifierIsSame(self, identifier1, identifier2):
+    def identifierIsSame(self, obj, identifier1, identifier2, allSupport1IDs, allSupport2IDs):
+        if identifier1 == identifier2: # avoid heavy computation if its not necessary
+            return True
+        
+        useDualCheck = True
+
         identifier1Array = identifier1.split(";")
         identifier2Array = identifier2.split(";")
         identifier1GeoIDs = identifier1Array[0].split(":")
         identifier2GeoIDs = identifier2Array[0].split(":")
 
-        if len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) > 0:
-            print(identifier1GeoIDs)
-            print(identifier2GeoIDs)
-            print("")
+        identifier1Support1IDs = []
+        identifier1Support2IDs = []
+        identifier2Support1IDs = []
+        identifier2Support2IDs = []
 
-        if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1):
+        for id in identifier1GeoIDs:
+            if id.startswith(f"{obj.Supports[0].Name}_"): identifier1Support1IDs.append(id)
+            if id.startswith(f"{obj.Supports[1].Name}_"): identifier1Support2IDs.append(id)
+        
+        for id in identifier2GeoIDs:
+            if id.startswith(f"{obj.Supports[0].Name}_"): identifier2Support1IDs.append(id)
+            if id.startswith(f"{obj.Supports[1].Name}_"): identifier2Support2IDs.append(id)
+        
+        if len(identifier2Support1IDs) == 0 or len(identifier1Support2IDs) == 0 or len(set(allSupport1IDs) & set(identifier2Support1IDs)) == 0 or len(set(allSupport2IDs) & set(identifier2Support2IDs)):
+            useDualCheck = False
+        else:
+            print(f"id2: {identifier2}")
+
+        support1Occurences = 0
+        support2Occurences = 0
+
+        if useDualCheck:
+            support1Occurences = len(set(identifier1Support1IDs) & set(identifier2Support1IDs))
+            support2Occurences = len(set(identifier1Support2IDs) & set(identifier2Support2IDs))
+
+        if ((identifier1Array[1:] == identifier2Array[1:]) and ((useDualCheck and support1Occurences >= 1 and support2Occurences >= 1) or (not useDualCheck and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1))):
             return True
         else:
             return False
 
     # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "GeoId;ElType<V(1/2)>;<Sketch/Wires>;SupportName;"}}
-    def updateElement(self, element, identifier, map, complexCheck=False):
+    def updateElement(self, obj, element, identifier, map, allSupport1IDs = None, allSupport2IDs = None, complexCheck=False):
         hasElement = False
 
         for key, value in map.items():
-            if (complexCheck == False and value["Identifer"] == identifier) or (complexCheck == True and self.identifierIsSame(identifier, value["Identifer"])):
+            if (complexCheck == False and value["Identifer"] == identifier) or (complexCheck == True and self.identifierIsSame(obj, identifier, value["Identifer"], allSupport1IDs, allSupport2IDs)):
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
                 map[key]["Identifer"] = identifier
                 map[key]["Stale"] = False
@@ -387,11 +412,13 @@ class Loft(Feature):
         points = {}
         geoType = ""
         identifierList = []
+        support1GeoIDList = []
+        support2GeoIDList = []
 
         startTime = time.time()
         obj.Boundary.Shape = Part.Shape()
 
-        for sketch in obj.Supports:
+        for supportNum, sketch in enumerate(obj.Supports):
             sketch.Visibility = False
             idList = getIDDict(sketch)
 
@@ -410,20 +437,31 @@ class Loft(Feature):
                     geoType = "Edge"
 
                     for i, vt in enumerate(newShape.Vertexes):
-                        points[f"{sketch.Name}_{str(id)}v{str(i + 1)}"] = vt.Point
+                        geoID = f"{sketch.Name}_{str(id)}v{str(i + 1)}"
+
+                        points[geoID] = vt.Point
+                        if supportNum == 0:
+                            support1GeoIDList.append(geoID)
+                        else:
+                            support2GeoIDList.append(geoID)
                     
                 elif isinstance(geoShape, Part.Vertex):
                     element = (obj.Boundary, "Vertex" + str(sketchIndexVertices + 1))
+                    geoID = f"{sketch.Name}_{str(id)}"
 
                     geoType = "Vertex"
-                    points[f"{sketch.Name}_{str(id)}"] = newShape.Point
+                    points[geoID] = newShape.Point
+                    if supportNum == 0:
+                        support1GeoIDList.append(geoID)
+                    else:
+                        support2GeoIDList.append(geoID)
                 
                 obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, newShape])
                 
                 identifier = self.makeIdentifer(str(id), geoType, "Sketch", sketch.Name)
                 identifierList.append(identifier)
 
-                elementMap = self.updateElement(element, identifier, elementMap)
+                elementMap = self.updateElement(obj, element, identifier, elementMap)
         
         tol = 1e-3
 
@@ -453,7 +491,7 @@ class Loft(Feature):
                     identifier = self.makeIdentifer(ids, "Edge", "WiresDatum", "")
                     identifierList.append(identifier)
 
-                    elementMap = self.updateElement(element, identifier, elementMap, True)
+                    elementMap = self.updateElement(obj, element, identifier, elementMap, support1GeoIDList, support2GeoIDList, True)
             
         App.Console.PrintLog(obj.Label + " update datums time: " + str(time.time() - startTime) + "\n")
         
@@ -578,7 +616,7 @@ def makeLoft():
         doc.openTransaction("CreateExtrusion")
 
         if len(selectedObjects) == 2:
-            obj = doc.addObject("Part::FeaturePython", "Extrusion")
+            obj = doc.addObject("Part::FeaturePython", "Loft")
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
             boundary.Type = "Boundary"

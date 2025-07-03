@@ -27,8 +27,6 @@ class MoveDesignObject:
     def Activated(self):
         selection = FreeCADGui.Selection.getSelection()
 
-        print("move: " + str(self.direction))
-
         if len(selection) != 0:
             selectedObj = selection[0]
             parent = getParent(selectedObj, "PartContainer")
@@ -50,15 +48,7 @@ class MoveDesignObject:
                         group.remove(obj)
                         group.insert(index + (-1 * self.direction), obj)
 
-                        print(obj.Label)
-
                     parent.Group = group
-                else:
-                    print("obj: " + selectedObj.Label + " not in group!")
-            else:
-                print("unable to find parent or group")
-        else:
-            print("Selection is none")
             
     def IsActive(self):
         return True

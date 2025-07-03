@@ -86,8 +86,6 @@ class Derive(Feature):
                 newShape = tip.Shape
 
                 obj.ElementMap = json.dumps(elementMap)
-            else:
-                print("tip none")
                 
         obj.Boundary.Shape = datumShape
         obj.IndividualShape = newShape.copy()

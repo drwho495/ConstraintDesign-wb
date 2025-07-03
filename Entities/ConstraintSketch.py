@@ -14,7 +14,6 @@ from Utils.GuiUtils import SelectorWidget
 class ExternalGeoSelector:
     def __init__(self, sketch):
         Gui.Selection.addObserver(self)
-        print(f"add observer for: {sketch.Label}")
         self.sketch = sketch
     
     def cleanup(self):
@@ -77,8 +76,6 @@ class ConstraintSketch(Entity):
         obj.recompute()
 
     def updateSketch(self, obj, container=None):
-        print("update sketch")
-
         if container == None:
             container = getParent(obj, "PartContainer")
 
@@ -174,6 +171,7 @@ class ConstraintSketchViewObject:
     
     def setEdit(self, vobj, _):
         App.Console.PrintLog(f"{vobj.Object.Label} was opened.\n")
+        App.closeActiveTransaction()
         
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
@@ -185,9 +183,12 @@ class ConstraintSketchViewObject:
 
         if container != None:
             container.Proxy.updateSupportVisibility(container, vobj.Object)
+        
+        # App.setActiveTransaction("EditSketch")
 
     def unsetEdit(self, vobj, _):
         App.Console.PrintLog(f"{vobj.Object.Label} was closed.\n")
+        App.closeActiveTransaction()
 
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
