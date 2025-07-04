@@ -18,8 +18,11 @@ useCases = ["Generic", "Assembly"]
 class JointTaskPanel:
     def __init__(self, obj, addOldSelection=True, startSelection=[]):
         self.form = QtWidgets.QWidget()
+        self.form.destroyed.connect(self.close) # run immediatly incase something else errors
+
         layout = QtWidgets.QVBoxLayout(self.form)
         layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
+        self.joint = obj
 
         button_layout = QtWidgets.QHBoxLayout()
 
@@ -37,55 +40,80 @@ class JointTaskPanel:
         self.updateButton.clicked.connect(self.update)
         self.cancelButton.clicked.connect(self.reject)
 
-        self.oldHashes = obj.Edges
+        self.oldSupport = obj.Support
 
-        self.dressup = obj
-        self.container = self.dressup.Proxy.getContainer(self.dressup)
-        self.selector = SelectorWidget(addOldSelection=addOldSelection, startSelection=startSelection, container=self.container)
+        self.mapModeEnumerationLayout = QtWidgets.QHBoxLayout()
+        self.mapModeLabel = QtWidgets.QLabel("MapMode:")
+        self.mapModeEnumeration = QtWidgets.QComboBox()
+        self.mapModeEnumeration.setEditable(True)
+        self.mapModeEnumerationLayout.addWidget(self.mapModeLabel)
+        self.mapModeEnumerationLayout.addWidget(self.mapModeEnumeration)
+        self.mapModeEnumerationLayout.setContentsMargins(0, 5, 0, 0)
+
+        self.oldMapMode = obj.MapMode
+        self.selectedType = self.oldMapMode
+
+        self.updateEnumeration()
+
+        self.container = self.joint.Proxy.getContainer(self.joint)
+        self.selector = SelectorWidget(addOldSelection = addOldSelection, startSelection = startSelection, container = self.container)
+        self.selector.selectionChanged.connect(self.selectionChanged)
         layout.addWidget(self.selector)
+        layout.addLayout(self.mapModeEnumerationLayout)
+        self.mapModeEnumeration.currentIndexChanged.connect(self.enumerationChanged)
     
+    def selectionChanged(self, newSelection = []):
+        self.update()
+
+    def enumerationChanged(self, index):
+        newType = self.mapModeEnumeration.itemData(index)
+
+        self.selectedType = newType
+
+        self.update()
+
+    def updateEnumeration(self):
+        enums = self.joint.getEnumerationsOfProperty("MapMode")
+
+        for type in enums:
+            self.mapModeEnumeration.addItem(type, type)
+        
+        self.mapModeEnumeration.setCurrentIndex(enums.index(self.selectedType))
+
     def update(self):
         selected = self.selector.getSelection()
 
-        if self.dressup.DressupType == 0:
-            radius = self.radius_input.value()
-            
-            self.dressup.Radius = radius
-        elif self.dressup.DressupType == 1:
-            length = self.lengthInput.value()
-            
-            self.dressup.Length = length
-        elif self.dressup.DressupType == 2:
-            diameter = self.diameterInput.value()
-            self.dressup.Diameter = diameter
+        print(selected)
+        print(self.selectedType)
 
-            angle = self.angleInput.value()
-            self.dressup.Angle = angle
+        self.joint.Support = selected
+        self.joint.MapMode = self.selectedType # needed because some logic in the proxy causes the enum selection to be overrided
+        self.joint.Proxy.execute(self.joint)
 
-        self.dressup.Edges = selected
-        self.container.recompute()
+        self.updateEnumeration()
+
+    def close(self):
+        self.selector.cleanup()
+
+        Gui.Control.closeDialog()
     
     def accept(self):
         self.update()
-
-        self.selector.cleanup()
-        Gui.Control.closeDialog()
+        self.close()
 
     def reject(self):
-        self.dressup.Edges = self.oldHashes
+        print("reject joint")
+        self.joint.Proxy.execute(self.joint)
 
-        if self.dressup.DressupType == 0:
-            self.dressup.Radius = self.oldRadius
-        elif self.dressup.DressupType == 1:
-            self.dressup.Length = self.oldLength
-        elif self.dressup.DressupType == 2:
-            self.dressup.Diameter = self.oldDiameter
-            self.dressup.Angle = self.oldAngle
+        print(f"old: {self.oldSupport}")
 
-        # self.container.recompute()
-        self.selector.cleanup()
-        Gui.Control.closeDialog()
+        self.joint.Support = self.oldSupport
+        self.joint.MapMode = self.oldMapMode
 
+        self.joint.Proxy.execute(self.joint)
+
+        self.close()
+    
     def getStandardButtons(self):
         return 0
 
@@ -100,8 +128,8 @@ class FeatureJoint(Entity):
         obj.Proxy = self
         self.updateProps(obj, useCase)
     
-    def showGui(self, obj, addOldSelection = True, startSelection = []):
-        Gui.Control.showDialog(JointTaskPanel(obj, addOldSelection, startSelection))
+    def showGui(self, obj):
+        Gui.Control.showDialog(JointTaskPanel(obj, False, obj.Support))
     
     def updateProps(self, obj, useCase = "Generic"):
         if not hasattr(obj, "Type"):
@@ -290,8 +318,8 @@ class ViewProviderJoint:
         return
 
     def setEdit(self, vobj, mode):
-        # vobj.Object.Document.openTransaction("EditDressup")
-        # vobj.Object.Proxy.showGui(vobj.Object, False, vobj.Object.Edges)
+        vobj.Object.Document.openTransaction("EditJoimt")
+        vobj.Object.Proxy.showGui(vobj.Object)
 
         return False
 

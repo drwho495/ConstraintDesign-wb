@@ -20,7 +20,10 @@ dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
 
 class DressupTaskPanel:
     def __init__(self, obj, addOldSelection=True, startSelection=[]):
+        super(DressupTaskPanel, self).__init__()
         self.form = QtWidgets.QWidget()
+        self.form.destroyed.connect(self.accept) # run immediatly incase something else errors
+
         layout = QtWidgets.QVBoxLayout(self.form)
         layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
 
@@ -107,7 +110,7 @@ class DressupTaskPanel:
             counterSinkRow.addStretch()
 
             layout.addLayout(counterSinkRow)
-    
+
     def update(self):
         selected = self.selector.getSelection()
 
@@ -132,10 +135,15 @@ class DressupTaskPanel:
     def accept(self):
         self.update()
 
+        self.close()
+
+        return True
+
+    def close(self):
         self.selector.cleanup()
         Gui.Control.closeDialog()
 
-    def reject(self):
+    def reject(self, obj=None):
         self.dressup.Edges = self.oldHashes
 
         if self.dressup.DressupType == 0:
@@ -147,8 +155,10 @@ class DressupTaskPanel:
             self.dressup.Angle = self.oldAngle
 
         # self.container.recompute()
-        self.selector.cleanup()
-        Gui.Control.closeDialog()
+        
+        self.close()
+
+        return True
 
     def getStandardButtons(self):
         return 0

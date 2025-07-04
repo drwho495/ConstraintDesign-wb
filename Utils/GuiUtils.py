@@ -34,6 +34,7 @@ class SelectorWidget(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.preselected = ""
         self.sizeLimit = sizeLimit
+        self.deleting = False
 
         self.listWidget = HoverableListWidget()
         self.listWidget.setFixedHeight(125)
@@ -94,6 +95,10 @@ class SelectorWidget(QtWidgets.QWidget):
     
     def makeLambda(self, entry): 
         return lambda: self.removeItem(entry)
+
+    def reject(self):
+        self.cleanup()
+        return True
 
     def addSelection(self, selection):
         if not self.selecting: return
@@ -215,10 +220,12 @@ class SelectorWidget(QtWidgets.QWidget):
         return self.hashList
 
     def emitSelection(self):
-        self.selectionChanged.emit(self.getSelection())
+        if not self.deleting: self.selectionChanged.emit(self.getSelection())
 
     def cleanup(self):
         # Gui.Selection.setSelectionStyle(Gui.Selection.SelectionStyle.NormalSelection)
+        self.deleting = True
+        
         self.listWidget.deleteLater()
         self.clearButton.deleteLater()
 
