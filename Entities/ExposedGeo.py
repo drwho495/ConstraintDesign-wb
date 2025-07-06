@@ -117,6 +117,12 @@ class ExposedGeo(Entity):
 
     def __setstate__(self, state):
         return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
 
 class ViewProviderExposedGeo:
     def __init__(self, obj):
@@ -181,6 +187,12 @@ class ViewProviderExposedGeo:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):

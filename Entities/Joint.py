@@ -1,7 +1,6 @@
 import FreeCAD as App
 import FreeCADGui as Gui
 from pivy import coin
-import Part
 import sys
 import math
 import os
@@ -10,7 +9,7 @@ from Utils.Utils import getIDsFromSelection, getElementFromHash
 from Utils.GuiUtils import SelectorWidget
 from Utils.Constants import *
 from PySide import QtWidgets
-import json
+from SoSwitchMarker import SoSwitchMarker
 from Entities.Entity import Entity
 
 useCases = ["Generic", "Assembly"]
@@ -50,7 +49,7 @@ class JointTaskPanel:
         self.mapModeEnumerationLayout.addWidget(self.mapModeEnumeration)
         self.mapModeEnumerationLayout.setContentsMargins(0, 5, 0, 0)
 
-        self.oldMapMode = obj.MapMode
+        self.oldMapMode = obj.SupportType
         self.selectedType = self.oldMapMode
 
         self.updateEnumeration()
@@ -84,11 +83,12 @@ class JointTaskPanel:
         selected = self.selector.getSelection()
 
         print(selected)
-        print(self.selectedType)
 
         self.joint.Support = selected
-        self.joint.MapMode = self.selectedType # needed because some logic in the proxy causes the enum selection to be overrided
+        self.joint.SupportType = self.selectedType # needed because some logic in the proxy causes the enum selection to be overrided
         self.joint.Proxy.execute(self.joint)
+
+        print(self.joint.SupportType)
 
         self.updateEnumeration()
 
@@ -108,7 +108,7 @@ class JointTaskPanel:
         print(f"old: {self.oldSupport}")
 
         self.joint.Support = self.oldSupport
-        self.joint.MapMode = self.oldMapMode
+        self.joint.SupportType = self.oldMapMode
 
         self.joint.Proxy.execute(self.joint)
 
@@ -179,14 +179,15 @@ class FeatureJoint(Entity):
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
     def execute(self, obj):
         self.updateAttachmentProperties(obj)
-        obj.positionBySupport()
+
+        if hasattr(obj, "AttachmentSupport") and obj.AttachmentSupport != []:
+            obj.positionBySupport()
 
         obj.purgeTouched()
 
     def updateAttachmentProperties(self, obj):
         self.updateProps(obj)
         container = self.getContainer(obj)
-        elementSupport = []
 
         if obj.SupportType not in obj.getEnumerationsOfProperty("MapMode"):
             obj.SupportType = "Deactivated"
@@ -197,11 +198,15 @@ class FeatureJoint(Entity):
         if container != None:
             elements = getElementFromHash(container, obj.Support, asList=True, requestingObjectLabel=obj.Label)
 
-            for fullElement in elements:
-                if fullElement[0] != None and fullElement[1] != None and len(fullElement) < 4:
-                    elementSupport.append(fullElement)
-            
-            obj.AttachmentSupport = elementSupport
+            if len(elements) != 0:
+                elementSupport = []
+                for fullElement in elements:
+                    if fullElement[0] != None and fullElement[1] != None and len(fullElement) < 4:
+                        elementSupport.append(fullElement)
+                
+                obj.AttachmentSupport = elementSupport
+            else:
+                obj.AttachmentSupport = []
         else:
             App.Console.PrintError(f"{obj.Label} needs to be put into a suitable part container!\n")
         
@@ -233,8 +238,9 @@ class ViewProviderJoint:
 
     def makeJointShape(self):
         root = coin.SoSeparator()
+        switch = coin.SoSwitch()
+        annotation = coin.SoAnnotation()
 
-        # Colors
         red = (1.0, 0.0, 0.0)
         green = (0.0, 1.0, 0.0)
         blue = (0.0, 0.0, 1.0)
@@ -242,13 +248,25 @@ class ViewProviderJoint:
 
         lightModel = coin.SoLightModel()
         lightModel.model = coin.SoLightModel.BASE_COLOR
-        root.addChild(lightModel)
+        annotation.addChild(lightModel)
 
-        # Line width
         draw_style = coin.SoDrawStyle()
-        draw_style.lineWidth = 3  # <-- Line thickness here
-        root.addChild(draw_style)
+        draw_style.lineWidth = 3
+        annotation.addChild(draw_style)
 
+        pick = coin.SoPickStyle()
+        pick.style.setValue(coin.SoPickStyle.SHAPE_ON_TOP)
+        annotation.addChild(pick)
+
+        transform = coin.SoTransform()
+        annotation.addChild(transform)
+
+        circleMat = coin.SoMaterial()
+        circleMat.diffuseColor.setValue([0.5, 0.5, 0.5])
+        circleMat.ambientColor.setValue([0.5, 0.5, 0.5])
+        circleMat.specularColor.setValue([0.5, 0.5, 0.5])
+        circleMat.emissiveColor.setValue([0.5, 0.5, 0.5])
+        circleMat.transparency.setValue(0.3)
 
         circleSep = coin.SoSeparator()
         circleColor = coin.SoBaseColor()
@@ -273,7 +291,8 @@ class ViewProviderJoint:
         circleSep.addChild(circleColor)
         circleSep.addChild(circleCoords)
         circleSep.addChild(circleFaceset)
-        root.addChild(circleSep)
+        circleSep.addChild(circleMat)
+        annotation.addChild(circleSep)
 
         def createArrow(color, axis, length=10):
             sep = coin.SoSeparator()
@@ -298,9 +317,12 @@ class ViewProviderJoint:
 
             return sep
 
-        root.addChild(createArrow(red, 'x'))
-        root.addChild(createArrow(green, 'y'))
-        root.addChild(createArrow(blue, 'z', 5))
+        annotation.addChild(createArrow(red, 'x'))
+        annotation.addChild(createArrow(green, 'y'))
+        annotation.addChild(createArrow(blue, 'z', 5))
+        switch.addChild(annotation)
+        switch.whichChild = coin.SO_SWITCH_ALL
+        root.addChild(switch)
 
         return root
     
@@ -310,15 +332,22 @@ class ViewProviderJoint:
         self.Object = vobj
         self.Object.Selectable = False
 
-        self.root = coin.SoSeparator()
-        self.lcsNode = self.makeJointShape()
-        self.root.addChild(self.lcsNode)
-        vobj.addDisplayMode(self.root, "LCS")
+        # self.root = coin.SoSeparator()
+        # self.lcsNode = self.makeJointShape()
+        # self.root.addChild(self.lcsNode)
+
+        self.display_mode = coin.SoType.fromName("SoFCSelection").createInstance()
+        self.jointMarker = SoSwitchMarker(vobj)
+        self.display_mode.addChild(self.jointMarker)
+        self.jointMarker.whichChild = coin.SO_SWITCH_ALL
+        self.jointMarker.setPickableState(True)
+
+        vobj.addDisplayMode(self.display_mode, "Joint")
 
         return
 
     def setEdit(self, vobj, mode):
-        vobj.Object.Document.openTransaction("EditJoimt")
+        vobj.Object.Document.openTransaction("EditJoint")
         vobj.Object.Proxy.showGui(vobj.Object)
 
         return False
@@ -332,11 +361,11 @@ class ViewProviderJoint:
 
     def getDisplayModes(self, vobj):
         # Available display modes
-        return ["LCS"]
+        return ["Joint"]
 
     def getDefaultDisplayMode(self):
         # Default display mode
-        return "LCS"
+        return "Joint"
 
     def setDisplayMode(self, mode):
         # Called when the display mode changes
@@ -363,14 +392,6 @@ class ViewProviderJoint:
         # Called when restoring
         return None
 
-def makeBoundary(document):
-    boundary = document.addObject("Part::Feature", "Boundary")
-    boundary.addProperty("App::PropertyString", "Type")
-    boundary.Type = "Boundary"
-
-    return boundary
-
-""" Method to create a FeatureDressup. """
 def makeJoint(useCase = "Generic"):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 

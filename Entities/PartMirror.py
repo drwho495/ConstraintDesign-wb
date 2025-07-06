@@ -187,6 +187,12 @@ class PartMirror(Feature):
 
     def __setstate__(self, state):
         return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
 
 class ViewProviderPartMirror:
     def __init__(self, obj):
@@ -235,30 +241,7 @@ class ViewProviderPartMirror:
         return
 
     def getIcon(self):
-        return """
-            /* XPM */
-            static const char *icon[] = {
-            "16 16 2 1",
-            "  c None",
-            ". c #0000FF",
-            "                ",
-            "    ........    ",
-            "   ..........   ",
-            "  ............  ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            "  ............  ",
-            "   ..........   ",
-            "    ........    ",
-            "                "
-            };
-        """
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "PartMirror.svg")
     
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
@@ -275,6 +258,12 @@ class ViewProviderPartMirror:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makePartMirror():

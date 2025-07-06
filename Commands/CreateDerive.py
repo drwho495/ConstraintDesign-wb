@@ -8,7 +8,7 @@ from Entities.Derive import makeDerive
 class CreateDerive:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "Derive.svg"),
             'MenuText': "Creates Derive Feature",
             'ToolTip': "Creates a new Derive feature"
         }

@@ -152,7 +152,7 @@ def getStringID(activeContainer, element, fullScope=False, suppressErrors = Fals
                 objPartContainer = featurePartContainer
             else:
                 objPartContainer = activeContainer
-
+            
             sameDocument = feature.Document.Name == activeContainer.Document.Name
             if featurePartContainer != None and objPartContainer != None:
                 sameParent = objPartContainer.Name == featurePartContainer.Name
@@ -243,6 +243,15 @@ def getObjectsFromScope(activeContainer, hashName):
     elementName = scopeArray[scopeLen - 1]
 
     return document, container, feature, elementName
+
+def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
+    if isinstance(element, Part.Edge):
+        edgesList.append(element)
+        vertexList.extend(element.Vertexes)
+    elif isinstance(element, Part.Vertex):
+        vertexList.append(element)
+    
+    compoundList.append(element)
 
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     """

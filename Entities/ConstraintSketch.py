@@ -15,11 +15,11 @@ class ExternalGeoSelector:
     def __init__(self, sketch):
         Gui.Selection.addObserver(self)
         self.sketch = sketch
-    
+
     def cleanup(self):
         Gui.Selection.removeObserver(self)
 
-    def addSelection(self, documentName, objectName, elementName, _):
+    def addSelection(self, documentName, objectName, elementName, null1 = None, null2 = None): # extra args because of link stage 3
         document = App.getDocument(documentName)
         edit = Gui.ActiveDocument.getInEdit()
 
@@ -30,10 +30,12 @@ class ExternalGeoSelector:
         try:
             if document != None and objectName != None:
                 object = document.getObject(objectName)
+
                 if object != None and object != self.sketch:
                     container = getParent(self.sketch, "PartContainer")
+
                     if container != None:
-                        stringId = getStringID(container, (object, elementName), True)
+                        stringId = getStringID(container, (object, elementName))
 
                         if stringId != None:
                             if hasattr(self.sketch, "Proxy") and hasattr(self.sketch.Proxy, "addStringIDExternalGeo"):
@@ -120,7 +122,12 @@ class ConstraintSketch(Entity):
                     p3 = vectors[2]
 
                     plane = Part.Plane(p1, p2, p3)
-                    position = plane.projectPoint(container.Origin.Placement.Base)
+                    originVector = App.Vector(0,0,0)
+
+                    if hasattr(container.Origin, "Placement"):
+                        originVector = container.Origin.Placement.Base
+                    
+                    position = plane.projectPoint(originVector)
 
                     obj.Placement = App.Placement(position, plane.Rotation)
             elif obj.SupportType == "Plane":
@@ -128,9 +135,14 @@ class ConstraintSketch(Entity):
         obj.recompute()
     
     def updateProps(self, obj):
-        obj.setEditorMode("AttacherEngine", 3)
-        obj.setEditorMode("AttachmentSupport", 3)
-        obj.setEditorMode("MapMode", 3)
+        if hasattr(obj, "AttacherEngine"):
+            obj.setEditorMode("AttacherEngine", 3)
+        
+        if hasattr(obj, "AttachmentSupport"):
+            obj.setEditorMode("AttachmentSupport", 3)
+        
+        if hasattr(obj, "MapMode"):
+            obj.setEditorMode("MapMode", 3)
 
         if not hasattr(obj, "SupportHashes"):
             obj.addProperty("App::PropertyStringList", "SupportHashes", "Base")
@@ -151,6 +163,12 @@ class ConstraintSketch(Entity):
         return None
 
     def __setstate__(self, state):
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
 
 class ConstraintSketchViewObject:
@@ -207,6 +225,12 @@ class ConstraintSketchViewObject:
         return None
 
     def __setstate__(self, state):
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
 
 def makeSketch(stringIDs, editAfter=False):

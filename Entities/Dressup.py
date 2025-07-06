@@ -304,64 +304,68 @@ class FeatureDressup(Feature):
 
             return prevShape
         else:
-            for edge in allShapeEdges:
-                if edge.isValid():
-                    for stringID in datumEdges:
-                        if stringID in skipHashes: continue
-                        try:
-                            element = getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
-                        except Exception as e:
-                            App.Console.PrintError(str(e) + "\n")
-                            continue
-
-                        if element[0] != None:
-                            datumEdge = element[0].Shape.getElement(element[1])
-                            correctEdge = False
-                            intersectionPoints = 0
-
-                            if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
-                                correctEdge = True
-                            else:
+            if hasattr(obj, "DressupType"):
+                if obj.DressupType != 2:
+                    for edge in allShapeEdges:
+                        if edge.isValid():
+                            for stringID in datumEdges:
+                                if stringID in skipHashes: continue
                                 try:
-                                    if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
-                                        correctEdge = False
-                                    else:
-                                        try:
-                                            intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
-                                        except:
-                                            intersectionPoints = -1
-                                        
-                                        if intersectionPoints > 2 or intersectionPoints == -1:
-                                            correctEdge = True
-                                except:
-                                    correctEdge = False
-                            
-                            try:
-                                if correctEdge:
-                                    # elementsToDressup.append(edge)
-                                    _, _, _, singleID = getObjectsFromScope(container, stringID)
-                                    elementsToDressup[singleID] = edge
+                                    element = getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
+                                except Exception as e:
+                                    App.Console.PrintError(str(e) + "\n")
+                                    continue
 
-                            except Exception as e:
-                                print(e)
-                        else:
-                            skipHashes.append(stringID)
-                    dressupShape = prevShape
+                                if element[0] != None:
+                                    datumEdge = element[0].Shape.getElement(element[1])
+                                    correctEdge = False
+                                    intersectionPoints = 0
+
+                                    try:
+                                        if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
+                                            correctEdge = True
+                                        else:
+                                            if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
+                                                correctEdge = False
+                                            else:
+                                                try:
+                                                    intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                                                except:
+                                                    intersectionPoints = -1
+                                                
+                                                if intersectionPoints > 2 or intersectionPoints == -1:
+                                                    correctEdge = True
+                                    except Exception as e:
+                                        print(f"exception while checking: {str(e)}")
+                                        correctEdge = False
+                                    
+                                    try:
+                                        if correctEdge:
+                                            # elementsToDressup.append(edge)
+                                            _, _, _, singleID = getObjectsFromScope(container, stringID)
+                                            elementsToDressup[singleID] = edge
+
+                                    except Exception as e:
+                                        print(e)
+                                else:
+                                    skipHashes.append(stringID)
             
-            if len(elementsToDressup) != 0:
-                if hasattr(obj, "DressupType") and obj.DressupType == 0:
-                    try:
+            dressupShape = prevShape
+            if hasattr(obj, "DressupType") and obj.DressupType == 0:
+                try:
+                    if len(elementsToDressup) != 0:
                         dressupShape = prevShape.makeFillet(obj.Radius, list(elementsToDressup.values()))
-                    except Exception as e:
-                        dressupShape = prevShape
-                        App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\nException: " + str(e) + "\n")
-                elif hasattr(obj, "DressupType") and obj.DressupType == 1:
-                    try:
+                except Exception as e:
+                    dressupShape = prevShape
+                    App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\nException: " + str(e) + "\n")
+            elif hasattr(obj, "DressupType") and obj.DressupType == 1:
+                try:
+                    if len(elementsToDressup) != 0:
                         dressupShape = prevShape.makeChamfer(obj.Length, list(elementsToDressup.values()))
-                    except Exception as e:
-                        dressupShape = prevShape
-                        App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
-                elif hasattr(obj, "DressupType") and obj.DressupType == 2:
+                except Exception as e:
+                    dressupShape = prevShape
+                    App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
+            elif hasattr(obj, "DressupType") and obj.DressupType == 2:
                     try:
                         depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
 
@@ -373,59 +377,69 @@ class FeatureDressup(Feature):
                         map = json.loads(obj.ElementMap)
                         boundaryShape = Part.Shape()
 
-                        for hash, edge in elementsToDressup.items():
-                            forward = True
+                        for stringID in obj.Edges:
+                            fullElement = getElementFromHash(container, stringID, obj.Label)
 
-                            if edge.Orientation == "Forward":
+                            if fullElement[0] != None:
+                                element = fullElement[0].Shape.getElement(fullElement[1])
+                                _, _, _, singleID = getObjectsFromScope(container, stringID)
+
                                 forward = True
-                            else:
-                                forward = False
 
-                            if obj.Reversed:
-                                forward = not forward
+                                print(element.Orientation)
 
-                            if edge.Curve.TypeId == "Part::GeomCircle":
-                                radius = edge.Curve.Radius
-                                placement = App.Placement()
-                                placement.Base = edge.CenterOfMass
-                                placement.Rotation = edge.Placement.Rotation
-
-                                topCircle = Part.Circle()
-                                topCircle.Radius = obj.Diameter/2
-                                topCircleSh = topCircle.toShape()
-                                topCircleSh.Placement = placement
-
-                                boundaryShape = Part.Compound([boundaryShape, topCircleSh])
-                                identifier = self.makeIdentifier(hash, "Top", "Edge")
-                                identifiers.append(identifier)
-                                map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
-
-                                thetaRad = math.radians(obj.Angle / 2)
-                                deltaR = obj.Diameter/2 - radius
-                                slantDist = deltaR * math.tan(thetaRad)
-
-                                if not forward:
-                                    slantDist *= -1
-
-                                moveVector = topCircleSh.Curve.Axis.normalize().multiply(slantDist)
-
-                                bottomCircle = Part.Circle()
-                                bottomCircle.Radius = radius
-                                bottomCircleSh = bottomCircle.toShape()
-                                bottomCircleSh.Placement = placement
-                                bottomCircleSh.Placement.Base += moveVector
-
-                                boundaryShape = Part.Compound([boundaryShape, bottomCircleSh])
-                                identifier = self.makeIdentifier(hash, "Bottom", "Edge")
-                                identifiers.append(identifier)
-                                map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
-
-                                if forward:
-                                    forwardCone.Placement = placement
-                                    cutCompoundArray.append(forwardCone.copy())
+                                if element.Orientation == "Forward":
+                                    forward = True
                                 else:
-                                    reversedCone.Placement = placement
-                                    cutCompoundArray.append(reversedCone.copy())
+                                    forward = False
+
+                                if obj.Reversed:
+                                    forward = not forward
+
+                                if element.Curve.TypeId == "Part::GeomCircle":
+                                    radius = element.Curve.Radius
+                                    placement = App.Placement()
+                                    placement.Base = element.CenterOfMass
+                                    placement.Rotation = element.Placement.Rotation
+
+                                    topCircle = Part.Circle()
+                                    topCircle.Radius = obj.Diameter/2
+                                    topCircleSh = topCircle.toShape()
+                                    topCircleSh.Placement = placement
+
+                                    boundaryShape = Part.Compound([boundaryShape, topCircleSh])
+                                    identifier = self.makeIdentifier(singleID, "Top", "Edge")
+                                    identifiers.append(identifier)
+                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
+
+                                    thetaRad = math.radians(obj.Angle / 2)
+                                    deltaR = obj.Diameter/2 - radius
+                                    slantDist = deltaR * math.tan(thetaRad)
+
+                                    if not forward:
+                                        slantDist *= -1
+
+                                    moveVector = topCircleSh.Curve.Axis.normalize().multiply(slantDist)
+
+                                    bottomCircle = Part.Circle()
+                                    bottomCircle.Radius = radius
+                                    bottomCircleSh = bottomCircle.toShape()
+                                    bottomCircleSh.Placement = placement
+                                    bottomCircleSh.Placement.Base += moveVector
+
+                                    boundaryShape = Part.Compound([boundaryShape, bottomCircleSh])
+                                    identifier = self.makeIdentifier(singleID, "Bottom", "Edge")
+                                    identifiers.append(identifier)
+                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
+
+                                    if forward:
+                                        forwardCone.Placement = placement
+                                        cutCompoundArray.append(forwardCone.copy())
+                                    else:
+                                        reversedCone.Placement = placement
+                                        cutCompoundArray.append(reversedCone.copy())
+                            else:
+                                print("skip")
 
                         for k,v in map.copy().items():
                             if v["Identifier"] not in identifiers:
@@ -444,8 +458,6 @@ class FeatureDressup(Feature):
                     except Exception as e:
                         dressupShape = prevShape
                         App.Console.PrintError(obj.Label + ": creating a countersink failed!\nException: " + str(e) + "\n")
-            else:
-                dressupShape = prevShape
             
             obj.Shape = dressupShape
 
@@ -478,6 +490,12 @@ class FeatureDressup(Feature):
         return None
 
     def __setstate__(self, state):
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
 
 class ViewProviderDressup:
@@ -582,6 +600,12 @@ class ViewProviderDressup:
     def __setstate__(self, state):
         # Called when restoring
         return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
 
 def makeBoundary(document):
     boundary = document.addObject("Part::Feature", "Boundary")
@@ -590,7 +614,6 @@ def makeBoundary(document):
 
     return boundary
 
-""" Method to create a FeatureDressup. """
 def makeDressup(dressupType):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 

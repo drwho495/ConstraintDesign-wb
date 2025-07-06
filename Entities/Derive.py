@@ -94,10 +94,8 @@ class Derive(Feature):
             newShape = Part.Compound([prevShape, newShape])
 
         obj.Shape = newShape
-        obj.Boundary.ViewObject.LineWidth = 2
-        obj.Boundary.ViewObject.PointSize = boundaryLineWidth
-        obj.ViewObject.LineWidth = boundaryPointSize
-
+        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = boundaryPointSize
         obj.Boundary.purgeTouched()
 
         return newShape
@@ -125,6 +123,12 @@ class Derive(Feature):
         return None
 
     def __setstate__(self, state):
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
 
 class ViewProviderDerive:
@@ -174,30 +178,7 @@ class ViewProviderDerive:
         return
 
     def getIcon(self):
-        return """
-            /* XPM */
-            static const char *icon[] = {
-            "16 16 2 1",
-            "  c None",
-            ". c #0000FF",
-            "                ",
-            "    ........    ",
-            "   ..........   ",
-            "  ............  ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            " .............. ",
-            "  ............  ",
-            "   ..........   ",
-            "    ........    ",
-            "                "
-            };
-        """
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "Derive.svg")
     
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
@@ -214,6 +195,12 @@ class ViewProviderDerive:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makeDerive():

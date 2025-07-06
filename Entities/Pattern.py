@@ -500,6 +500,12 @@ class Pattern(Feature):
 
     def __setstate__(self, state):
         return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
 
 class ViewProviderPattern:
     def __init__(self, obj):
@@ -572,6 +578,12 @@ class ViewProviderPattern:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makePattern(patternType):

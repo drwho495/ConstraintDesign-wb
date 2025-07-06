@@ -6,7 +6,7 @@ import os
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getDistanceToElement, generateHashName
+from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray
 from Utils.SketchUtils import getIDDict
 from Utils.Constants import *
 from Entities.Feature import Feature
@@ -254,6 +254,10 @@ class Extrusion(Feature):
     def __init__(self, obj):
         obj.Proxy = self
         self.updateProps(obj)
+        self.timeTakeUE = 0
+    
+    def attach(self, obj):
+        self.timeTakeUE = 0
         
     def updateProps(self, obj):
         super(Extrusion, self).updateProps(obj)
@@ -359,6 +363,8 @@ class Extrusion(Feature):
 
     # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/WiresBoundary)>;;;<extraInfo>"}}
     def updateElement(self, element, identifier, map, complexCheck=True):
+        startTime = time.time()
+
         hasElement = False
 
         for key, value in map.items():
@@ -374,9 +380,12 @@ class Extrusion(Feature):
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Stale": False, "Identifier": identifier}
         
+        self.timeTakeUE += time.time() - startTime
+        
         return map
     
     def generateShape(self, obj, prevShape):
+        self.timeTakeUE = 0
         self.updateProps(obj)
 
         if hasattr(obj,"Support") and isType(obj.Support, "BoundarySketch"):
@@ -448,7 +457,9 @@ class Extrusion(Feature):
             unsupportedVertexes = {} # i want to check if vertexes have already been generated, so they can be supported properly later
 
             startTime = time.time()
-            boundaryShape = Part.Shape()
+            boundaryElementsList = []
+            boundaryEdgesList = []
+            boundaryVertexesList = []
             tol = 1e-5
             facadeDict = getIDDict(sketch)
 
@@ -481,10 +492,13 @@ class Extrusion(Feature):
                         points[len(points)] = {"Vector": vec, "IDs": [f"{id}"]}
                 
                 geoShape = geo.toShape()
-                oldVertNum = len(boundaryShape.Vertexes)
-                boundaryShape = Part.Compound([boundaryShape, geoShape])
-                newVertNum = len(boundaryShape.Vertexes)
-                newVertexList = boundaryShape.Vertexes[oldVertNum:newVertNum]
+                geoShape.Orientation = "Forward"
+                oldVertNum = len(boundaryVertexesList)
+
+                addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+
+                newVertNum = len(boundaryVertexesList)
+                newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
 
                 for i, vec in enumerate(newVertexList):
                     unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": vec.Point, "Type": "Sketch"}
@@ -493,17 +507,21 @@ class Extrusion(Feature):
                     # Create Base Sketch Boundary
                     identifier = self.makeIdentifier([f"{id}"], "Edge", 0, "Sketch")
                     identifierList.append(identifier)
-                    element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
+                    element = (obj.Boundary, f"Edge{str(len(boundaryEdgesList))}")
                     
                     self.updateElement(element, identifier, elementMap, False)
                 
                 if extrudeLength != 0:
                     geoShape = geo.toShape()
+                    geoShape.Orientation = "Reversed"
                     geoShape.Placement.Base += App.Vector(0, 0, extrudeLength)
-                    oldVertNum = len(boundaryShape.Vertexes)
-                    boundaryShape = Part.Compound([boundaryShape, geoShape])
-                    newVertNum = len(boundaryShape.Vertexes)
-                    newVertexList = boundaryShape.Vertexes[oldVertNum:newVertNum]
+                    oldVertNum = len(boundaryVertexesList)
+
+                    # boundaryShape = Part.Compound([boundaryShape, geoShape])
+                    addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+
+                    newVertNum = len(boundaryVertexesList)
+                    newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
 
                     for i, vec in enumerate(newVertexList):
                         unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": (vec.Point - extrudeVector), "Type": "SketchProjection"}
@@ -512,11 +530,13 @@ class Extrusion(Feature):
                         # Create Base Sketch Boundary
                         identifier = self.makeIdentifier([f"{id}"], "Edge", 0, "SketchProjection")
                         identifierList.append(identifier)
-                        element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
+                        element = (obj.Boundary, f"Edge{str(len(boundaryEdgesList))}")
                         
                         self.updateElement(element, identifier, elementMap, False)
 
-            App.Console.PrintLog(f"{obj.Label} create points time: {str(time.time() - startTime)}\n")
+            createPointsTime = time.time() - startTime
+
+            App.Console.PrintLog(f"{obj.Label} create points time: {str(createPointsTime)}\n")
 
             geoIDs = []
 
@@ -528,11 +548,13 @@ class Extrusion(Feature):
                     endPoint = v["Vector"] + App.Vector(0, 0, extrudeLength)
                     
                     line = Part.LineSegment(startPoint, endPoint).toShape()
-                    oldVertNum = len(boundaryShape.Vertexes)
-                    boundaryShape = Part.Compound([boundaryShape, line])
-                    newVertNum = len(boundaryShape.Vertexes)
+                    oldVertNum = len(boundaryVertexesList)
+                    # boundaryShape = Part.Compound([boundaryShape, line])
+                    addElementToCompoundArray(line, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
 
-                    newVertexes = boundaryShape.Vertexes[oldVertNum:newVertNum]
+                    newVertNum = len(boundaryVertexesList)
+
+                    newVertexes = boundaryVertexesList[oldVertNum:newVertNum]
                     startVertex = None
                     endVertex = None
 
@@ -558,7 +580,7 @@ class Extrusion(Feature):
                     # Handle wire boundary
                     identifier = self.makeIdentifier(v["IDs"], "Edge", 0, "WiresBoundary")
                     identifierList.append(identifier)
-                    element = (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}")
+                    element = (obj.Boundary, f"Edge{str(len(boundaryEdgesList))}")
                     self.updateElement(element, identifier, elementMap)
 
                 # Handle old loop vertexes
@@ -576,11 +598,13 @@ class Extrusion(Feature):
                     # elementMap.pop(hash)
                     elementMap[hash]["Stale"] = True
 
+            App.Console.PrintLog(f"{obj.Label} time taken in applying map: {str((time.time() - startTime) - createPointsTime)}\n")
+            App.Console.PrintLog(f"{obj.Label} time taken in updateElement: {str(self.timeTakeUE)}\n")
             App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}\n")
 
             obj.ElementMap = json.dumps(elementMap)
             
-            obj.Boundary.Shape = boundaryShape
+            obj.Boundary.Shape = Part.Compound(boundaryElementsList)
             obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
             obj.Boundary.ViewObject.PointSize = boundaryPointSize
             obj.Boundary.Placement = sketch.Placement
@@ -610,6 +634,12 @@ class Extrusion(Feature):
         return None
 
     def __setstate__(self, state):
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
 
 class ViewProviderExtrusion:
@@ -678,6 +708,12 @@ class ViewProviderExtrusion:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makeExtrusion():

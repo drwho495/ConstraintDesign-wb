@@ -537,6 +537,12 @@ class Loft(Feature):
 
     def __setstate__(self, state):
         return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
 
 class ViewProviderExtrusion:
     def __init__(self, obj):
@@ -605,6 +611,12 @@ class ViewProviderExtrusion:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+    
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makeLoft():

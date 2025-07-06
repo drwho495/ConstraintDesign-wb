@@ -216,7 +216,10 @@ class PartContainer:
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
 
+                    startTime2 = time.time()
                     newShape = child.Proxy.generateShape(child, prevShape)
+                    App.Console.PrintLog(f"Time to recompute {child.Label}: {str(time.time() - startTime2)}\n")
+
                     recomputedNameList.append(child.Name)
 
                     if not newShape.isNull():
@@ -243,8 +246,10 @@ class PartContainer:
         if obj.ShownFeature == None and obj.Tip != None:
             obj.ShownFeature = obj.Tip
             obj.ShownFeature.Visibility = True
+        
+        App.Console.PrintLog(f"Time to recompute: {str(time.time() - startTime)}\n")
 
-        App.Console.PrintLog("Time to recompute: " + str(time.time() - startTime))
+        obj.purgeTouched()
     
     def addOrigin(self, obj, origin):
         obj.Origin = origin
@@ -265,6 +270,12 @@ class PartContainer:
             
     def onChanged(self, obj, prop):
         pass
+
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
+        return None
     
 class ViewProviderPartContainer:
     def __init__(self, vobj = None):
@@ -328,6 +339,12 @@ class ViewProviderPartContainer:
 
     def __setstate__(self, state):
         # Called when restoring
+        return None
+
+    def dumps(self):
+        return None
+    
+    def loads(self, state):
         return None
     
 def makePartContainer():
