@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getP2PDistanceAlongNormal, generateHashName
+from Utils.Utils import addElementToCompoundArray, getP2PDistanceAlongNormal, generateHashName, getParent
 from Utils.Constants import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
@@ -329,7 +329,7 @@ class Loft(Feature):
             if id.startswith(f"{obj.Supports[0].Name}_"): identifier2Support1IDs.append(id)
             if id.startswith(f"{obj.Supports[1].Name}_"): identifier2Support2IDs.append(id)
         
-        if len(identifier2Support1IDs) == 0 or len(identifier1Support2IDs) == 0 or len(set(allSupport1IDs) & set(identifier2Support1IDs)) == 0 or len(set(allSupport2IDs) & set(identifier2Support2IDs)):
+        if len(identifier2Support1IDs) == 0 or len(identifier2Support2IDs) == 0 or len(set(allSupport1IDs) & set(identifier2Support1IDs)) == 0 or len(set(allSupport2IDs) & set(identifier2Support2IDs)):
             useDualCheck = False
         else:
             print(f"id2: {identifier2}")
@@ -377,7 +377,15 @@ class Loft(Feature):
         outerWires = []
         innerWires = []
 
+        container = getParent(obj, "PartContainer")
+
         for support in obj.Supports:
+            if hasattr(container, "Group") and support not in container.Group:
+                App.Console.PrintError(f"{support.Label} not in {container.Label}!\nOne or both of your supports is not setup properly!\n")
+                return prevShape
+
+            support.Proxy.updateSketch(support, container)
+            
             wires = support.Shape.Wires
 
             if len(wires) == 0:
@@ -416,16 +424,17 @@ class Loft(Feature):
         support2GeoIDList = []
 
         startTime = time.time()
-        obj.Boundary.Shape = Part.Shape()
+        boundaryElementList = []
+        boundaryEdgesList = []
+        boundaryVertexesList = []
 
         for supportNum, sketch in enumerate(obj.Supports):
-            sketch.Visibility = False
             idList = getIDDict(sketch)
 
             for id,geo in idList.items():
                 geoShape = geo.toShape()
-                sketchIndexEdges = len(obj.Boundary.Shape.Edges)
-                sketchIndexVertices = len(obj.Boundary.Shape.Vertexes)
+                sketchIndexEdges = len(boundaryEdgesList)
+                sketchIndexVertices = len(boundaryVertexesList)
 
                 newShape = geoShape.copy()
                 newShape.Placement.Base = (newShape.Placement.Base + (sketch.Placement.Base))
@@ -456,7 +465,7 @@ class Loft(Feature):
                     else:
                         support2GeoIDList.append(geoID)
                 
-                obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, newShape])
+                addElementToCompoundArray(newShape, boundaryElementList, boundaryEdgesList, boundaryVertexesList)
                 
                 identifier = self.makeIdentifer(str(id), geoType, "Sketch", sketch.Name)
                 identifierList.append(identifier)
@@ -482,13 +491,14 @@ class Loft(Feature):
                     if pt.isEqual(edge.Vertexes[1].Point, 1e-5):
                         idsArray.append(f"{geoId}")
                 
-                ids = ":".join(idsArray)
                     
-                if ids != "":
-                    obj.Boundary.Shape = Part.Compound([obj.Boundary.Shape, edge.copy()])
+                if len(idsArray) != 0:
+                    idString = ":".join(idsArray)
 
-                    element = (obj.Boundary, "Edge" + str(len(obj.Boundary.Shape.Edges)))
-                    identifier = self.makeIdentifer(ids, "Edge", "WiresDatum", "")
+                    addElementToCompoundArray(edge.copy(), boundaryElementList, boundaryEdgesList, boundaryVertexesList)
+
+                    element = (obj.Boundary, "Edge" + str(len(boundaryEdgesList)))
+                    identifier = self.makeIdentifer(idString, "Edge", "WiresDatum", "")
                     identifierList.append(identifier)
 
                     elementMap = self.updateElement(obj, element, identifier, elementMap, support1GeoIDList, support2GeoIDList, True)
@@ -503,10 +513,14 @@ class Loft(Feature):
         obj.ElementMap = json.dumps(elementMap)
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
+        obj.Boundary.Shape = Part.Compound(boundaryElementList)
         obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
         obj.Boundary.ViewObject.PointSize = boundaryPointSize
-        obj.Boundary.purgeTouched()
         obj.Boundary.Visibility = True
+        obj.Boundary.purgeTouched()
+
+        for sketch in obj.Supports:
+            sketch.Visibility = False
 
         obj.IndividualShape = finalShape
 

@@ -131,7 +131,10 @@ class ConstraintSketch(Entity):
 
                     obj.Placement = App.Placement(position, plane.Rotation)
             elif obj.SupportType == "Plane":
+                obj.SupportPlane.recompute()
+
                 obj.Placement = obj.SupportPlane.Placement
+                obj.SupportPlane.purgeTouched() # sometimes it doesn't listen
         obj.recompute()
     
     def updateProps(self, obj):

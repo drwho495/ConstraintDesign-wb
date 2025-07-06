@@ -176,6 +176,7 @@ class FeatureJoint(Entity):
     
     def generateShape(self, obj, prevShape):
         self.execute(obj)
+        
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
     def execute(self, obj):
         self.updateAttachmentProperties(obj)
