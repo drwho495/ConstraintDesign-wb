@@ -1,4 +1,7 @@
 # Constraint Design FreeCAD Workbench.
+
+![image](https://github.com/user-attachments/assets/9fd25fa7-a8dd-41a4-9904-2ac3ddffbb86)
+
 ### What is the point of this addon?
 This addon implements an ecosystem for designing and (not yet implemented) assembling parts without needing to worry about any Topological naming problems. The design workbench is designed to work like the integrated Part Design workbench. The assembly portion of this addon will work like the Assembly workbench, and will be developed with speed in mind.
 
