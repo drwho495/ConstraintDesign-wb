@@ -1,3 +1,3 @@
 # Constraint Design FreeCAD Workbench.
 
-![image](https://github.com/user-attachments/assets/465d9a06-749d-487e-824b-0e4c5e54834f)
+![image](https://github.com/user-attachments/assets/ca713e83-d071-4174-9162-bc58b7d7f4c6)
