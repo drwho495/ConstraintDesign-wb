@@ -7,9 +7,73 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 from Utils.Utils import isType, getParent, getIDsFromSelection, getObjectsFromScope, getElementFromHash
 from Utils.Constants import *
 from Entities.Entity import Entity
+from PySide import QtWidgets
+from Utils.GuiUtils import SelectorWidget
 
 missingStr = "(MISSING) "
 useCases = ["Generic", "Sketch"]
+
+class ExposedGeoTaskPanel:
+    def __init__(self, obj, addOldSelection=True, startSelection=[]):
+        self.form = QtWidgets.QWidget()
+        self.form.destroyed.connect(self.close)
+        self.exposedGeo = obj
+
+        layout = QtWidgets.QVBoxLayout(self.form)
+        layout.addWidget(QtWidgets.QLabel(f"Editing: {obj.Label}"))
+
+        buttonLayout = QtWidgets.QHBoxLayout()
+        self.applyButton = QtWidgets.QPushButton("Apply")
+        self.updateButton = QtWidgets.QPushButton("Update")
+        self.cancelButton = QtWidgets.QPushButton("Cancel")
+
+        buttonLayout.addWidget(self.applyButton)
+        buttonLayout.addWidget(self.updateButton)
+        buttonLayout.addWidget(self.cancelButton)
+
+        layout.addLayout(buttonLayout)
+
+        # Now add the selector and labels after the buttons
+        self.oldSupport = getattr(obj, 'Support', None)
+        self.container = obj.Proxy.getContainer(obj)
+        self.selector = SelectorWidget(sizeLimit=1, addOldSelection=addOldSelection, startSelection=[self.oldSupport] if self.oldSupport else [], container=self.container)
+        self.selector.selectionChanged.connect(self.selectionChanged)
+        layout.addWidget(self.selector)
+
+        if hasattr(obj, 'Missing'):
+            self.missingLabel = QtWidgets.QLabel(f"Missing: {obj.Missing}")
+            layout.addWidget(self.missingLabel)
+        else:
+            self.missingLabel = None
+
+        self.applyButton.clicked.connect(self.accept)
+        self.updateButton.clicked.connect(self.update)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def selectionChanged(self, newSelection=[]):
+        # No supportLabel to update
+        pass
+
+    def close(self):
+        self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def update(self):
+        sel = self.selector.getSelection()
+        if sel:
+            self.exposedGeo.Support = sel[0]
+        self.exposedGeo.Proxy.generateShape(self.exposedGeo, Part.Shape())
+
+    def accept(self):
+        self.update()
+        self.close()
+
+    def reject(self):
+        self.exposedGeo.Support = self.oldSupport
+        self.close()
+
+    def getStandardButtons(self):
+        return 0
 
 class ExposedGeo(Entity):
     def __init__(self, obj, useCase="Generic"):
@@ -31,6 +95,13 @@ class ExposedGeo(Entity):
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyString", "Support", "ConstraintDesign", "Element to expose.")
+        
+        if not hasattr(obj, "Missing"):
+            obj.addProperty("App::PropertyBool", "Missing", "ConstraintDesign", "True if the exposed geometry is missing.")
+        
+        if not hasattr(obj, "IsSetup") and hasattr(obj, "UseCase") and obj.UseCase == "Sketch":
+            obj.addProperty("App::PropertyBool", "IsSetup", "ConstraintDesign", "True if the exposed geometry is setup by the sketch.")
+            obj.IsSetup = False
     
     def generateEquations(self):
         pass
@@ -52,23 +123,43 @@ class ExposedGeo(Entity):
         elementName = None
         hashStr = obj.Support
         placement = App.Placement()
+        obj.purgeTouched()
+        isInSketch = False
+
+        for item in obj.InList:
+            if isType(item, "BoundarySketch"):
+                isInSketch = True
+                break
+
+        if not isInSketch and hasattr(obj, "UseCase") and obj.UseCase == "Sketch" and hasattr(obj, "IsSetup") and obj.IsSetup:
+            obj.Proxy = None
+            obj.ViewObject.Proxy = None
+            obj.Document.removeObject(obj.Name)
+            return prevShape
 
         feature, elementName = getElementFromHash(container, obj.Support, requestingObjectLabel=obj.Label)
 
         if feature == None or elementName == None: # do not add error here, getElementFromHash already errors
+            if hasattr(obj, "Missing"):
+                obj.Missing = True
             if not obj.Label.startswith(missingStr):
                 obj.Label = f"{missingStr}{obj.Label}"
 
             if hasattr(obj, "UseCase") and obj.UseCase == "Sketch":
                 obj.ViewObject.ShowInTree = True
+                obj.Visibility = True
             
             return obj.Shape
         else:
+            if hasattr(obj, "Missing"):
+                obj.Missing = False
+                
             if obj.Label.startswith(missingStr):
                 obj.Label = obj.Label.removeprefix("(MISSING) ")
 
             if hasattr(obj, "UseCase") and obj.UseCase == "Sketch":
                 obj.ViewObject.ShowInTree = False
+                obj.Visibility = False
 
         scoreDocument, scopeContainer, _, _ = getObjectsFromScope(container, hashStr)
         
@@ -103,14 +194,23 @@ class ExposedGeo(Entity):
     
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
+    def onChanged(self, obj, prop):
+        print(f"exposed geo change: {prop}")
+
+        if prop == "Visibility" \
+                and obj.Visibility \
+                and hasattr(obj, "UseCase") \
+                and obj.UseCase == "Sketch" \
+                and hasattr(obj, "Missing") \
+                and not obj.Missing:
+            obj.Visibility = False
+            
+
     def getElement(self, obj, hash):
         return None, None
 
     def execute(self, obj):
         self.updateProps(obj)
-            
-    def onChanged(self, obj, prop):
-        pass
     
     def __getstate__(self):
         return None
@@ -123,6 +223,9 @@ class ExposedGeo(Entity):
     
     def loads(self, state):
         return None
+
+    def showGui(self, obj):
+        Gui.Control.showDialog(ExposedGeoTaskPanel(obj))
 
 class ViewProviderExposedGeo:
     def __init__(self, obj):
@@ -147,6 +250,8 @@ class ViewProviderExposedGeo:
         return
 
     def setEdit(self, vobj, mode):
+        vobj.Object.Document.openTransaction("EditExposedGeo")
+        vobj.Object.Proxy.showGui(vobj.Object)
         return False
 
     def unsetEdit(self, vobj, mode):

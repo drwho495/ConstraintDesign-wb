@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBoundaryCompound
+from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBoundaryCompound, getPlaneFromStringIDList
 from Utils.Constants import *
 from Entities.Feature import Feature
 
@@ -112,31 +112,12 @@ class PartMirror(Feature):
                 if obj.PlaneType == "Face":
                     face = obj.PlaneFace
                 elif obj.PlaneType == "Hashes":
-                    points = []
+                    container = self.getContainer(obj)
 
-                    for hash in obj.PlaneHash:
-                        hashArray = hash.split(".")
+                    face = getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
 
-                        if len(hashArray) == 3:
-                            container = obj.Document.getObject(hashArray[0])
-
-                            if container != None:
-                                normalHash = ".".join(hashArray[1:])
-
-                                feature, elementName = getElementFromHash(container, normalHash, requestingObjectLabel=obj.Label)
-                                element = feature.Shape.getElement(elementName)
-
-                                if feature != None and element != None:
-                                    if type(element).__name__ == "Edge":
-                                        for vertex in element.Vertexes:
-                                            points.append(vertex.Point)
-                                    elif type(element).__name__ == "Vertex":
-                                        points.append(element.Point)
-                    
-                    if len(points) >= 3:
-                        points.append(points[0])
-
-                        face = Part.Face(Part.Wire(Part.makePolygon(points)))
+                    if face == None:
+                        return prevShape
                 
                 planeCenter = face.Vertexes[0].Point
                 normal = face.normalAt(0, 0)

@@ -41,6 +41,11 @@ def getIDDict(sketch):
 
     return idDict
 
+def hasExternalGeometryBug():
+    version = App.Version()
+
+    return int(version[0]) == 1 and int(version[1]) >= 1
+
 # def updateSketch(sketch, container):
     # for item in sketch.OutList:
         # print(f"dependency: {item.Label}")

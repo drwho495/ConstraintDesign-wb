@@ -6,12 +6,13 @@ import os
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray
+from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray, getP2PDistanceAlongNormal
 from Utils.SketchUtils import getIDDict
 from Utils.Constants import *
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils.GuiUtils import SelectorWidget
+from Utils.GeometryUtils import getIntersectingFaces
 
 dimensionTypes = ["Blind", "UpToEntity"]
 startingOffsetTypes = ["Blind", "UpToEntity"]
@@ -282,6 +283,10 @@ class Extrusion(Feature):
             obj.addProperty("App::PropertyBool", "Symmetric", "ConstraintDesign", "Determines if this extrusion will be symmetric to the extrusion plane.")
             obj.Symmetric = False
         
+        if not hasattr(obj, "MakeIntersectionGeometry"):
+            obj.addProperty("App::PropertyBool", "MakeIntersectionGeometry", "ConstraintDesign", "Determines if boundaries should include edges projected onto faces.")
+            obj.MakeIntersectionGeometry = False
+        
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
         
@@ -361,7 +366,7 @@ class Extrusion(Feature):
         else:
             return False
 
-    # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/WiresBoundary)>;;;<extraInfo>"}}
+    # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/Intersection/WiresBoundary)>;;;<extraInfo>"}}
     def updateElement(self, element, identifier, map, complexCheck=True):
         startTime = time.time()
 
@@ -394,7 +399,11 @@ class Extrusion(Feature):
 
             sketch.Proxy.updateSketch(sketch, container)
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
-            face = Part.makeFace(sketchWires)
+            face = Part.Face()
+            
+            if obj.Length != 0:
+                face = Part.makeFace(sketchWires)
+
             ZOffset = 0
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))
             extrudeLength = 1
@@ -420,11 +429,25 @@ class Extrusion(Feature):
                 extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal, requestingObjectLabel=obj.Label)
 
             extrudeVector = normal * extrudeLength
+            extrusion = prevShape
+            intersectingFaces = []
+            basePoint = App.Placement()
+            endExtrudePoint = App.Placement()
+
+            basePoint = sketch.Placement
+            basePoint.Base += offsetVector
+
+            endExtrudePoint = sketch.Placement
+            endExtrudePoint.Base += offsetVector
+            endExtrudePoint.Base += extrudeVector
 
             if extrudeLength != 0:
                 extrusion = face.extrude(extrudeVector)
+                extrusion.Placement.Base += offsetVector
 
                 obj.IndividualShape = extrusion.copy()
+                if obj.MakeIntersectionGeometry:
+                    intersectingFaces = getIntersectingFaces(prevShape, extrusion, basePoint.Base, normal)
 
                 if not prevShape.isNull():
                     if obj.Remove:
@@ -433,9 +456,7 @@ class Extrusion(Feature):
                         extrusion = prevShape.fuse(extrusion)
             else:
                 obj.IndividualShape = Part.Shape()
-                extrusion = prevShape
 
-            extrusion.Placement.Base = extrusion.Placement.Base + offsetVector
             obj.Shape = extrusion
         
             if not hasattr(obj, "ElementMap"):
@@ -492,6 +513,7 @@ class Extrusion(Feature):
                         points[len(points)] = {"Vector": vec, "IDs": [f"{id}"]}
                 
                 geoShape = geo.toShape()
+                geoShape.Placement = basePoint
                 geoShape.Orientation = "Forward"
                 oldVertNum = len(boundaryVertexesList)
 
@@ -512,9 +534,39 @@ class Extrusion(Feature):
                     self.updateElement(element, identifier, elementMap, False)
                 
                 if extrudeLength != 0:
+                    occurence = 0
+                    intersectFaceTol = 1e-2
+
+                    for face in intersectingFaces:
+                        try:
+                            projGeoShape = face.makeParallelProjection(geoShape, normal)
+                        except:
+                            continue
+
+                        startDist = getP2PDistanceAlongNormal(basePoint.Base, face.CenterOfMass, normal)
+                        endDist = getP2PDistanceAlongNormal(endExtrudePoint.Base, face.CenterOfMass, normal)
+
+                        if abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
+                            continue
+
+                        oldEdgeNum = len(boundaryEdgesList)
+                        addElementToCompoundArray(projGeoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+                        newEdgeNum = len(boundaryEdgesList)
+                        numGenEdges = newEdgeNum - oldEdgeNum
+
+                        for i in range(numGenEdges):
+                            print("intersection add edge")
+
+                            identifier = self.makeIdentifier([f"{id}"], "Edge", occurence, "Intersection")
+                            identifierList.append(identifier)
+                            element = (obj.Boundary, f"Edge{str(oldEdgeNum + (i + 1))}")
+                            
+                            self.updateElement(element, identifier, elementMap, False)
+                            occurence += 1
+
                     geoShape = geo.toShape()
                     geoShape.Orientation = "Reversed"
-                    geoShape.Placement.Base += App.Vector(0, 0, extrudeLength)
+                    geoShape.Placement = endExtrudePoint
                     oldVertNum = len(boundaryVertexesList)
 
                     # boundaryShape = Part.Compound([boundaryShape, geoShape])
@@ -548,6 +600,7 @@ class Extrusion(Feature):
                     endPoint = v["Vector"] + App.Vector(0, 0, extrudeLength)
                     
                     line = Part.LineSegment(startPoint, endPoint).toShape()
+                    line.Placement = basePoint
                     oldVertNum = len(boundaryVertexesList)
                     # boundaryShape = Part.Compound([boundaryShape, line])
                     addElementToCompoundArray(line, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
@@ -604,11 +657,11 @@ class Extrusion(Feature):
 
             obj.ElementMap = json.dumps(elementMap)
             
-            obj.Boundary.Shape = Part.Compound(boundaryElementsList)
+            print("set boundary shape placement")
+            boundaryShape = Part.Compound(boundaryElementsList)
+            obj.Boundary.Shape = boundaryShape
             obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
             obj.Boundary.ViewObject.PointSize = boundaryPointSize
-            obj.Boundary.Placement = sketch.Placement
-            obj.Boundary.Placement.Base += offsetVector
 
             obj.Support.purgeTouched()
             obj.Boundary.purgeTouched()
@@ -757,7 +810,7 @@ def makeExtrusion():
             activeObject.Proxy.addObject(activeObject, obj, True)
             activeObject.Proxy.setTip(activeObject, obj)
 
-            # obj.Proxy.showGui(obj)
+            obj.Proxy.showGui(obj)
         else:
             App.Console.PrintError("Selected object is not a sketch!\n")
     else:

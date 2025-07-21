@@ -11,6 +11,7 @@ from Commands.CreateCountersink import CreateCountersink
 from Commands.CreateLoft import CreateLoft
 from Commands.CreateDerive import CreateDerive
 from Commands.CreateExposedGeo import CreateExposedGeo
+from Commands.EditSketchPlacement import EditConstraintSketch
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
 from Commands.CreateJoint import CreateJoint
@@ -124,3 +125,13 @@ class ConstraintDesign(Gui.Workbench):
             App.removeDocumentObserver(self.documentObserver)
         
         GridManager.hideAllGrids()
+
+    def ContextMenu(self, recipient):
+        # This is executed whenever the user right-clicks on screen"
+        # "recipient" will be either "view" or "tree"
+        sketchMenu = ["EditConstraintSketch"]
+        # commands to appear in the 'Assembly' sub-menu in the contextual menu (right-click)
+        
+        self.appendContextMenu("", "Separator")
+        self.appendContextMenu("", sketchMenu)  # add commands to the context menu
+        self.appendContextMenu("", "Separator")

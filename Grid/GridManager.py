@@ -122,9 +122,22 @@ def addGrid(document, showOveride=False):
     if not showOveride and not _showGrid:
         return False
 
-    for grid in grids:
-        if grid.document.Name == document.Name:
-            return False
+    for grid in grids.copy():
+        keepGrid = False # have these here for the best amount of reliability
+        
+        try:
+            if hasattr(grid, "document") and grid.document != None:
+                if grid.document.Name == document.Name:
+                    return False
+                
+                keepGrid = True
+            else:
+                keepGrid = False
+        except:
+            keepGrid = True
+        
+        if not keepGrid:
+            grids.remove(grid)
 
     grid = Grid(document)
     grid.createGrid()

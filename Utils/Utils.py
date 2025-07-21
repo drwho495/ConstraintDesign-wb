@@ -244,13 +244,45 @@ def getObjectsFromScope(activeContainer, hashName):
 
     return document, container, feature, elementName
 
-def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
-    if isinstance(element, Part.Edge):
-        edgesList.append(element)
-        vertexList.extend(element.Vertexes)
-    elif isinstance(element, Part.Vertex):
-        vertexList.append(element)
+def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", asFace = False):
+    elements = getElementFromHash(container, stringList, asList=True, requestingObjectLabel=requestingObjectLabel)
+
+    vectors = []
+
+    for element in elements:
+        boundary = element[0]
+        elementName = element[1]
+
+        if boundary == None or elementName == None: continue
+
+        element = boundary.Shape.getElement(elementName)
+
+        if type(element).__name__ == "Edge":
+            for vertex in element.Vertexes:
+                pt = vertex.Point
+
+                if pt not in vectors:
+                    vectors.append(pt)
+        elif type(element).__name__ == "Vertex":
+            vectors.append(element.Point)
     
+    if len(vectors) >= 3:
+        try:
+            if not asFace:
+                return Part.Plane(vectors[0], vectors[1], vectors[2])
+            else:
+                return Part.Face(Part.Wire(Part.makePolygon(vectors)))
+        except:
+            App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nThe points created by each element are likely colinear (which means they create a straight line)!\n")
+            return None
+    else:
+        App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nList contents: {','.join(stringList)}\n")
+        return None
+    
+def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
+    edgesList.extend(element.Edges)
+    vertexList.extend(element.Vertexes)
+
     compoundList.append(element)
 
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):

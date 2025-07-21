@@ -212,7 +212,7 @@ class PartContainer:
                                 depList.extend(support.OutList)
 
                             for item in depList:
-                                if isType(item, datumTypes) and item.Name not in recomputedNameList:
+                                if isType(item, datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
 
@@ -238,7 +238,8 @@ class PartContainer:
 
         #handle datums that haven't already been recomputed
         for item in self.getGroupOfTypes(obj, datumTypes, recomputedNameList):
-            item.Proxy.generateShape(item, Part.Shape())
+            if hasattr(item.Proxy, "generateShape"):
+                item.Proxy.generateShape(item, Part.Shape())
         
         if not tipFound:
             self.fixTip(obj)

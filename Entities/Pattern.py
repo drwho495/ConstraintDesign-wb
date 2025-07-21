@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getDistanceToElement, generateHashName, makeBoundaryCompound, getElementFromHash
+from Utils.Utils import isType, makeBoundaryCompound, getPlaneFromStringIDList
 from Entities.Feature import Feature
 from Utils.Constants import *
 from PySide import QtWidgets
@@ -282,9 +282,13 @@ class Pattern(Feature):
             if not hasattr(obj, "YAxisLength"):
                 obj.addProperty("App::PropertyFloat", "YAxisLength", "ConstraintDesign")
                 obj.YAxisLength = 10
+
+            if not hasattr(obj, "DirectionPlane"):
+                obj.addProperty("App::PropertyStringList", "DirectionPlane", "ConstraintDesign")
             
-            if not hasattr(obj, "DirectionLine"):
-                obj.addProperty("App::PropertyString", "DirectionLine", "ConstraintDesign")
+            if hasattr(obj, "DirectionLine"):
+                obj.DirectionPlane = [obj.DirectionLine]
+                obj.removeProperty("DirectionLine")
         
         if not hasattr(obj, "Support"):
             obj.addProperty("App::PropertyXLink", "Support", "ConstraintDesign", "Support object (ex: A sketch)")
@@ -366,19 +370,6 @@ class Pattern(Feature):
         removeShape = Part.Shape()
         finalAddArray = []
         finalRemoveArray = []
-        directionVector = App.Vector(1, 0, 0)
-
-        if obj.DirectionLine != "":
-            container = self.getContainer(obj)
-            boundary, elementName = getElementFromHash(container, obj.DirectionLine, requestingObjectLabel=obj.Label)
-
-            if boundary != None:
-                if elementName != None and elementName != "":
-                    element = boundary.Shape.getElement(elementName)
-
-                    directionVector = element.tangentAt(.5)
-        
-        rot = App.Rotation(App.Vector(1, 0, 0), directionVector)
 
         for feature in obj.Features:
             featureShapes = feature.Proxy.getIndividualShapes(feature)
@@ -402,6 +393,15 @@ class Pattern(Feature):
         
 
         if obj.PatternType == 0:
+            rot = App.Rotation()
+
+            if len(obj.DirectionPlane) != 0:
+                container = self.getContainer(obj)
+                plane = getPlaneFromStringIDList(container, obj.DirectionPlane, requestingObjectLabel = obj.Label)
+
+                if plane != None:
+                    rot = plane.Rotation
+            
             placementLocations = []
             
             for Yi in range(obj.YAxisCount):

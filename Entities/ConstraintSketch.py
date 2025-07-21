@@ -3,7 +3,8 @@ import FreeCADGui as Gui
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getElementFromHash, getParent, getStringID
+from Utils.Utils import isType, getPlaneFromStringIDList, getParent, getStringID
+from Utils.SketchUtils import hasExternalGeometryBug
 from Utils.Constants import *
 from Entities.ExposedGeo import makeExposedGeo
 from Entities.Entity import Entity
@@ -27,36 +28,106 @@ class ExternalGeoSelector:
             self.cleanup()
             return
 
-        try:
-            if document != None and objectName != None:
-                object = document.getObject(objectName)
+        if document != None and objectName != None:
+            object = document.getObject(objectName)
 
-                if object != None and object != self.sketch:
-                    container = getParent(self.sketch, "PartContainer")
+            if object != None and object != self.sketch:
+                container = getParent(self.sketch, "PartContainer")
 
-                    if container != None:
-                        stringId = getStringID(container, (object, elementName))
+                if isType(object, "ExposedGeometry") and hasattr(object, "UseCase") and object.UseCase == "Sketch":
+                    return
 
-                        if stringId != None:
-                            if hasattr(self.sketch, "Proxy") and hasattr(self.sketch.Proxy, "addStringIDExternalGeo"):
-                                self.sketch.Proxy.addStringIDExternalGeo(self.sketch, stringId, container)
-                            else:
-                                App.Console.PrintError("Constraint design did not setup this sketch properly!\nPlease report!\n")
-                            
-                            Gui.Selection.clearSelection()
-        except Exception as e:
-            App.Console.PrintWarning(f"{self.sketch.Label} errored with: {str(e)}\n")
+                if container != None:
+                    stringId = getStringID(container, (object, elementName))
+
+                    if stringId != None:
+                        Gui.Selection.clearSelection()
+
+                        if hasattr(self.sketch, "Proxy") and hasattr(self.sketch.Proxy, "addStringIDExternalGeo"):
+                            self.sketch.Proxy.addStringIDExternalGeo(self.sketch, stringId, container = container)
+                        else:
+                            App.Console.PrintError("Constraint design did not setup this sketch properly!\nPlease report!\n")
+                        
+class ConstraintSketchTaskPanel:
+    def __init__(self, obj):
+        self.form = QtWidgets.QWidget()
+        self.form.destroyed.connect(self.close)
+        self.sketch = obj
+
+        layout = QtWidgets.QVBoxLayout(self.form)
+        layout.addWidget(QtWidgets.QLabel(f"Editing: {obj.Label}"))
+
+        buttonLayout = QtWidgets.QHBoxLayout()
+        self.applyButton = QtWidgets.QPushButton("Apply")
+        self.updateButton = QtWidgets.QPushButton("Update")
+        self.cancelButton = QtWidgets.QPushButton("Cancel")
+
+        buttonLayout.addWidget(self.applyButton)
+        buttonLayout.addWidget(self.updateButton)
+        buttonLayout.addWidget(self.cancelButton)
+        layout.addLayout(buttonLayout)
+
+        self.oldSupportHashes = list(getattr(obj, 'SupportHashes', []))
+        self.container = getParent(obj, "PartContainer")
+        self.selector = SelectorWidget(sizeLimit=4, addOldSelection=True, startSelection=self.oldSupportHashes, container=self.container)
+        self.selector.selectionChanged.connect(self.selectionChanged)
+        layout.addWidget(self.selector)
+
+        self.applyButton.clicked.connect(self.accept)
+        self.updateButton.clicked.connect(self.update)
+        self.cancelButton.clicked.connect(self.reject)
+
+    def selectionChanged(self, newSelection=[]):
+        pass
+
+    def close(self):
+        self.selector.cleanup()
+        Gui.Control.closeDialog()
+
+    def update(self):
+        sel = self.selector.getSelection()
+        self.sketch.SupportHashes = sel
+        self.sketch.Proxy.updateSketch(self.sketch)
+        # could call recompute or other update logic here if needed
+
+    def accept(self):
+        self.update()
+        self.close()
+
+    def reject(self):
+        self.sketch.SupportHashes = self.oldSupportHashes
+        self.close()
+
+    def getStandardButtons(self):
+        return 0
 
 class ConstraintSketch(Entity):
     def __init__(self, obj):
+        self.lastProp = ""
         obj.Proxy = self
         self.updateProps(obj)
     
     def attach(self, obj):
+        self.lastProp = ""
         self.updateProps(obj)
     
-    def onChanged(self, obj, prop):
-        pass
+    def onChanged(self, obj, prop): # needed for versions of the program where the sketch python isnt bugged
+        if not hasattr(self, "lastProp"):
+            self.lastProp = ""
+
+        print(f"onchanged: {prop}")
+
+        if prop == "Constraints" and self.lastProp != prop: # dont ask
+            if not hasExternalGeometryBug():
+                # pass
+                print("fix external geometry")
+                for i, exGeo in enumerate(obj.ExternalGeometry):
+                    object = exGeo[0]
+
+                    if not isType(object, datumTypes):
+                        obj.delExternal(i)
+        
+        self.lastProp = prop
 
     def addStringIDExternalGeo(self, obj, stringID, container = None):
         if container == None:
@@ -68,15 +139,22 @@ class ConstraintSketch(Entity):
         exposedGeo.Visibility = False
         elementName = ""
 
+        if hasattr(exposedGeo, "IsSetup"):
+            exposedGeo.IsSetup = True
+
         if len(exposedGeo.Shape.Edges) == 0:
             if len(exposedGeo.Shape.Vertexes) != 0:
                 elementName = "Vertex1"
         else:
             elementName = "Edge1"
         
-        obj.addExternal(exposedGeo.Name, elementName, True, False)
-        obj.recompute()
+        if int(App.Version()[0]) >= 1 and int(App.Version()[1]) >= 1:
+            obj.addExternal(exposedGeo.Name, elementName, True, False)
+        else:
+            obj.addExternal(exposedGeo.Name, elementName)
 
+        obj.recompute()
+    
     def updateSketch(self, obj, container=None):
         if container == None:
             container = getParent(obj, "PartContainer")
@@ -96,32 +174,10 @@ class ConstraintSketch(Entity):
             obj.SupportType = "Hashes"
         
         if hasattr(obj, "SupportType") and hasattr(obj, "SupportPlane") and hasattr(obj, "SupportHashes"):
-            if obj.SupportType == "Hashes":
-                vectors = []
+            if obj.SupportType == "Hashes" and len(obj.SupportHashes) != 0:
+                plane = getPlaneFromStringIDList(container, obj.SupportHashes, obj.Label)
 
-                for hash in obj.SupportHashes:
-                    boundary, elementName = getElementFromHash(container, hash, requestingObjectLabel=obj.Label)
-
-                    if boundary == None or elementName == None: continue
-
-                    element = boundary.Shape.getElement(elementName)
-
-                    if type(element).__name__ == "Edge":
-                        if len(element.Vertexes) == 2:
-                            vectors.append(element.Vertexes[0].Point)
-                            vectors.append(element.Vertexes[1].Point)
-                        else:
-                            for vertex in element.Vertexes:
-                                vectors.append(vertex.Point)
-                    elif type(element).__name__ == "Vertex":
-                        vectors.append(element.Point)
-
-                if len(vectors) >= 3:
-                    p1 = vectors[0]
-                    p2 = vectors[1]
-                    p3 = vectors[2]
-
-                    plane = Part.Plane(p1, p2, p3)
+                if plane != None:
                     originVector = App.Vector(0,0,0)
 
                     if hasattr(container.Origin, "Placement"):
@@ -174,6 +230,9 @@ class ConstraintSketch(Entity):
     def loads(self, state):
         return None
 
+    def showGui(self, obj):
+        Gui.Control.showDialog(ConstraintSketchTaskPanel(obj))
+
 class ConstraintSketchViewObject:
     def __init__(self, vobj):
         vobj.Object.recompute()
@@ -215,7 +274,7 @@ class ConstraintSketchViewObject:
 
         if self.observer != None:
             self.observer.cleanup()
-        
+            
         container = vobj.Object.Proxy.getContainer(vobj.Object)
 
         if container != None:
@@ -249,6 +308,7 @@ def makeSketch(stringIDs, editAfter=False):
         activeObject.Proxy.addObject(activeObject, obj)
     
     if editAfter:
+        obj.recompute()
         Gui.ActiveDocument.setEdit(obj)
 
     # obj.recompute()
