@@ -9,35 +9,62 @@ from Entities.ExposedGeo import makeExposedGeo
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 
-def getIDDict(sketch):
+def getIDDict(support):
     #"ID": geometry
     idDict = {}
+    if isType(support, "BoundarySketch"):
+        for geoF in support.GeometryFacadeList:
+            idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
+        
+        externalGeo = support.ExternalGeo.copy()
 
-    for geoF in sketch.GeometryFacadeList:
-        idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
-    
-    externalGeo = sketch.ExternalGeo.copy()
+        if len(externalGeo) != 0:
+            for geo in externalGeo:
+                geoF = None
+                externalGeoExt = None
+                defining = False
 
-    if len(externalGeo) != 0:
-        for geo in externalGeo:
-            geoF = None
-            externalGeoExt = None
-            defining = False
-
-            try:
-                geoF = geo.getExtensionOfType("Sketcher::SketchGeometryExtension")
-                externalGeoExt = geo.getExtensionOfType("Sketcher::ExternalGeometryExtension")
-            except:
-                pass
-            
-            if externalGeoExt != None:
                 try:
-                    defining = externalGeoExt.testFlag("Defining") # This needs to be checked seperately, because of older versions of FreeCAD
+                    geoF = geo.getExtensionOfType("Sketcher::SketchGeometryExtension")
+                    externalGeoExt = geo.getExtensionOfType("Sketcher::ExternalGeometryExtension")
                 except:
                     pass
+                
+                if externalGeoExt != None:
+                    try:
+                        defining = externalGeoExt.testFlag("Defining") # This needs to be checked seperately, because of older versions of FreeCAD
+                    except:
+                        pass
+                
+                if geoF != None and geoF.Id >= 1 and defining:
+                    idDict[f"eg{geoF.Id}"] = geo
+    elif isType(support, "GearsWBPart"):
+        for i, edge in enumerate(support.Shape.Edges):
+            geometry = None
+
+            if edge.Curve.TypeId == "Part::GeomLine":
+                geometry = Part.LineSegment(edge.Vertexes[0].Point, edge.Vertexes[1].Point)
+            elif edge.Curve.TypeId == "Part::GeomArcOfCircle":
+                geometry = Part.Arc(edge.Curve.StartPoint, edge.Curve.MidPoint, edge.Curve.EndPoint)
+            elif edge.Curve.TypeId == "Part::GeomBSplineCurve" and hasattr(support, "numpoints"):
+                geometry = Part.BSplineCurve(edge.discretize(support.numpoints))
             
-            if geoF != None and geoF.Id >= 1 and defining:
-                idDict[f"eg{geoF.Id}"] = geo
+            if geometry != None:
+                idDict[f"gg{i + 1}"] = geometry
+        
+        # create bounding box
+        edgeLen = 10
+        topLS = Part.LineSegment(App.Vector(-edgeLen/2, edgeLen/2), App.Vector(edgeLen/2, edgeLen/2))
+        idDict[f"bbT"] = topLS
+
+        rightLS = Part.LineSegment(App.Vector(edgeLen/2, edgeLen/2), App.Vector(edgeLen/2, -edgeLen/2))
+        idDict[f"bbR"] = rightLS
+
+        bottomLS = Part.LineSegment(App.Vector(edgeLen/2, -edgeLen/2), App.Vector(-edgeLen/2, -edgeLen/2))
+        idDict[f"bbB"] = bottomLS
+
+        leftLS = Part.LineSegment(App.Vector(-edgeLen/2, -edgeLen/2), App.Vector(-edgeLen/2, edgeLen/2))
+        idDict[f"bbL"] = leftLS
 
     return idDict
 

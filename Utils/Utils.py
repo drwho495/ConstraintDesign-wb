@@ -4,6 +4,7 @@ import FreeCADGui as Gui
 import random
 import string
 import Part
+import importlib
 from Utils.Constants import *
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
@@ -15,11 +16,42 @@ def getDependencies(obj, activeContainer):
     else:
         return []
 
+def isGearsWBPart(obj):
+    return hasattr(obj, "version") and (hasattr(obj, "num_teeth") or hasattr(obj, "numpoints"))
+
+def fixGear(gear, container = None, addExtrusion = False):
+    if container == None:
+        container = getParent(gear, "PartContainer")
+    
+    if not hasattr(gear, "Type"):
+        gear.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
+        gear.Type = "GearsWBPart"
+    
+    if addExtrusion and hasattr(gear, "height") and gear.height != 0:
+        Extrusion = importlib.import_module("Entities.Extrusion") # do this to avoid circular import
+
+        oldHeight = gear.height.Value
+        gear.height = 0
+        gear.recompute()
+
+        extrusion = Extrusion.makeExtrusion(container, gear, False)
+
+        if extrusion != None:
+            extrusion.recompute()
+
+            if hasattr(extrusion, "Length"):
+                extrusion.Length = oldHeight
+                print(f"old height: {oldHeight}")
+            else:
+                print("could not find length")
+
+            container.recompute(True)
+
 def isType(obj, typeObj):
     if type(typeObj) == str:
-        return obj != None and hasattr(obj, "Type") and obj.Type == typeObj
-    elif type(typeObj) == list:
-        return obj != None and hasattr(obj, "Type") and obj.Type in typeObj
+        typeObj = [typeObj]
+
+    return obj != None and hasattr(obj, "Type") and obj.Type in typeObj
 
 def getParent(obj, parentType):
     typeLs = []

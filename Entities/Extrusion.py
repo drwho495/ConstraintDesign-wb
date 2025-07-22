@@ -393,11 +393,13 @@ class Extrusion(Feature):
         self.timeTakeUE = 0
         self.updateProps(obj)
 
-        if hasattr(obj,"Support") and isType(obj.Support, "BoundarySketch"):
+        if hasattr(obj,"Support") and isType(obj.Support, supportTypes):
             sketch = obj.Support
             container = self.getContainer(obj)
 
-            sketch.Proxy.updateSketch(sketch, container)
+            if isType(sketch, "BoundarySketch"):
+                sketch.Proxy.updateSketch(sketch, container)
+                
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
             face = Part.Face()
             
@@ -769,20 +771,24 @@ class ViewProviderExtrusion:
     def loads(self, state):
         return None
     
-def makeExtrusion():
-    activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
+def makeExtrusion(container=None, support=None, showGui = True):
+    if container is None:
+        container = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if activeObject != None and hasattr(activeObject, "Type") and activeObject.Type == "PartContainer":
-        selectedObject = Gui.Selection.getSelection()
-        doc = activeObject.Document
+    if container is not None and hasattr(container, "Type") and container.Type == "PartContainer":
+        if support is None:
+            selectedObject = Gui.Selection.getSelection()
+            if len(selectedObject) == 0:
+                support = None
+            else:
+                support = selectedObject[0]
+        else:
+            selectedObject = support # Rename for clarity in the existing logic
+
+        doc = container.Document
         doc.openTransaction("CreateExtrusion")
 
-        if len(selectedObject) == 0:
-            selectedObject = None
-        else:
-            selectedObject = selectedObject[0]
-
-        if selectedObject != None and (selectedObject.TypeId == "Sketcher::SketchObject" or isType(selectedObject, "BoundarySketch")):
+        if support is not None and isType(support, supportTypes):
             obj = doc.addObject("Part::FeaturePython", "Extrusion")
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
@@ -793,25 +799,19 @@ def makeExtrusion():
             Extrusion(obj)
             ViewProviderExtrusion(obj.ViewObject)
 
-            if len(selectedObject.InList) != 0:
-                parent = selectedObject.InList[0]
-
-                if hasattr(parent, "Type") and parent.Type == "PartContainer":
-                    if hasattr(parent, "Group"):
-                        group = parent.Group
-                        if selectedObject in group:
-                            group.remove(selectedObject)
-
-                            parent.Group = group
-
-            obj.Proxy.setSupport(obj, selectedObject)
+            obj.Proxy.setSupport(obj, support)
             obj.Proxy.setBoundary(obj, boundary)
 
-            activeObject.Proxy.addObject(activeObject, obj, True)
-            activeObject.Proxy.setTip(activeObject, obj)
+            container.Proxy.addObject(container, obj, True)
+            container.Proxy.setTip(container, obj)
 
-            obj.Proxy.showGui(obj)
+            if showGui:
+                obj.Proxy.showGui(obj)
+
+            return obj
         else:
             App.Console.PrintError("Selected object is not a sketch!\n")
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")
+    
+    return None

@@ -3,7 +3,7 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-from Utils.Utils import isType, getDependencies, getParent
+from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear
 from Utils.Constants import *
 import json
 
@@ -13,7 +13,8 @@ class PartContainer:
             obj.addExtension("App::OriginGroupExtensionPython")
             
             obj.Origin = App.ActiveDocument.addObject("App::Origin", "Origin")
-            # self.addObject(obj, obj.Origin, False)
+
+            if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
@@ -34,6 +35,7 @@ class PartContainer:
         if obj is not None:
             obj.Proxy = self
 
+            if hasattr(obj, "Group"): self.oldGroup = obj.Group
             self.updateProps(obj)
     
     def updateSupportVisibility(self, obj, supportObject, updateDict = True):
@@ -95,6 +97,7 @@ class PartContainer:
             obj.ObjectVisibilityDict = "{}"
     
     def attach(self, obj):
+        if hasattr(obj, "Group"): self.oldGroup = obj.Group
         self.updateProps(obj)
     
     def addObject(self, obj, objToAdd, afterTip=False, customAfterFeature = None):
@@ -180,6 +183,8 @@ class PartContainer:
         startTime = time.time()
         inEdit = Gui.ActiveDocument.getInEdit()
         self.updateProps(obj)
+
+        if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
         if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
             return
@@ -270,7 +275,15 @@ class PartContainer:
         return group
             
     def onChanged(self, obj, prop):
-        pass
+        if prop == "Group":
+            if hasattr(self, "oldGroup"):
+                newObjects = list(set(obj.Group) - set(self.oldGroup))
+
+                for newItem in newObjects:
+                    if isGearsWBPart(newItem) and not isType(newItem, "GearsWBPart"):
+                        fixGear(newItem, obj, True)
+            
+            self.oldGroup = obj.Group
 
     def dumps(self):
         return None
