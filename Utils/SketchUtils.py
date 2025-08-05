@@ -9,11 +9,13 @@ from Entities.ExposedGeo import makeExposedGeo
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 
-def getIDDict(support):
+def getIDDict(support, includeConstruction = True, includeExternalConstruction = False):
     #"ID": geometry
     idDict = {}
     if isType(support, "BoundarySketch"):
         for geoF in support.GeometryFacadeList:
+            if not includeConstruction and geoF.Construction: continue
+
             idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
         
         externalGeo = support.ExternalGeo.copy()
@@ -36,18 +38,26 @@ def getIDDict(support):
                     except:
                         pass
                 
-                if geoF != None and geoF.Id >= 1 and defining:
+                if geoF != None and geoF.Id >= 1 and (includeExternalConstruction or defining):
                     idDict[f"eg{geoF.Id}"] = geo
     elif isType(support, "GearsWBPart"):
-        for i, edge in enumerate(support.Shape.Edges):
+        shCopy = support.Shape.copy()
+        shCopy.Placement = App.Placement()
+
+        for i, edge in enumerate(shCopy.Edges):
             geometry = None
 
             if edge.Curve.TypeId == "Part::GeomLine":
                 geometry = Part.LineSegment(edge.Vertexes[0].Point, edge.Vertexes[1].Point)
             elif edge.Curve.TypeId == "Part::GeomArcOfCircle":
                 geometry = Part.Arc(edge.Curve.StartPoint, edge.Curve.MidPoint, edge.Curve.EndPoint)
-            elif edge.Curve.TypeId == "Part::GeomBSplineCurve" and hasattr(support, "numpoints"):
-                geometry = Part.BSplineCurve(edge.discretize(support.numpoints))
+            elif edge.Curve.TypeId == "Part::GeomBSplineCurve":
+                points = 10
+
+                if hasattr(support, "numpoints"):
+                    points = support.numpoints
+
+                geometry = Part.BSplineCurve(edge.discretize(points))
             
             if geometry != None:
                 idDict[f"gg{i + 1}"] = geometry

@@ -5,6 +5,7 @@ import time
 import os
 from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear
 from Utils.Constants import *
+import Utils.MojoUtils as MojoUtils
 import json
 
 class PartContainer:
@@ -27,6 +28,9 @@ class PartContainer:
         
         if not hasattr(obj, "Tip"):
             obj.addProperty("App::PropertyXLink", "Tip", "ConstraintDesign", "The tip feature of the container.")
+        
+        if not hasattr(obj, "Frozen"):
+            obj.addProperty("App::PropertyBool", "Frozen", "ConstraintDesign", "This property stops a PartContainer and its features from recalculating. You should use this when assembling parts. Sketches are still solved.")
 
         if not hasattr(obj, "ShownFeature"):
             obj.addProperty("App::PropertyXLink", "ShownFeature", "ConstraintDesign", "The feature that is being shown.")
@@ -132,8 +136,15 @@ class PartContainer:
         if not hasattr(obj, "Tip"):
             self.updateProps(obj)
 
-        obj.Tip = feature
-        obj.ShownFeature = obj.Tip # Make setting in pref?
+        tipContainer = feature.Proxy.getContainer(feature)
+
+        # make sure this feature is not from a partcontainer nested in this one
+        if tipContainer == obj:
+            obj.Tip = feature
+            obj.ShownFeature = obj.Tip
+        else:
+            print("tip container label: " + tipContainer.Label)
+            print("container label: " + obj.Label)
 
     def setShownObj(self, obj, feature):
         inEdit = Gui.ActiveDocument.getInEdit()
@@ -171,18 +182,23 @@ class PartContainer:
         return sortedGroup
     
     def fixTip(self, obj):
-        if not obj.Tip in obj.Group:
+        if obj.Tip != None and not obj.Tip in obj.Group:
             group = self.getGroup(obj, False, True)
             
             if len(group) > 0:
-                obj.Tip = group[len(group) - 1]
-            #obj.Tip.Visibility = True
+                self.setTip(obj, group[-1])
+            obj.Tip.Visibility = True
 
-    def recalculateShapes(self, obj, startObj = None):
+    def recalculateShapes(self, obj, startObj = None, force = False):
+        self.updateProps(obj)
+
+        if obj.Frozen and not force:
+            obj.purgeTouched()
+            return
+
         prevShape = Part.Shape()
         startTime = time.time()
         inEdit = Gui.ActiveDocument.getInEdit()
-        self.updateProps(obj)
 
         if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
@@ -261,9 +277,24 @@ class PartContainer:
         obj.Origin = origin
 
         self.addObject(obj, origin)
+    
+    def deleteChild(self, obj, child):
+        if child in obj.Group:
+            fixTip = child.Name == obj.Tip.Name
+
+            document = obj.Document
+            document.removeObject(child.Name)
+
+            if fixTip: self.fixTip(obj)
         
     def execute(self, obj):
-        self.recalculateShapes(obj)
+        mojo_module = MojoUtils.importMojoModule(moduleName="mojo_module")
+
+        print(f"mojo setup propery: {mojo_module.testFreeCADLibraries()}")
+        self.updateProps(obj)
+
+        if not obj.Frozen:
+            self.recalculateShapes(obj)
     
     def getFullGroup(self, obj):
         group = obj.Group

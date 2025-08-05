@@ -12,6 +12,8 @@ from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBou
 from Utils.Constants import *
 from Entities.Feature import Feature
 
+# this needs to be merged with Derive in a class like PartShapeCopy
+
 class PartMirror(Feature):
     def __init__(self, obj):
         obj.Proxy = self
@@ -34,6 +36,10 @@ class PartMirror(Feature):
             obj.addProperty("App::PropertyEnumeration", "TipName", "ConstraintDesign", "The Tip of the Part Container to mirror.")
             obj.TipName = [""]
             obj.TipName = ""
+
+        if not hasattr(obj, "BoundaryUpToTip"):
+            obj.addProperty("App::PropertyBool", "BoundaryUpToTip", "ConstraintDesign", "This tells the boundary generator to ignore features past the tip.")
+            obj.BoundaryUpToTip = True
         
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
@@ -123,8 +129,24 @@ class PartMirror(Feature):
                 normal = face.normalAt(0, 0)
 
                 features = obj.Support.Proxy.getGroup(obj.Support, False)
+                filteredFeatures = features
 
-                datumShape, elementMap = makeBoundaryCompound(features, True, obj.Boundary.Name)
+                if obj.BoundaryUpToTip:
+                    filteredFeatures = []
+                    tipIndex = -1 # set to -1 so no boundaries will be generated
+
+                    if obj.TipName != 0:
+                        tipObj = obj.Support.Document.getObject(obj.TipName)
+                        
+                        if tipObj != None:
+                            tipIndex = obj.Support.Group.index(tipObj)
+
+                    for item in features:
+                        if obj.Support.Group.index(item) <= tipIndex:
+                            filteredFeatures.append(item)
+                            
+
+                datumShape, elementMap = makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
                 datumShape = datumShape.mirror(planeCenter, normal)
                 newShape = tip.Shape.mirror(planeCenter, normal)
 

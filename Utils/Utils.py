@@ -281,6 +281,18 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
 
     vectors = []
 
+    if len(elements) == 1:
+        boundary = elements[0][0]
+        elementName = elements[0][1]
+        element = boundary.Shape.getElement(elementName)
+        face = Part.makeFace(Part.Wire(element))
+        
+        if hasattr(element, "Curve") and element.Curve.TypeId == "Part::GeomCircle":
+            if not asFace:
+                return face.Surface
+            else:
+                return face
+
     for element in elements:
         boundary = element[0]
         elementName = element[1]
@@ -366,13 +378,13 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
                             value["Element"] = boundaryName + "." + elementName
                             elementMap[hash] = value
                     
-                    edgeIndex += len(boundary.Shape.Edges) + 0
-                    vertexIndex += len(boundary.Shape.Vertexes) + 0
+                    edgeIndex += len(boundary.Shape.Edges)
+                    vertexIndex += len(boundary.Shape.Vertexes)
         edgeIndex += newEdgeNum
         vertexIndex += newVertexNum
 
     
     if generateElementMap:
-        return Part.Compound(boundaryArray), elementMap
+        return Part.makeCompound(boundaryArray), elementMap
     else:
-        return Part.Compound(boundaryArray)
+        return Part.makeCompound(boundaryArray)

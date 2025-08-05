@@ -196,7 +196,7 @@ class LoftTaskPanel:
 
     def update(self):
         if self.extrusion.DimensionType == "Blind":
-            self.extrusion.Length = self.blindInput.value()
+            self.extrusion.Length.Value = self.blindInput.value()
         elif self.extrusion.DimensionType == "UpToEntity":
             selection = self.selectorWidget.getSelection()
 
@@ -224,7 +224,7 @@ class LoftTaskPanel:
 
     def reject(self):
         if hasattr(self, "oldLength"):
-            self.extrusion.Length = self.oldLength
+            self.extrusion.Length.Value = self.oldLength
         if hasattr(self, "oldUpToEntity"):
             self.extrusion.UpToEntity = self.oldUpToEntity
 

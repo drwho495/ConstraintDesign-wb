@@ -12,10 +12,17 @@ from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
 from Utils.GuiUtils import SelectorWidget
+import Utils.MojoUtils as MojoUtils
 import Grid.GridManager as GridManager
 from DesignWorkbench import ConstraintDesign
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(locater.__file__)))) # allow python to see ".."
+directory = os.path.dirname(os.path.abspath(locater.__file__))
+
+sys.path.append(os.path.dirname(directory)) # allow python to see ".."
+
+### this is where mojo files are loaded ###
+MojoUtils.importMojoModule(os.path.join(directory, "ConstraintDesignMojo", "test.so"), "mojo_module")
+###
 
 __dirname__ = os.path.dirname(locater.__file__)
 

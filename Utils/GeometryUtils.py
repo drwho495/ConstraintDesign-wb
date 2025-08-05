@@ -24,3 +24,22 @@ def getIntersectingFaces(prevShape, individualShape, sketchCenter, normal):
             faces[distanceStart] = face
 
     return list(dict(sorted(faces.items())).values())
+
+def getIDsOfFaces(shape, boundaryShape, elementMap):
+    retMap = {}
+
+    for stringID, val in elementMap.items():
+        mapEdgeArray = val["Element"].split(".")
+
+        if len(mapEdgeArray) == 2 and mapEdgeArray[1].startswith("Edge"):
+            mapEdge = boundaryShape.getElement(mapEdgeArray[1])
+            for i, face in enumerate(shape.Faces):
+                faceName = f"Face{i + 1}"
+                for edge in face.Edges:
+                        if not faceName in retMap and (hasattr(mapEdge, "Curve") and hasattr(edge, "Curve")) and edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2) and "Identifier" in val:
+                            retMap[faceName] = val["Identifier"]
+                            # Part.show(face)
+                            # print("add to retMap")
+                        # else:
+                            # print(f"failed: {edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2)}")
+    # return retMap

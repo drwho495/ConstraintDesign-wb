@@ -195,8 +195,6 @@ class ExposedGeo(Entity):
     # Format {"HashName": {"Edge:" edge, "GeoTag", sketchGeoTag}}
 
     def onChanged(self, obj, prop):
-        print(f"exposed geo change: {prop}")
-
         if prop == "Visibility" \
                 and obj.Visibility \
                 and hasattr(obj, "UseCase") \
@@ -211,6 +209,11 @@ class ExposedGeo(Entity):
 
     def execute(self, obj):
         self.updateProps(obj)
+
+        container = self.getContainer(obj)
+
+        if container != None and hasattr(container, "Frozen") and container.Frozen:
+            self.generateShape(obj, Part.Shape())
     
     def __getstate__(self):
         return None
@@ -329,6 +332,7 @@ def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
 
             obj.Support = hashes[0]
             activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
+            obj.Proxy.generateShape(obj, Part.Shape())
 
             return obj
     else:

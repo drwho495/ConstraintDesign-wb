@@ -19,7 +19,7 @@ dressupPropertyNames = ["Radius", "Length", "Diameter", "Angle"]
 # 2 for Countersink
 
 class DressupTaskPanel:
-    def __init__(self, obj, addOldSelection=True, startSelection=[]):
+    def __init__(self, obj, addOldSelection=True, startSelection=[], deleteAfterCancel = False):
         super(DressupTaskPanel, self).__init__()
         self.form = QtWidgets.QWidget()
         self.form.destroyed.connect(self.accept) # run immediatly incase something else errors
@@ -49,6 +49,8 @@ class DressupTaskPanel:
         self.container = self.dressup.Proxy.getContainer(self.dressup)
         self.selector = SelectorWidget(addOldSelection=addOldSelection, startSelection=startSelection, container=self.container)
         layout.addWidget(self.selector)
+
+        self.deleteAfterCancel = deleteAfterCancel
 
         if self.dressup.DressupType == 0:
             self.oldRadius = self.dressup.Radius
@@ -158,6 +160,13 @@ class DressupTaskPanel:
         
         self.close()
 
+        if self.deleteAfterCancel:
+            container = self.dressup.Proxy.getContainer(self.dressup)
+
+            if container:
+                container.Document.openTransaction("DeleteDressup")
+                container.Proxy.deleteChild(container, self.dressup)
+
         return True
 
     def getStandardButtons(self):
@@ -174,8 +183,8 @@ class FeatureDressup(Feature):
         obj.Proxy = self
         self.updateProps(obj, dressupType)
     
-    def showGui(self, obj, addOldSelection = True, startSelection = []):
-        Gui.Control.showDialog(DressupTaskPanel(obj, addOldSelection, startSelection))
+    def showGui(self, obj, addOldSelection = True, startSelection = [], deleteAfterCancel = False):
+        Gui.Control.showDialog(DressupTaskPanel(obj, addOldSelection, startSelection, deleteAfterCancel))
     
     def getIndividualShapes(self, obj):
         if obj.DressupType == 2:
@@ -643,7 +652,7 @@ def makeDressup(dressupType):
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         activeObject.Proxy.setTip(activeObject, obj)
-        obj.Proxy.showGui(obj, True)
+        obj.Proxy.showGui(obj, addOldSelection = True, startSelection = [], deleteAfterCancel = True)
 
         obj.Edges = hashes
         activeObject.recompute()

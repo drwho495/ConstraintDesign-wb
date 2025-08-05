@@ -115,8 +115,6 @@ class ConstraintSketch(Entity):
         if not hasattr(self, "lastProp"):
             self.lastProp = ""
 
-        print(f"onchanged: {prop}")
-
         if prop == "Constraints" and self.lastProp != prop: # dont ask
             if not hasExternalGeometryBug():
                 # pass

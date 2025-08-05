@@ -91,7 +91,7 @@ class Derive(Feature):
         obj.IndividualShape = newShape.copy()
 
         if not prevShape.isNull():
-            newShape = Part.Compound([prevShape, newShape])
+            newShape = Part.makeCompound([prevShape, newShape])
 
         obj.Shape = newShape
         obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
@@ -232,6 +232,6 @@ def makeDerive():
             activeObject.Proxy.addObject(activeObject, mirror, True)
             activeObject.Proxy.setTip(activeObject, mirror)
         else:
-            App.Console.PrintError("Selected object is not a sketch!\n")
+            App.Console.PrintError(f"Selected object is not a PartContainer!\n")
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")

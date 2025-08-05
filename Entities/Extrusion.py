@@ -25,6 +25,7 @@ class ExtrusionTaskPanel:
         self.extrusion = obj
         self.activeLayouts = []
         self.container = self.extrusion.Proxy.getContainer(self.extrusion)
+        self.unitMult = self.extrusion.Length.getUserPreferred()[1]
 
         button_layout = QtWidgets.QHBoxLayout()
         self.applyButton = QtWidgets.QPushButton("Apply")
@@ -114,7 +115,7 @@ class ExtrusionTaskPanel:
         self.sOffsetBlindInput.setMinimum(-100000)
         self.sOffsetBlindInput.setMaximum(100000)
         self.sOffsetBlindInput.setSingleStep(1)
-        self.sOffsetBlindInput.setValue(self.oldStartingOffsetLength)
+        self.sOffsetBlindInput.setValue((self.oldStartingOffsetLength / self.unitMult))
 
         self.sOffestBlindLayout.addWidget(self.sOffsetBlindLabel)
         self.sOffestBlindLayout.addWidget(self.sOffsetBlindInput)
@@ -127,7 +128,7 @@ class ExtrusionTaskPanel:
         return widget
 
     def createBlindDimension(self):
-        self.oldLength = self.extrusion.Length
+        self.oldLength = self.extrusion.Length.Value
 
         widget = QtWidgets.QWidget()
         self.blindDimensionRow = QtWidgets.QHBoxLayout()
@@ -137,7 +138,7 @@ class ExtrusionTaskPanel:
         self.blindInput.setMaximum(100000)
         self.blindInput.setSingleStep(1)
         self.blindDimensionRow.setContentsMargins(10, 0, 0, 0)
-        self.blindInput.setValue(self.oldLength)
+        self.blindInput.setValue((self.oldLength / self.unitMult))
 
         self.blindDimensionRow.addWidget(self.blindLabel)
         self.blindDimensionRow.addWidget(self.blindInput)
@@ -197,7 +198,7 @@ class ExtrusionTaskPanel:
 
     def update(self):
         if self.extrusion.DimensionType == "Blind":
-            self.extrusion.Length = self.blindInput.value()
+            self.extrusion.Length.Value = (self.blindInput.value() * self.unitMult)
         elif self.extrusion.DimensionType == "UpToEntity":
             selection = self.selectorWidget.getSelection()
 
@@ -206,7 +207,7 @@ class ExtrusionTaskPanel:
         
         if self.extrusion.StartingOffset:
             if self.extrusion.StartingOffsetType == "Blind":
-                self.extrusion.StartingOffsetLength = self.sOffsetBlindInput.value()
+                self.extrusion.StartingOffsetLength = (self.sOffsetBlindInput.value() * self.unitMult)
             elif self.extrusion.StartingOffsetType == "UpToEntity":
                 selection = self.sOffsetSelectorWidget.getSelection()
 
@@ -225,7 +226,7 @@ class ExtrusionTaskPanel:
 
     def reject(self):
         if hasattr(self, "oldLength"):
-            self.extrusion.Length = self.oldLength
+            self.extrusion.Length.Value = self.oldLength
         if hasattr(self, "oldUpToEntity"):
             self.extrusion.UpToEntity = self.oldUpToEntity
 
@@ -283,6 +284,10 @@ class Extrusion(Feature):
             obj.addProperty("App::PropertyBool", "Symmetric", "ConstraintDesign", "Determines if this extrusion will be symmetric to the extrusion plane.")
             obj.Symmetric = False
         
+        if not hasattr(obj, "IncludeConstruction"):
+            obj.addProperty("App::PropertyBool", "IncludeConstruction", "ConstraintDesign", "Tells the boundary generator to include construction geometry.")
+            obj.IncludeConstruction = True
+        
         if not hasattr(obj, "MakeIntersectionGeometry"):
             obj.addProperty("App::PropertyBool", "MakeIntersectionGeometry", "ConstraintDesign", "Determines if boundaries should include edges projected onto faces.")
             obj.MakeIntersectionGeometry = False
@@ -290,9 +295,15 @@ class Extrusion(Feature):
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
         
-        if not hasattr(obj, "Length"):
-            obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of extrusion.")
-            obj.Length = 10
+        if not hasattr(obj, "Length") or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat":
+            newLength = 10
+
+            if hasattr(obj, "Length"):
+                newLength = obj.Length
+                obj.removeProperty("Length")
+
+            obj.addProperty("App::PropertyLength", "Length", "ConstraintDesign", "Length of extrusion.")
+            obj.Length.Value = newLength
             
         if not hasattr(obj, "UpToEntity"):
             obj.addProperty("App::PropertyString", "UpToEntity", "ConstraintDesign")
@@ -403,7 +414,7 @@ class Extrusion(Feature):
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
             face = Part.Face()
             
-            if obj.Length != 0:
+            if obj.Length.Value != 0:
                 face = Part.makeFace(sketchWires)
 
             ZOffset = 0
@@ -411,7 +422,7 @@ class Extrusion(Feature):
             extrudeLength = 1
 
             if obj.DimensionType == "Blind":
-                extrudeLength = obj.Length
+                extrudeLength = obj.Length.Value
 
             if obj.Symmetric:
                 if not obj.StartingOffset:
@@ -436,12 +447,16 @@ class Extrusion(Feature):
             basePoint = App.Placement()
             endExtrudePoint = App.Placement()
 
-            basePoint = sketch.Placement
+            basePoint = sketch.Placement.copy()
             basePoint.Base += offsetVector
 
-            endExtrudePoint = sketch.Placement
-            endExtrudePoint.Base += offsetVector
+            print(f"offsetVector: {offsetVector}")
+            print(f"basePoint: {basePoint}")
+
+            endExtrudePoint = basePoint.copy()
             endExtrudePoint.Base += extrudeVector
+
+            print(f"endExtrudePoint: {endExtrudePoint}")
 
             if extrudeLength != 0:
                 extrusion = face.extrude(extrudeVector)
@@ -484,7 +499,7 @@ class Extrusion(Feature):
             boundaryEdgesList = []
             boundaryVertexesList = []
             tol = 1e-5
-            facadeDict = getIDDict(sketch)
+            facadeDict = getIDDict(sketch, includeConstruction = obj.IncludeConstruction)
 
             for id, geo in facadeDict.items():
                 if hasattr(geo, "StartPoint") and hasattr(geo, "EndPoint"):
@@ -525,7 +540,9 @@ class Extrusion(Feature):
                 newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
 
                 for i, vec in enumerate(newVertexList):
-                    unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": vec.Point, "Type": "Sketch"}
+                    point = basePoint.inverse().multVec(vec.Point)
+                    
+                    unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": point, "Type": "Sketch"}
 
                 if isinstance(geoShape, Part.Edge):
                     # Create Base Sketch Boundary
@@ -548,7 +565,7 @@ class Extrusion(Feature):
                         startDist = getP2PDistanceAlongNormal(basePoint.Base, face.CenterOfMass, normal)
                         endDist = getP2PDistanceAlongNormal(endExtrudePoint.Base, face.CenterOfMass, normal)
 
-                        if abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
+                        if face.Surface.TypeId == "Part::GeomPlane" and abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
                             continue
 
                         oldEdgeNum = len(boundaryEdgesList)
@@ -578,7 +595,9 @@ class Extrusion(Feature):
                     newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
 
                     for i, vec in enumerate(newVertexList):
-                        unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": (vec.Point - extrudeVector), "Type": "SketchProjection"}
+                        point = basePoint.inverse().multVec((vec.Point - extrudeVector))
+
+                        unsupportedVertexes[f"Vertex{str((i + 1) + oldVertNum)}"] = {"Vector": point, "Type": "SketchProjection"}
 
                     if isinstance(geoShape, Part.Edge):
                         # Create Base Sketch Boundary
@@ -639,9 +658,9 @@ class Extrusion(Feature):
                     self.updateElement(element, identifier, elementMap)
 
                 # Handle old loop vertexes
-                for elementName, uV in unsupportedVertexes.items():
-                    if v["Vector"].isEqual(uV["Vector"], tol):
-                        identifier = self.makeIdentifier(v["IDs"], "Vertex", geoIDs.count(v["IDs"]), uV["Type"])
+                for elementName, unsupportedVertex in unsupportedVertexes.items():
+                    if v["Vector"].isEqual(unsupportedVertex["Vector"], tol):
+                        identifier = self.makeIdentifier(v["IDs"], "Vertex", geoIDs.count(v["IDs"]), unsupportedVertex["Type"])
                         identifierList.append(identifier)
                         element = (obj.Boundary, elementName)
                         self.updateElement(element, identifier, elementMap)
