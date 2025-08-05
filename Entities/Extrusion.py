@@ -6,7 +6,7 @@ import os
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray, getP2PDistanceAlongNormal
+from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray, getP2PDistanceAlongNormal, makeBoundaryCompound
 from Utils.SketchUtils import getIDDict
 from Utils.Constants import *
 from Entities.Feature import Feature
@@ -443,7 +443,7 @@ class Extrusion(Feature):
 
             extrudeVector = normal * extrudeLength
             extrusion = prevShape
-            intersectingFaces = []
+            intersectingFaceMap = {}
             basePoint = App.Placement()
             endExtrudePoint = App.Placement()
 
@@ -464,7 +464,22 @@ class Extrusion(Feature):
 
                 obj.IndividualShape = extrusion.copy()
                 if obj.MakeIntersectionGeometry:
-                    intersectingFaces = getIntersectingFaces(prevShape, extrusion, basePoint.Base, normal)
+                    filteredFeatures = []
+                    features = container.Proxy.getGroup(container, False, True)
+                    featureCompoundList = []
+
+                    for item in features:
+                        if item.Name != obj.Name and hasattr(item, "Shape"):
+                            filteredFeatures.append(item)
+                            featureCompoundList.append(item.Shape)
+                        else:
+                            break
+                    
+                    boundaryCompound, compElMap = makeBoundaryCompound(filteredFeatures, True, "_")
+                    intersectingFaceMap = getIntersectingFaces(prevShape,
+                                                               extrusion,
+                                                               boundaryCompound,
+                                                               compElMap)
 
                 if not prevShape.isNull():
                     if obj.Remove:
@@ -556,16 +571,18 @@ class Extrusion(Feature):
                     occurence = 0
                     intersectFaceTol = 1e-2
 
-                    for face in intersectingFaces:
+                    for _, val in intersectingFaceMap.items():
+                        faceIdentifier = val["Identifier"]
+                        faceShape = val["Shape"]
                         try:
-                            projGeoShape = face.makeParallelProjection(geoShape, normal)
+                            projGeoShape = faceShape.makeParallelProjection(geoShape, normal)
                         except:
                             continue
 
-                        startDist = getP2PDistanceAlongNormal(basePoint.Base, face.CenterOfMass, normal)
-                        endDist = getP2PDistanceAlongNormal(endExtrudePoint.Base, face.CenterOfMass, normal)
+                        startDist = getP2PDistanceAlongNormal(basePoint.Base, faceShape.CenterOfMass, normal)
+                        endDist = getP2PDistanceAlongNormal(endExtrudePoint.Base, faceShape.CenterOfMass, normal)
 
-                        if face.Surface.TypeId == "Part::GeomPlane" and abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
+                        if faceShape.Surface.TypeId == "Part::GeomPlane" and abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
                             continue
 
                         oldEdgeNum = len(boundaryEdgesList)
@@ -576,7 +593,7 @@ class Extrusion(Feature):
                         for i in range(numGenEdges):
                             print("intersection add edge")
 
-                            identifier = self.makeIdentifier([f"{id}"], "Edge", occurence, "Intersection")
+                            identifier = self.makeIdentifier([f"{id}"], "Edge", i, "Intersection", faceIdentifier)
                             identifierList.append(identifier)
                             element = (obj.Boundary, f"Edge{str(oldEdgeNum + (i + 1))}")
                             

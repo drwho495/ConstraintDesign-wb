@@ -100,7 +100,7 @@ class PartMirror(Feature):
 
                 if pcGroup != None or len(pcGroup) != 0:
                     nameGroup = []
-                    updateName = obj.TipName == ""
+                    updateName = (obj.TipName == "")
 
                     for item in pcGroup:
                         nameGroup.append(item.Name)
@@ -135,15 +135,12 @@ class PartMirror(Feature):
                     filteredFeatures = []
                     tipIndex = -1 # set to -1 so no boundaries will be generated
 
-                    if obj.TipName != 0:
-                        tipObj = obj.Support.Document.getObject(obj.TipName)
-                        
-                        if tipObj != None:
-                            tipIndex = obj.Support.Group.index(tipObj)
-
-                    for item in features:
-                        if obj.Support.Group.index(item) <= tipIndex:
-                            filteredFeatures.append(item)
+                    if len(obj.TipName) != 0:
+                        for item in features:
+                            if item.Name != obj.TipName:
+                                filteredFeatures.append(item)
+                            else:
+                                break
                             
 
                 datumShape, elementMap = makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)

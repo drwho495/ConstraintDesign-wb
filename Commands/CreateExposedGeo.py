@@ -15,7 +15,7 @@ class CreateExposedGeo:
         
     def Activated(self):
         if FreeCAD.GuiUp == True:
-            makeExposedGeo()
+            makeExposedGeo(canMakeMultiple = True)
         
     def IsActive(self):
         return True

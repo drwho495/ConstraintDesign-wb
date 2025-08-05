@@ -1,12 +1,9 @@
 # SPDX-License: LGPL-2.1-or-later
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
 from Utils.Utils import getP2PDistanceAlongNormal
-
-if TYPE_CHECKING:
-    import Part  # type: ignore
-    import FreeCAD as App  # type: ignore
+import Part  # type: ignore
+import FreeCAD as App  # type: ignore
 
 
 # this will eventually have generic boundary generation code
@@ -16,34 +13,42 @@ if TYPE_CHECKING:
 def getIntersectingFaces(
     prevShape: Part.Shape,
     individualShape: Part.Shape,
-    sketchCenter: App.Vector,
-    normal: App.Vector,
-) -> list[Part.Face]:
+    boundaryShape: Part.Shape,
+    prevShapeElementMap: dict,
+) -> dict:
     """
     Get a list of faces from the previous shape that intersect with the individual shape.
     The faces are sorted by their distance from the sketch center along the normal vector.
     """
 
     shape2BB = individualShape.BoundBox
+    faceMap = getIDsOfFaces(prevShape, boundaryShape, prevShapeElementMap)
+    retFaceMap = {}
 
     intersecting = (
-        (face, face.common(individualShape))
-        for face in prevShape.Faces
-        if shape2BB.intersect(face.BoundBox)
+        (faceName, prevShape.getElement(faceName).common(individualShape), identifier)
+        for faceName, identifier in faceMap.items()
+        if shape2BB.intersect(prevShape.getElement(faceName).BoundBox)
     )
 
-    faces = {
-        getP2PDistanceAlongNormal(sketchCenter, face.CenterOfMass, normal): face
-        for face, common in intersecting
-        if not common.isNull() and not common.ShapeType == "Compound"
-    }
+    for faceName, common, identifier in intersecting:
+        faceShape = prevShape.getElement(faceName)
 
-    return list(dict(sorted(faces.items())).values())
+        if (not common.isNull() 
+            and not common.ShapeType == "Compound"
+        ):
+            retFaceMap[faceName] = {"Identifier": identifier, "Shape": faceShape}
 
-def getIDsOfFaces(shape, boundaryShape, elementMap):
+    return retFaceMap
+
+def getIDsOfFaces(
+    shape: Part.Shape,
+    boundaryShape: Part.Shape,
+    elementMap: dict
+) -> dict:
     retMap = {}
 
-    for stringID, val in elementMap.items():
+    for _, val in elementMap.items():
         mapEdgeArray = val["Element"].split(".")
 
         if len(mapEdgeArray) == 2 and mapEdgeArray[1].startswith("Edge"):
@@ -53,8 +58,4 @@ def getIDsOfFaces(shape, boundaryShape, elementMap):
                 for edge in face.Edges:
                         if not faceName in retMap and (hasattr(mapEdge, "Curve") and hasattr(edge, "Curve")) and edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2) and "Identifier" in val:
                             retMap[faceName] = val["Identifier"]
-                            # Part.show(face)
-                            # print("add to retMap")
-                        # else:
-                            # print(f"failed: {edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2)}")
-    # return retMap
+    return retMap

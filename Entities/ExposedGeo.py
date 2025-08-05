@@ -1,3 +1,4 @@
+from typing import Union
 import FreeCAD as App
 import FreeCADGui as Gui
 import Part
@@ -303,7 +304,12 @@ class ViewProviderExposedGeo:
     def loads(self, state):
         return None
     
-def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
+def makeExposedGeo(
+                    stringID: Union[list, str, None] = None, 
+                    activeObject: Union[App.DocumentObject, None] = None, 
+                    useCase: str = "Generic", 
+                    canMakeMultiple: bool = False
+) -> Union[App.DocumentObject, None]:
     if activeObject == None:
         activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
@@ -315,26 +321,38 @@ def makeExposedGeo(stringID = None, activeObject = None, useCase="Generic"):
         if useCase == "Sketch":
             name = "ExternalSketchGeometry"
 
-        obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
-        ExposedGeo(obj, useCase)
-        ViewProviderExposedGeo(obj.ViewObject)
+        stringIDList = []
 
         if stringID == None:
-            hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+            stringIDList = getIDsFromSelection(Gui.Selection.getCompleteSelection())
         else:
-            hashes = [stringID]
+            if isinstance(stringID, str):
+                stringIDList = [stringID]
+            elif isinstance(stringID, list):
+                stringIDList = stringID
 
-        if type(hashes) == list and len(hashes) == 0:
-            App.Console.PrintError("Unable to find string IDs from selection!")
-            return None
-        else:
-            _, _, afterFeature, _ = getObjectsFromScope(activeObject, hashes[0])
+        if type(stringIDList) == list:
+            if len(stringIDList) == 0:
+                App.Console.PrintError("Unable to find string IDs from selection!")
+                return None
+            else:
+                if not canMakeMultiple:
+                    stringIDList = [stringIDList[0]]
+                
+                obj = None
 
-            obj.Support = hashes[0]
-            activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
-            obj.Proxy.generateShape(obj, Part.Shape())
+                for egStringID in stringIDList:
+                    _, _, afterFeature, _ = getObjectsFromScope(activeObject, egStringID)
 
-            return obj
+                    obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
+                    ExposedGeo(obj, useCase)
+                    ViewProviderExposedGeo(obj.ViewObject)
+
+                    obj.Support = egStringID
+                    activeObject.Proxy.addObject(activeObject, obj, False, afterFeature)
+                    obj.Proxy.generateShape(obj, Part.Shape())
+
+                return obj # return the last item for right now
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")
         return None

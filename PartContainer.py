@@ -139,12 +139,10 @@ class PartContainer:
         tipContainer = feature.Proxy.getContainer(feature)
 
         # make sure this feature is not from a partcontainer nested in this one
-        if tipContainer == obj:
+        if tipContainer.Name == obj.Name:
             obj.Tip = feature
             obj.ShownFeature = obj.Tip
-        else:
-            print("tip container label: " + tipContainer.Label)
-            print("container label: " + obj.Label)
+            obj.Visibility = True
 
     def setShownObj(self, obj, feature):
         inEdit = Gui.ActiveDocument.getInEdit()
@@ -182,12 +180,11 @@ class PartContainer:
         return sortedGroup
     
     def fixTip(self, obj):
-        if obj.Tip != None and not obj.Tip in obj.Group:
+        if obj.Tip == None or not obj.Tip in obj.Group:
             group = self.getGroup(obj, False, True)
             
             if len(group) > 0:
                 self.setTip(obj, group[-1])
-            obj.Tip.Visibility = True
 
     def recalculateShapes(self, obj, startObj = None, force = False):
         self.updateProps(obj)
@@ -252,7 +249,7 @@ class PartContainer:
                 if obj.ShownFeature != child:
                     child.Visibility = False # only set to false to avoid recursion
 
-                if child == obj.Tip:
+                if obj.Tip != None and child == obj.Tip:
                     tipFound = True
 
             child.purgeTouched()
@@ -288,9 +285,6 @@ class PartContainer:
             if fixTip: self.fixTip(obj)
         
     def execute(self, obj):
-        mojo_module = MojoUtils.importMojoModule(moduleName="mojo_module")
-
-        print(f"mojo setup propery: {mojo_module.testFreeCADLibraries()}")
         self.updateProps(obj)
 
         if not obj.Frozen:
