@@ -18,6 +18,6 @@ class CreateCountersink:
             makeDressup(2)
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateCountersink', CreateCountersink())

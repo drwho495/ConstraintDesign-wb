@@ -18,6 +18,6 @@ class CreateChamfer:
             makeDressup(1)
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateChamfer', CreateChamfer())

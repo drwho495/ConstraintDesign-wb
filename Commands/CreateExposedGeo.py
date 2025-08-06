@@ -18,6 +18,6 @@ class CreateExposedGeo:
             makeExposedGeo(canMakeMultiple = True)
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateExposedGeo', CreateExposedGeo())

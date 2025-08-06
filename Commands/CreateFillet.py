@@ -19,6 +19,6 @@ class CreateFillet:
             makeDressup(0)
             
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateFillet', CreateFillet())

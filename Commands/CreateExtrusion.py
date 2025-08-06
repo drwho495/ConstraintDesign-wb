@@ -25,6 +25,6 @@ class CreateExtrusion:
         doc.recompute()
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateExtrusion', CreateExtrusion())

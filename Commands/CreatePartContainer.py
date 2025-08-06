@@ -28,6 +28,6 @@ class CreatePartContainer:
         doc.recompute()
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreatePartContainer', CreatePartContainer())

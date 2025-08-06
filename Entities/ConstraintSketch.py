@@ -249,7 +249,6 @@ class ConstraintSketchViewObject:
     
     def setEdit(self, vobj, _):
         App.Console.PrintLog(f"{vobj.Object.Label} was opened.\n")
-        App.closeActiveTransaction()
         
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
@@ -261,12 +260,12 @@ class ConstraintSketchViewObject:
 
         if container != None:
             container.Proxy.updateSupportVisibility(container, vobj.Object)
+        vobj.Object.Document.openTransaction("OpenConstraintSketch")
         
         # App.setActiveTransaction("EditSketch")
 
     def unsetEdit(self, vobj, _):
         App.Console.PrintLog(f"{vobj.Object.Label} was closed.\n")
-        App.closeActiveTransaction()
 
         if not hasattr(self, "observer"): self.observer = None # trying to avoid using attach
 
@@ -277,6 +276,7 @@ class ConstraintSketchViewObject:
 
         if container != None:
             container.Proxy.resetVisibility(container)
+        vobj.Object.Document.openTransaction("CloseConstraintSketch")
     
     def getIcon(self):
         return os.path.join(os.path.dirname(__file__), "..", "icons", "Sketch.svg")

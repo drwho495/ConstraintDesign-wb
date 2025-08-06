@@ -25,6 +25,6 @@ class CreateLoft:
         doc.recompute()
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateLoft', CreateLoft())

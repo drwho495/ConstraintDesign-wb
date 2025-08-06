@@ -51,7 +51,7 @@ class MoveDesignObject:
                     parent.Group = group
             
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('MoveDesignObjectUp', MoveDesignObject(1))
 FreeCADGui.addCommand('MoveDesignObjectDown', MoveDesignObject(-1))

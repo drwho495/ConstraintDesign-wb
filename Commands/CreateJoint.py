@@ -19,6 +19,6 @@ class CreateJoint:
             makeJoint()
             
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand("CD_CreateJoint", CreateJoint()) # Add CD_ prefix to avoid clash with Assembly

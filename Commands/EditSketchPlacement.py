@@ -23,6 +23,6 @@ class EditConstraintSketch:
                 App.Console.PrintError("Please select a viable ConstraintSketch to edit.\n")
         
     def IsActive(self):
-        return True
+        return App.ActiveDocument != None
 
 Gui.addCommand('EditConstraintSketch', EditConstraintSketch())

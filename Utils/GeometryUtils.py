@@ -59,3 +59,64 @@ def getIDsOfFaces(
                         if not faceName in retMap and (hasattr(mapEdge, "Curve") and hasattr(edge, "Curve")) and edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2) and "Identifier" in val:
                             retMap[faceName] = val["Identifier"]
     return retMap
+
+
+def isPointOnLine(
+    linePoints: list[App.Vector],
+    checkPoint: App.Vector, 
+    tol=1e-5
+) -> bool:
+    ab = checkPoint.sub(linePoints[1])
+    ap = linePoints[0].sub(linePoints[1])
+
+    if ab.Length == 0:
+        return ap.Length <= tol
+
+    cross = ab.cross(ap)
+    if cross.Length > tol:
+        return False
+
+    # dot_ab_ap = ab.dot(ap)
+    # if dot_ab_ap < -tol:
+    #     return False
+    # if dot_ab_ap > ab.dot(ab) + tol:
+    #     return False
+
+    return True
+
+def getDirectionOfLine(
+    linePoints: list[App.Vector]
+) -> App.Vector: 
+    direction = linePoints[1].sub(linePoints[0])
+    if direction.Length == 0:
+        print("direction failed")
+        return App.Vector()
+    return abs(direction.normalize())
+
+def doEdgesIntersect(
+    edge1: Part.Edge,
+    edge2: Part.Edge,
+    tolerance: float = 1e-2
+) -> bool:
+    if len(edge1.Vertexes) >= 2 and len(edge2.Vertexes) >= 2:
+        edge1Points = [edge1.Vertexes[0].Point, edge1.Vertexes[-1].Point]
+        edge2Points = [edge2.Vertexes[0].Point, edge2.Vertexes[-1].Point]
+
+        if edge1Points[0].isEqual(edge2Points[0], tolerance) and edge1Points[1].isEqual(edge2Points[1], tolerance):
+            return True
+        elif (
+            ((isPointOnLine(edge1Points, edge2Points[0], tolerance) or isPointOnLine(edge1Points, edge2Points[1], tolerance))
+            or (isPointOnLine(edge2Points, edge1Points[0], tolerance) or isPointOnLine(edge2Points, edge1Points[1], tolerance)))
+            and getDirectionOfLine(edge1Points).isEqual(getDirectionOfLine(edge2Points), .2)
+        ):
+            return True
+    elif (hasattr(edge1, "Curve") and hasattr(edge2, "Curve") 
+          and (edge1.Curve.TypeId == "Part::GeomCircle" and edge2.Curve.TypeId == "Part::GeomCircle")
+    ):
+        if (
+            edge1.Curve.Axis.isEqual(edge2.Curve.Axis, tolerance)
+            and edge1.Curve.Location.isEqual(edge2.Curve.Location, 1) # needs lower tolerance
+            and abs(edge1.Curve.Radius - edge2.Curve.Radius) < tolerance
+        ):
+            return True
+    return False

@@ -23,6 +23,6 @@ class CreateLinearPattern:
         doc.recompute()
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateLinearPattern', CreateLinearPattern())

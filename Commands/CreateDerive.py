@@ -25,6 +25,6 @@ class CreateDerive:
         doc.recompute()
         
     def IsActive(self):
-        return True
+        return FreeCAD.ActiveDocument != None
 
 FreeCADGui.addCommand('CreateDerive', CreateDerive())

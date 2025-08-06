@@ -21,7 +21,7 @@ directory = os.path.dirname(os.path.abspath(locater.__file__))
 sys.path.append(os.path.dirname(directory)) # allow python to see ".."
 
 ### this is where mojo files are loaded ###
-MojoUtils.importMojoModule(os.path.join(directory, "ConstraintDesignMojo", "test.so"), "mojo_module")
+# MojoUtils.importMojoModule(os.path.join(directory, "ConstraintDesignMojo", "test.so"), "mojo_module")
 ###
 
 __dirname__ = os.path.dirname(locater.__file__)

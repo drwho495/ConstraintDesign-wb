@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 from Utils.Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
 from Utils.GuiUtils import SelectorWidget
 from Utils.Constants import *
+import Utils.GeometryUtils as GeometryUtils
 from PySide import QtWidgets
 import json
 from Entities.Feature import Feature
@@ -334,23 +335,25 @@ class FeatureDressup(Feature):
                                     correctEdge = False
                                     intersectionPoints = 0
 
-                                    try:
-                                        if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
-                                            correctEdge = True
-                                        else:
-                                            if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
-                                                correctEdge = False
-                                            else:
-                                                try:
-                                                    intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
-                                                except:
-                                                    intersectionPoints = -1
+                                    # try:
+                                        # if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
+                                        #     correctEdge = True
+                                        # else:
+                                        #     if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
+                                        #         correctEdge = False
+                                        #     else:
+                                        #         try:
+                                        #             intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
+                                        #         except:
+                                        #             intersectionPoints = -1
                                                 
-                                                if intersectionPoints > 2 or intersectionPoints == -1:
-                                                    correctEdge = True
-                                    except Exception as e:
-                                        print(f"exception while checking: {str(e)}")
-                                        correctEdge = False
+                                        #         if intersectionPoints > 2 or intersectionPoints == -1:
+                                        #             correctEdge = True
+                                    if GeometryUtils.doEdgesIntersect(edge, datumEdge):
+                                        correctEdge = True
+                                    # except Exception as e:
+                                        # print(f"exception while checking: {str(e)}")
+                                        # correctEdge = False
                                     
                                     try:
                                         if correctEdge:

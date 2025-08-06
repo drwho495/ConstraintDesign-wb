@@ -22,6 +22,6 @@ class CreateConstraintSketch:
             makeSketch(elements)
         
     def IsActive(self):
-        return True
+        return App.ActiveDocument != None
 
 Gui.addCommand('CreateConstraintSketch', CreateConstraintSketch())

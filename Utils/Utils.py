@@ -312,10 +312,12 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
     
     if len(vectors) >= 3:
         try:
+            face = Part.Face(Part.Wire(Part.makePolygon(vectors)))
+
             if not asFace:
-                return Part.Plane(vectors[0], vectors[1], vectors[2])
+                return face.Surface
             else:
-                return Part.Face(Part.Wire(Part.makePolygon(vectors)))
+                return face
         except:
             App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nThe points created by each element are likely colinear (which means they create a straight line)!\n")
             return None
@@ -327,7 +329,7 @@ def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
     edgesList.extend(element.Edges)
     vertexList.extend(element.Vertexes)
 
-    compoundList.append(element)
+    compoundList.append(element) 
 
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     """
