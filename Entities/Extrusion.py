@@ -295,14 +295,21 @@ class Extrusion(Feature):
         if not hasattr(obj, "Group"):
             obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group")
         
-        if not hasattr(obj, "Length") or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat":
+        if (not hasattr(obj, "Length")
+            or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat"
+            or obj.getTypeIdOfProperty("Length") == "App::PropertyLength"
+        ):
             newLength = 10
 
             if hasattr(obj, "Length"):
-                newLength = obj.Length
+                if hasattr(obj.Length, "Value"):
+                    newLength = obj.Length.Value
+                else:
+                    newLength = obj.Length
+
                 obj.removeProperty("Length")
 
-            obj.addProperty("App::PropertyLength", "Length", "ConstraintDesign", "Length of extrusion.")
+            obj.addProperty("App::PropertyDistance", "Length", "ConstraintDesign", "Length of extrusion.")
             obj.Length.Value = newLength
             
         if not hasattr(obj, "UpToEntity"):
@@ -716,9 +723,6 @@ class Extrusion(Feature):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Length":
-            obj.touch()
-
         super(Extrusion, self).onChanged(obj, prop)
             
     def __getstate__(self):

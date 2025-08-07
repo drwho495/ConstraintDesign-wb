@@ -141,8 +141,8 @@ class PartContainer:
         # make sure this feature is not from a partcontainer nested in this one
         if tipContainer.Name == obj.Name:
             obj.Tip = feature
-            obj.ShownFeature = obj.Tip
             obj.Visibility = True
+            self.setShownObj(obj, obj.Tip)
 
     def setShownObj(self, obj, feature):
         inEdit = Gui.ActiveDocument.getInEdit()
@@ -151,10 +151,18 @@ class PartContainer:
             return
         
         obj.ShownFeature = feature
-        group = self.getGroup(obj, False)
-        group.remove(feature)
+        group = self.getGroup(obj, False, True)
+        setBoundary = True
 
-        for item in group: item.Visibility = False
+        for item in group:
+            if not hasattr(item, "Proxy") or not hasattr(item.Proxy, "updateVisibility"): 
+                item.Visibility = False
+                continue
+            
+            if item.Name != feature.Name:
+                item.Proxy.updateVisibility(item, False, setBoundary)
+            else:
+                setBoundary = False # don't show boundaries that are past the tip
 
     def getGroup(self, obj, withNonFeatureEntities = False, skipSketch=False):
         filteredGroup = []
@@ -277,7 +285,7 @@ class PartContainer:
     
     def deleteChild(self, obj, child):
         if child in obj.Group:
-            fixTip = child.Name == obj.Tip.Name
+            fixTip = obj.Tip == None or child.Name == obj.Tip.Name
 
             document = obj.Document
             document.removeObject(child.Name)

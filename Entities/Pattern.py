@@ -490,9 +490,6 @@ class Pattern(Feature):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Length":
-            obj.touch()
-
         super(Pattern, self).onChanged(obj, prop)
             
     def __getstate__(self):

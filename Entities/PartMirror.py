@@ -133,13 +133,12 @@ class PartMirror(Feature):
 
                 if obj.BoundaryUpToTip:
                     filteredFeatures = []
-                    tipIndex = -1 # set to -1 so no boundaries will be generated
 
                     if len(obj.TipName) != 0:
                         for item in features:
-                            if item.Name != obj.TipName:
-                                filteredFeatures.append(item)
-                            else:
+                            filteredFeatures.append(item)
+                            
+                            if item.Name == obj.TipName:
                                 break
                             
 
@@ -170,9 +169,6 @@ class PartMirror(Feature):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Length":
-            obj.touch()
-
         super(PartMirror, self).onChanged(obj, prop)
 
 

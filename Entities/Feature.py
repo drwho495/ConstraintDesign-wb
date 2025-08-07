@@ -18,6 +18,12 @@ class Feature(Entity):
     def getSupports(self, obj):
         return []
 
+    def updateVisibility(self, obj, showObj = False, showBoundary = True):
+        obj.Visibility = showObj
+
+        if hasattr(obj, "Boundary") and obj.Boundary != None:
+            obj.Boundary.Visibility = showBoundary
+
     @abstractmethod
     def onChanged(self, obj, prop):
         if prop == "Visibility" and obj.Visibility == True:
@@ -25,6 +31,9 @@ class Feature(Entity):
 
             if container != None:
                 container.Proxy.setShownObj(container, obj)
+
+                if hasattr(obj, "Boundary") and obj.Boundary != None:
+                    obj.Boundary.Visibility = True
             else:
                 App.Console.PrintWarning("No container found in onChanged!")
     

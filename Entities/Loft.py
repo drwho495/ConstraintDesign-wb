@@ -541,9 +541,6 @@ class Loft(Feature):
         self.updateProps(obj)
             
     def onChanged(self, obj, prop):
-        if prop == "Length":
-            obj.touch()
-
         super(Loft, self).onChanged(obj, prop)
             
     def __getstate__(self):
