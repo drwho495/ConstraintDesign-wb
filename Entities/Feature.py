@@ -34,8 +34,6 @@ class Feature(Entity):
 
                 if hasattr(obj, "Boundary") and obj.Boundary != None:
                     obj.Boundary.Visibility = True
-            else:
-                App.Console.PrintWarning("No container found in onChanged!")
     
     def getIndividualShapes(self, obj):
         """ Returns a dictionary where {<Index>: {"Shape": shape, "Remove": False}} """

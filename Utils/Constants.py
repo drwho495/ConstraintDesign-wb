@@ -1,4 +1,4 @@
-featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern", "Loft"]
+featureTypes = ["Extrusion", "Fillet", "Countersink", "Chamfer", "PartMirror", "Derive", "LinearPattern", "CircularPattern", "Loft", "FeatureCopy"]
 dressupTypes = ["Fillet", "Countersink", "Chamfer"]
 supportTypes = ["BoundarySketch", "GearsWBPart"]
 datumTypes = ["ExposedGeometry", "Joint"]
@@ -8,4 +8,9 @@ externalFeatureTypes = ["GearsWBPart"]
 boundaryLineWidth = 3
 boundaryPointSize = 6
 gridSquareSize = 30
-gridSize = 20_000
+gridSize = 20_0000
+
+variableContainerDefaultProps = ['ExpressionEngine',
+                                 'Label',
+                                 'Label2',
+                                 'Visibility']

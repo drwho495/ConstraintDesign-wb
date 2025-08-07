@@ -541,6 +541,10 @@ class ViewProviderDressup:
     
     def onDelete(self, vobj, subelements):
         try:
+            print("on delete dressup")
+            if vobj.Object.DressupType == 2 and vobj.Object.Boundary != None:
+                vobj.Object.Document.removeObject(vobj.Object.Boundary.Name)
+
             container = vobj.Object.Proxy.getContainer(vobj.Object)
             container.Proxy.fixTip(container)
         except Exception as e:

@@ -1,7 +1,8 @@
 import os
 import sys
 import locater
-from Commands.CreatePartContainer import CreatePartContainer  # Add this import
+from Commands.CreatePartContainer import CreatePartContainer
+from Commands.CreateConstraintLink import CreateConstraintLink
 from Commands.CreateExtrusion import CreateExtrusion
 from Commands.CreateLinearPattern import CreateLinearPattern
 from Commands.CreatePartMirror import CreatePartMirror
@@ -60,7 +61,8 @@ class ConstraintDesign(Gui.Workbench):
         """
         # List the commands to be added to the workbench
         mainCommands = [
-            "CreatePartContainer"
+            "CreatePartContainer",
+            "CreateConstraintLink"
         ]
 
         featureCommands = [
@@ -92,8 +94,8 @@ class ConstraintDesign(Gui.Workbench):
         ]
         
         # Register the commands
-        self.appendToolbar("Part Container", mainCommands)
-        self.appendMenu("Part Container", mainCommands)
+        self.appendToolbar("Container Commands", mainCommands)
+        self.appendMenu("Container Commands", mainCommands)
 
         self.appendToolbar("Features", featureCommands)
         self.appendMenu("Features", featureCommands)

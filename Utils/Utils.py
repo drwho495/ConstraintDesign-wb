@@ -47,6 +47,28 @@ def fixGear(gear, container = None, addExtrusion = False):
 
             container.recompute(True)
 
+def getVariablesOfVariableContainer(container: App.DocumentObject) -> dict:
+    propertyDict = {}
+
+    for prop in container.PropertiesList:
+        if prop not in variableContainerDefaultProps:
+            propertyDict[prop] = {
+                "Type": container.getTypeIdOfProperty(prop),
+                "Value": getattr(container, prop)
+            }
+    return propertyDict
+
+def getDocumentByFileName(fileName):
+    for _, document in App.listDocuments().items():
+        if document.FileName == fileName:
+            return document
+    
+    oldDocName = App.ActiveDocument.Name
+    retDocument = App.openDocument(fileName)
+    App.setActiveDocument(oldDocName)
+
+    return retDocument
+
 def isType(obj, typeObj):
     if type(typeObj) == str:
         typeObj = [typeObj]

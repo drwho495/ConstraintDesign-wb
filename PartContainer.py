@@ -3,13 +3,14 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear
+from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear, getDocumentByFileName, getVariablesOfVariableContainer
 from Utils.Constants import *
+from Entities.FeatureCopy import makeFeatureCopy
 import Utils.MojoUtils as MojoUtils
 import json
 
 class PartContainer:
-    def updateProps(self, obj):
+    def updateProps(self, obj, isLink = False):
         if not obj.hasExtension("App::OriginGroupExtensionPython"):
             obj.addExtension("App::OriginGroupExtensionPython")
             
@@ -21,11 +22,41 @@ class PartContainer:
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "PartContainer"
         
+        if not hasattr(obj, "IsLink"):
+            obj.addProperty("App::PropertyBool", "IsLink", "ConstraintDesign", "This property tells the part container that it is a link to another part container.")
+            obj.IsLink = False
+            obj.setEditorMode("IsLink", 3)
+        
+        if not hasattr(obj, "ObjectLinkFilePath"):
+            obj.addProperty("App::PropertyString", "ObjectLinkFilePath", "ConstraintDesign", "This property defines where the object to link is.")
+            obj.ObjectLinkFilePath = ""
+            obj.setEditorMode("ObjectLinkFilePath", 3)
+        
+        if not hasattr(obj, "ObjectLinkName"):
+            obj.addProperty("App::PropertyString", "ObjectLinkName", "ConstraintDesign", "This property defines where the object to link is.")
+            obj.ObjectLinkName = ""
+            obj.setEditorMode("ObjectLinkName", 3)
+        
+        if not hasattr(obj, "LinkFeature"):
+            obj.addProperty("App::PropertyXLink", "LinkFeature", "ConstraintDesign", "The link feature of this link.")
+            obj.setEditorMode("LinkFeature", 3)
+        
+        if not hasattr(obj, "VariableContainer"):
+            obj.addProperty("App::PropertyXLink", "VariableContainer", "ConstraintDesign", "The variable container of this object.")
+        
         if not hasattr(obj, "ObjectVisibilityDict"):
             obj.addProperty("App::PropertyString", "ObjectVisibilityDict", "ConstraintDesign", "Type of constraint design feature.")
             obj.setEditorMode("ObjectVisibilityDict", 3)
             obj.ObjectVisibilityDict = "{}"
         
+        if (not hasattr(obj, "LinkTipName") 
+            and ((not hasattr(obj, "IsLink") and isLink == True)
+                or (hasattr(obj, "IsLink") and obj.IsLink == True))
+        ):
+            obj.addProperty("App::PropertyEnumeration", "LinkTipName", "ConstraintDesign", "The tip to copy from the object that this container links to.")
+            obj.LinkTipName = [""]
+            obj.LinkTipName = ""
+
         if not hasattr(obj, "Tip"):
             obj.addProperty("App::PropertyXLink", "Tip", "ConstraintDesign", "The tip feature of the container.")
         
@@ -35,12 +66,12 @@ class PartContainer:
         if not hasattr(obj, "ShownFeature"):
             obj.addProperty("App::PropertyXLink", "ShownFeature", "ConstraintDesign", "The feature that is being shown.")
 
-    def __init__(self, obj = None):
+    def __init__(self, obj = None, isLink = False):
         if obj is not None:
             obj.Proxy = self
 
             if hasattr(obj, "Group"): self.oldGroup = obj.Group
-            self.updateProps(obj)
+            self.updateProps(obj, isLink)
     
     def updateSupportVisibility(self, obj, supportObject, updateDict = True):
         if obj.ObjectVisibilityDict != "{}":
@@ -80,6 +111,10 @@ class PartContainer:
                 obj.ObjectVisibilityDict = json.dumps(objectVisibilityDict)
             except:
                 obj.ObjectVisibilityDict = "{}"
+    
+    def setLinkFeature(self, obj, linkFeature):
+        if hasattr(obj, "IsLink") and hasattr(obj, "LinkFeature") and obj.IsLink:
+            obj.LinkFeature = linkFeature
     
     def resetVisibility(self, obj): # i store and recieve object's visibility like this because the user might want to have a specifc datum hidden/shown
         visibilityList = None
@@ -141,13 +176,14 @@ class PartContainer:
         # make sure this feature is not from a partcontainer nested in this one
         if tipContainer.Name == obj.Name:
             obj.Tip = feature
-            obj.Visibility = True
-            self.setShownObj(obj, obj.Tip)
+            feature.Proxy.updateVisibility(feature, True, True)
+            self.setShownObj(obj, feature)
+            feature.Proxy.updateVisibility(feature, True, True)
 
     def setShownObj(self, obj, feature):
         inEdit = Gui.ActiveDocument.getInEdit()
 
-        if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
+        if obj.ShownFeature == feature or (inEdit != None and isType(inEdit.Object, "BoundarySketch")):
             return
         
         obj.ShownFeature = feature
@@ -196,6 +232,24 @@ class PartContainer:
 
     def recalculateShapes(self, obj, startObj = None, force = False):
         self.updateProps(obj)
+
+        if obj.IsLink and len(obj.ObjectLinkFilePath) != 0 and len(obj.ObjectLinkName) != 0:
+            linkObj = getDocumentByFileName(obj.ObjectLinkFilePath).getObject(obj.ObjectLinkName)
+
+            if linkObj:
+                if obj.LinkFeature == None:
+                    newLinkFeature = makeFeatureCopy(2, linkObj, obj)
+
+                    obj.LinkFeature = newLinkFeature
+                
+                if hasattr(linkObj, "VariableContainer") and linkObj.VariableContainer != None:
+                    properties = getVariablesOfVariableContainer(linkObj.VariableContainer)
+
+                    for name, val in properties.items():
+                        if not hasattr(obj, name):
+                            obj.addProperty(val["Type"], name, "Variables")
+                            
+                            setattr(obj, name, val["Value"])
 
         if obj.Frozen and not force:
             obj.purgeTouched()
@@ -288,6 +342,13 @@ class PartContainer:
             fixTip = obj.Tip == None or child.Name == obj.Tip.Name
 
             document = obj.Document
+
+            if hasattr(child.ViewObject, "Proxy") and child.ViewObject.Proxy != None:
+                onDelete = child.ViewObject.Proxy.onDelete(child.ViewObject, [])
+
+                if onDelete == False:
+                    return
+
             document.removeObject(child.Name)
 
             if fixTip: self.fixTip(obj)
@@ -317,6 +378,9 @@ class PartContainer:
                         fixGear(newItem, obj, True)
             
             self.oldGroup = obj.Group
+
+        if prop == "LinkTipName" and hasattr(obj, "LinkFeature") and obj.LinkFeature != None:
+            obj.LinkFeature.UpdateObject = True
 
     def dumps(self):
         return None
@@ -369,7 +433,14 @@ class ViewProviderPartContainer:
 
     def getIcon(self):
         # Return a custom icon (optional)
-        return os.path.join(os.path.dirname(__file__), "icons", "ConstraintPart.svg")
+        if (hasattr(self, "Object") 
+            and self.Object != None 
+            and self.Object.Object != None
+            and self.Object.Object.IsLink
+        ):
+            return os.path.join(os.path.dirname(__file__), "icons", "ConstraintLinkPart.svg")
+        else:
+            return os.path.join(os.path.dirname(__file__), "icons", "ConstraintPart.svg")
     
     # def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
@@ -394,10 +465,24 @@ class ViewProviderPartContainer:
     def loads(self, state):
         return None
     
-def makePartContainer():
+def makePartContainer(linkToObject = None):
+    name = "PartContainer"
+    isLink = False
+
+    if linkToObject != None:
+        isLink = True
+        name = "ConstraintLink"
+
     obj = App.ActiveDocument.addObject("Part::FeaturePython",
-                             "PartContainer")
+                             name)
     PartContainer(obj)
     ViewProviderPartContainer(obj.ViewObject)
+
+    if isLink:
+        obj.IsLink = True
+        obj.Proxy.setLinkFeature(obj, makeFeatureCopy(2, linkToObject, obj))
+        
+        obj.ObjectLinkFilePath = linkToObject.Document.FileName
+        obj.ObjectLinkName = linkToObject.Name
 
     return obj

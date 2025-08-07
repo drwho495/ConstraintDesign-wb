@@ -321,3 +321,4 @@ def makePartMirror():
             App.Console.PrintError("Selected object is not a sketch!\n")
     else:
         App.Console.PrintError("Active object is not a PartContainer!\n")
+        
