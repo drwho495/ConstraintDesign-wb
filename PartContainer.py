@@ -41,6 +41,14 @@ class PartContainer:
             obj.addProperty("App::PropertyXLink", "LinkFeature", "ConstraintDesign", "The link feature of this link.")
             obj.setEditorMode("LinkFeature", 3)
         
+        if not hasattr(obj, "ExposedGeometryGroup"):
+            obj.addProperty("App::PropertyXLink", "ExposedGeometryGroup", "ConstraintDesign", "The group that contains linked exposed geometry.")
+            obj.setEditorMode("ExposedGeometryGroup", 3)
+        
+        if not hasattr(obj, "JointGroup"):
+            obj.addProperty("App::PropertyXLink", "JointGroup", "ConstraintDesign", "The group that contains linked joints.")
+            obj.setEditorMode("JointGroup", 3)
+        
         if not hasattr(obj, "VariableContainer"):
             obj.addProperty("App::PropertyXLink", "VariableContainer", "ConstraintDesign", "The variable container of this object.")
         
@@ -233,23 +241,31 @@ class PartContainer:
     def recalculateShapes(self, obj, startObj = None, force = False):
         self.updateProps(obj)
 
-        if obj.IsLink and len(obj.ObjectLinkFilePath) != 0 and len(obj.ObjectLinkName) != 0:
-            linkObj = getDocumentByFileName(obj.ObjectLinkFilePath).getObject(obj.ObjectLinkName)
+        if obj.IsLink:
+            if len(obj.ObjectLinkFilePath) != 0 and len(obj.ObjectLinkName) != 0:
+                linkObj = getDocumentByFileName(obj.ObjectLinkFilePath).getObject(obj.ObjectLinkName)
 
-            if linkObj:
-                if obj.LinkFeature == None:
-                    newLinkFeature = makeFeatureCopy(2, linkObj, obj)
+                if linkObj:
+                    if obj.LinkFeature == None:
+                        newLinkFeature = makeFeatureCopy(2, linkObj, obj)
 
-                    obj.LinkFeature = newLinkFeature
-                
-                if hasattr(linkObj, "VariableContainer") and linkObj.VariableContainer != None:
-                    properties = getVariablesOfVariableContainer(linkObj.VariableContainer)
+                        obj.LinkFeature = newLinkFeature
+                    
+                    if hasattr(linkObj, "VariableContainer") and linkObj.VariableContainer != None:
+                        properties = getVariablesOfVariableContainer(linkObj.VariableContainer)
 
-                    for name, val in properties.items():
-                        if not hasattr(obj, name):
-                            obj.addProperty(val["Type"], name, "Variables")
-                            
-                            setattr(obj, name, val["Value"])
+                        for name, val in properties.items():
+                            if not hasattr(obj, name):
+                                obj.addProperty(val["Type"], name, "Variables")
+                                
+                                setattr(obj, name, val["Value"])
+            if obj.ExposedGeometryGroup == None:
+                obj.ExposedGeometryGroup = obj.Document.addObject("App::DocumentObjectGroup", "ExposedGeometryGroup")
+                obj.Proxy.addObject(obj, obj.ExposedGeometryGroup)
+
+            if obj.JointGroup == None:
+                obj.JointGroup = obj.Document.addObject("App::DocumentObjectGroup", "JointGroup")
+                obj.Proxy.addObject(obj, obj.JointGroup)
 
         if obj.Frozen and not force:
             obj.purgeTouched()
@@ -479,6 +495,11 @@ def makePartContainer(linkToObject = None):
     ViewProviderPartContainer(obj.ViewObject)
 
     if isLink:
+        obj.ExposedGeometryGroup = obj.Document.addObject("App::DocumentObjectGroup", "ExposedGeometryGroup")
+        obj.JointGroup = obj.Document.addObject("App::DocumentObjectGroup", "JointGroup")
+        obj.Proxy.addObject(obj, obj.ExposedGeometryGroup)
+        obj.Proxy.addObject(obj, obj.JointGroup)
+
         obj.IsLink = True
         obj.Proxy.setLinkFeature(obj, makeFeatureCopy(2, linkToObject, obj))
         

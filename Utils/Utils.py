@@ -239,7 +239,7 @@ def generateHashName(map):
         newHash = ""
 
         while True:
-            newHash = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+            newHash = ''.join(random.choices(string.ascii_letters + string.digits, k = hashSize))
 
             if newHash not in keys:
                 break

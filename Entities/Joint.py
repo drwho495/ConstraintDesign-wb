@@ -183,6 +183,7 @@ class FeatureJoint(Entity):
 
         if hasattr(obj, "AttachmentSupport") and obj.AttachmentSupport != []:
             obj.positionBySupport()
+            obj.AttachmentSupport = [] # avoid tnp and weird errors
 
         obj.purgeTouched()
 
@@ -214,7 +215,9 @@ class FeatureJoint(Entity):
         obj.SupportType = obj.getEnumerationsOfProperty("MapMode")
             
     def onChanged(self, obj, prop):
-        pass
+        if prop == "AttachmentOffset" and len(obj.AttachmentSupport) == 0 and len(obj.Support) != 0:
+            self.updateAttachmentProperties(obj)
+            obj.touch()
             
     def __getstate__(self):
         return None

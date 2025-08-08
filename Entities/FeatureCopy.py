@@ -38,6 +38,20 @@ class FeatureCopy(Feature):
                 obj.addProperty("App::PropertyEnumeration", "TipName", "ConstraintDesign", "The Tip of the Part Container to mirror.")
                 obj.TipName = [""]
                 obj.TipName = ""
+            
+            if (hasattr(obj, "CopyType") and obj.CopyType == 0) or (not hasattr(obj, "CopyType") and copyType == 0):
+                print("add plane props")
+                if not hasattr(obj, "PlaneType"):
+                    obj.addProperty("App::PropertyString", "PlaneType", "ConstraintDesign", "The type of plane to mirror about.")
+                    obj.PlaneType = "None"
+                
+                if not hasattr(obj, "PlaneHash"):
+                    obj.addProperty("App::PropertyStringList", "PlaneHash", "ConstraintDesign", "The plane (as a set of hashes) to mirror about.")
+                    obj.PlaneHash = []
+                
+                if not hasattr(obj, "PlaneFace"):
+                    obj.addProperty("App::PropertyXLinkSubList", "PlaneFace", "ConstraintDesign", "The plane (as a face) to mirror about.")
+                    obj.PlaneHash = []
         else:
             if not hasattr(obj, "UpdateObject"):
                 obj.addProperty("App::PropertyBool", "UpdateObject", "ConstraintDesign", "Marks if this LinkFeature should be updated.")
@@ -91,13 +105,12 @@ class FeatureCopy(Feature):
         newShape = Part.Shape()
         boundaryShape = Part.Shape()
         supportContainer = None
+        container = self.getContainer(obj)
         createVariantLink = False
         cachedObjectChanged = False
         tipName = ""
 
         if obj.CopyType == 2:
-            container = self.getContainer(obj)
-
             tipName = container.LinkTipName
 
             if not hasattr(container, "IsLink") and container.IsLink == False:
@@ -118,7 +131,6 @@ class FeatureCopy(Feature):
                     and hasattr(supportContainer, "VariableContainer") 
                     and supportContainer.VariableContainer != None
                 ):
-                    print("check variables")
                     variables = supportContainer.VariableContainer
                     properties = getVariablesOfVariableContainer(variables)
                     cacheDocument = None
@@ -126,28 +138,42 @@ class FeatureCopy(Feature):
 
                     for name, val in properties.copy().items():
                         containerVal = getattr(container, name)
-                        if hasattr(container, name) and (createVariantLink or containerVal != val["Value"]):
-                            if not createVariantLink:
-                                createVariantLink = True
-                                cacheDocument, cachedContainer = DocCacheManager.getCacheDocument(supportContainer, container)
+                        if hasattr(container, name) and containerVal != val["Value"]:
+                            createVariantLink = True
+                    
+                    if createVariantLink:
+                        cacheDocument, cachedContainer = DocCacheManager.getCacheDocument(supportContainer, container)
 
-                                if obj.UpdateObject or cachedContainer == None:
-                                    cachedContainer = DocCacheManager.setPartContainer(cacheDocument, supportContainer)
-                                
-                            if (cachedContainer != None # just do one more check, just in case
-                                and hasattr(supportContainer, "VariableContainer")
-                                and hasattr(supportContainer.VariableContainer, name)
-                            ):
+                        if cachedContainer != None and hasattr(cachedContainer, "VariableContainer"):
+                            for name, val in properties.copy().items():
+                                if not hasattr(cachedContainer.VariableContainer, name):
+                                    obj.UpdateObject = True
+                                    break
+
+                        if obj.UpdateObject or cachedContainer == None:
+                            cachedContainer = DocCacheManager.setPartContainer(cacheDocument, supportContainer)
+                        
+                        if (cachedContainer != None # just do one more check, just in case
+                            and hasattr(supportContainer, "VariableContainer")
+                        ):
+                            for name, val in properties.copy().items():
+                                containerVal = getattr(container, name)
                                 if containerVal != getattr(cachedContainer.VariableContainer, name):
                                     cachedObjectChanged = True
                                     setattr(cachedContainer.VariableContainer, name, containerVal)
                     
-                    if createVariantLink:
                         if cachedContainer != None:
                             supportContainer = cachedContainer
                             cacheDocument.recompute()
                         else:
                             createVariantLink = False
+        else:
+            tipName = obj.TipName
+
+            if obj.Support != None and isType(obj.Support, "PartContainer"):
+                supportContainer = obj.Support
+            else:
+                print("set support failed")
 
         if supportContainer != None:
             pcGroup = supportContainer.Proxy.getGroup(supportContainer, False, True)
@@ -169,11 +195,16 @@ class FeatureCopy(Feature):
                         obj.TipName = supportContainer.Tip.Name
                     else:
                         container.LinkTipName = supportContainer.Tip.Name
+                
+                # we update it like this because we dont know if updateName is set and if the enum value is reset or not
+                if obj.CopyType != 2:
+                    tipName = obj.TipName
+                else:
+                    tipName = container.LinkTipName
 
-        if obj.UpdateObject or (createVariantLink and cachedObjectChanged):
+        if obj.CopyType != 2 or (obj.UpdateObject or (createVariantLink and cachedObjectChanged)):
             if isType(supportContainer, "PartContainer"):
                 tip = supportContainer.Document.getObject(tipName)
-
                 if tip != None:
                     face = None
                     planeCenter = None
@@ -190,13 +221,14 @@ class FeatureCopy(Feature):
                     
                         planeCenter = face.Vertexes[0].Point
                         normal = face.normalAt(0, 0)
+                            
                     features = supportContainer.Proxy.getGroup(supportContainer, False)
                     filteredFeatures = []
 
                     for feat in features:
                         filteredFeatures.append(feat)
 
-                        if feat.Name == container.LinkTipName:
+                        if feat.Name == tipName:
                             break
 
                     boundaryShape, elementMap = makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
@@ -205,17 +237,94 @@ class FeatureCopy(Feature):
                         newShape = tip.Shape.mirror(planeCenter, normal)
                     else:
                         newShape = tip.Shape
-
-                    obj.ElementMap = json.dumps(elementMap)
                     
-            obj.Boundary.Shape = boundaryShape
-            obj.IndividualShape = newShape.copy()
+                    obj.ElementMap = json.dumps(elementMap)
+                    obj.Boundary.Shape = boundaryShape
+                    obj.IndividualShape = newShape.copy()
+
+                    # needs to be here instead of in an else because we need to check the elMap
+                    if obj.CopyType == 2:
+                        if hasattr(container, "JointGroup") and hasattr(container, "ExposedGeometryGroup"):
+                            # "UpdateProps" should have the name of properties that reference hashes that need
+                            # to be updated
+                            copyTypes = {
+                                "Joint": {"Group": container.JointGroup, "UpdateProps": ["Support"]},
+                                "ExposedGeometry": {"Group": container.ExposedGeometryGroup, "UpdateProps": ["Support"]}
+                            }
+
+                            for item in supportContainer.Group:
+                                if hasattr(item, "Type") and item.Type in copyTypes:
+                                    fixObj = None
+                                    group = copyTypes[item.Type]["Group"]
+
+                                    for subItem in container.Group:
+                                        if hasattr(subItem, "LinkObjName") and subItem.LinkObjName == item.Name:
+                                            fixObj = subItem
+                                            break
+                                    
+                                    if fixObj == None:
+                                        fixObj = container.Document.copyObject(item, False, False)
+                                        
+                                        container.addObject(fixObj)
+                                        group.addObject(fixObj)
+
+                                        fixObj.addProperty("App::PropertyString", "LinkObjName")
+                                        fixObj.setEditorMode("LinkObjName", 3)
+                                        fixObj.LinkObjName = item.Name
+
+                                    if hasattr(fixObj, "AttachmentSupport"):
+                                        fixObj.AttachmentSupport = []
+                                        print("clear support\n\n\n\n")
+                                    
+                                    for propName in item.PropertiesList:
+                                        typeId = item.getTypeIdOfProperty(propName)
+
+                                        if propName in copyTypes[item.Type]["UpdateProps"]:
+                                            if hasattr(item, propName):
+                                                prop = getattr(item, propName)
+
+                                                if typeId == "App::PropertyString":
+                                                    if "." in prop:
+                                                        propArr = prop.split(".")
+                                                        propStringID = propArr[-1]
+
+                                                        if len(propStringID) == hashSize and propStringID in elementMap:
+                                                            newFullStringId = f"{obj.Name}.{propStringID}"
+                                                            setattr(fixObj, propName, newFullStringId)
+                                                            print(f"change id from {prop} -> {newFullStringId}")
+                                                elif typeId == "App::PropertyStringList":
+                                                    newArr = []
+
+                                                    for singleOldID in prop:
+                                                        if "." in singleOldID:
+                                                            propArr = singleOldID.split(".")
+                                                            propStringID = propArr[-1]
+
+                                                            if len(propStringID) == hashSize and propStringID in elementMap:
+                                                                newFullStringId = f"{obj.Name}.{propStringID}"
+                                                                newArr.append(newFullStringId)
+                                                                print(f"change id from {prop} -> {newFullStringId}")
+                                                    
+                                                    setattr(fixObj, propName, newArr)
+                                        elif (hasattr(item, propName) 
+                                              and hasattr(fixObj, propName)
+                                              and not typeId.startswith("App::PropertyLink") 
+                                              and not typeId.startswith("App::PropertyXLink")
+                                              and len(fixObj.getPropertyStatus(propName)) != 0
+                                              and fixObj.getPropertyStatus(propName)[0] != "ReadOnly"
+                                              and propName != "ExpressionEngine" # this is not set as readonly for some reason
+                                        ):
+                                            setattr(fixObj, propName, getattr(item, propName))
+                                        
+                                        fixObj.recompute()
 
             if not prevShape.isNull():
                 newShape = Part.makeCompound([prevShape, newShape])
 
             obj.Shape = newShape
-            obj.UpdateObject = False
+
+            if obj.CopyType == 2:
+                obj.UpdateObject = False
         else:
             newShape = obj.Shape
 

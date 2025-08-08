@@ -9,6 +9,7 @@ boundaryLineWidth = 3
 boundaryPointSize = 6
 gridSquareSize = 30
 gridSize = 20_0000
+hashSize = 8 # do not change this please
 
 variableContainerDefaultProps = ['ExpressionEngine',
                                  'Label',
