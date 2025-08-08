@@ -126,7 +126,7 @@ class FeatureCopy(Feature):
 
                     for name, val in properties.copy().items():
                         containerVal = getattr(container, name)
-                        if hasattr(container, name) and containerVal != val["Value"]:
+                        if hasattr(container, name) and (createVariantLink or containerVal != val["Value"]):
                             if not createVariantLink:
                                 createVariantLink = True
                                 cacheDocument, cachedContainer = DocCacheManager.getCacheDocument(supportContainer, container)
