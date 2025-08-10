@@ -41,9 +41,6 @@ def fixGear(gear, container = None, addExtrusion = False):
 
             if hasattr(extrusion, "Length"):
                 extrusion.Length = oldHeight
-                print(f"old height: {oldHeight}")
-            else:
-                print("could not find length")
 
             container.recompute(True)
 

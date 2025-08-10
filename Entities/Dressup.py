@@ -421,8 +421,6 @@ class FeatureDressup(Feature):
 
                                 forward = True
 
-                                print(element.Orientation)
-
                                 if element.Orientation == "Forward":
                                     forward = True
                                 else:
@@ -473,8 +471,6 @@ class FeatureDressup(Feature):
                                     else:
                                         reversedCone.Placement = placement
                                         cutCompoundArray.append(reversedCone.copy())
-                            else:
-                                print("skip")
 
                         for k,v in map.copy().items():
                             if v["Identifier"] not in identifiers:
@@ -541,7 +537,6 @@ class ViewProviderDressup:
     
     def onDelete(self, vobj, subelements):
         try:
-            print("on delete dressup")
             if vobj.Object.DressupType == 2 and vobj.Object.Boundary != None:
                 vobj.Object.Document.removeObject(vobj.Object.Boundary.Name)
 

@@ -117,8 +117,6 @@ class ConstraintSketch(Entity):
 
         if prop == "Constraints" and self.lastProp != prop: # dont ask
             if not hasExternalGeometryBug():
-                # pass
-                print("fix external geometry")
                 for i, exGeo in enumerate(obj.ExternalGeometry):
                     object = exGeo[0]
 

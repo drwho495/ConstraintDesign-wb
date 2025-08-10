@@ -37,7 +37,7 @@ def getIntersectingFaces(
         if (not common.isNull() 
             and not common.ShapeType == "Compound"
         ):
-            retFaceMap[faceName] = {"Identifier": identifier, "Shape": faceShape}
+            retFaceMap[faceName] = {"Identifier": "|".join(identifier), "Shape": faceShape}
 
     return retFaceMap
 
@@ -56,8 +56,14 @@ def getIDsOfFaces(
             for i, face in enumerate(shape.Faces):
                 faceName = f"Face{i + 1}"
                 for edge in face.Edges:
-                        if not faceName in retMap and (hasattr(mapEdge, "Curve") and hasattr(edge, "Curve")) and edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2) and "Identifier" in val:
-                            retMap[faceName] = val["Identifier"]
+                    if doEdgesIntersect(mapEdge, edge) and "Identifier" in val:
+                        identifier = val["Identifier"].rstrip(';')
+
+                        if not faceName in retMap:
+                            retMap[faceName] = []
+                        
+                        if identifier not in retMap[faceName]:
+                            retMap[faceName].append(identifier)
     return retMap
 
 
@@ -89,7 +95,6 @@ def getDirectionOfLine(
 ) -> App.Vector: 
     direction = linePoints[1].sub(linePoints[0])
     if direction.Length == 0:
-        print("direction failed")
         return App.Vector()
     return abs(direction.normalize())
 
