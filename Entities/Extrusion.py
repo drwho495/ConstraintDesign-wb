@@ -3,6 +3,7 @@ import FreeCADGui as Gui
 import Part
 import sys
 import os
+import re
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
@@ -13,6 +14,7 @@ from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils.GuiUtils import SelectorWidget
 from Utils.GeometryUtils import getIntersectingFaces
+from typing import List
 
 dimensionTypes = ["Blind", "UpToEntity"]
 startingOffsetTypes = ["Blind", "UpToEntity"]
@@ -366,32 +368,75 @@ class Extrusion(Feature):
     def getContainer(self, obj):
         return super(Extrusion, self).getContainer(obj)
 
-    def makeIdentifier(self, geoIDs = ["g1v1", "g2"], elementType = "Edge", occurence = 0, boundaryType = "Sketch", extraInfo=""):
+    def makeIdentifier(self, 
+                       geoIDs: List[str] = [],
+                       elementType: str = "Edge",
+                       occurence: int = 0,
+                       boundaryType: str = "Sketch",
+                       boundaryExtraIDs: List[str] = [],
+                       extraInfo: str = ""
+    ) -> str:
         geoIDString = ":".join(geoIDs)
+        boundaryExtraIDsStr = ""
 
-        if not extraInfo.endswith(";"): extraInfo += ";"
+        if len(boundaryExtraIDs) != 0:
+            boundaryExtraIDsStr = f"({'|'.join(boundaryExtraIDs)})"
 
-        return f"{geoIDString};{elementType};{str(occurence)};{boundaryType};;;{extraInfo}"
+        if not extraInfo.endswith(";") and len(extraInfo) != 0: extraInfo += ";"
+
+        return f"{geoIDString};{elementType};{str(occurence)};{boundaryType}{boundaryExtraIDsStr};;;{extraInfo}"
     
-    def identifierIsSame(self, identifier1, identifier2):
-        identifier1Array = identifier1.split(";")
-        identifier2Array = identifier2.split(";")
+    def identifierIsSame(self, identifier1, identifier2, complexCheck = True):
+        identifier1Array = re.split((r"{}(?![^()]*\))".format(re.escape(";"))), identifier1)
+        identifier2Array = re.split((r"{}(?![^()]*\))".format(re.escape(";"))), identifier2)
         identifier1GeoIDs = identifier1Array[0].split(":")
         identifier2GeoIDs = identifier2Array[0].split(":")
 
-        if (identifier1 == identifier2) or ((identifier1Array[1:] == identifier2Array[1:]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1):
+        def makeOtherList(identifier, filterList):
+            retList = []
+
+            for section in identifier:
+                if section == "": continue
+                
+                if filterList:
+                    retList.append(re.sub(r'\(.*?\)', '', section))
+                else:
+                    retList.append(section)
+            
+            return retList[1:]
+
+        identifier1OthersFiltered = makeOtherList(identifier1Array, True)
+        identifier1Others = makeOtherList(identifier1Array, False)
+
+        identifier2OthersFiltered = makeOtherList(identifier2Array, True)
+        identifier2Others = makeOtherList(identifier2Array, False)
+
+        if (identifier1Others[2].endswith(")") and identifier2Others[2].endswith(")")):
+            internalGeoIDs1Matches = re.findall(r"\((.*?)\)", identifier1Others[2]) # type: ignore
+            internalGeoIDs2Matches = re.findall(r"\((.*?)\)", identifier2Others[2]) # type: ignore
+
+            if len(internalGeoIDs1Matches) == 1 and len(internalGeoIDs2Matches) == 1:
+                internalGeoIDs1 = internalGeoIDs1Matches[0].split("|")
+                internalGeoIDs2 = internalGeoIDs2Matches[0].split("|")
+
+                if (len(internalGeoIDs1) != 0 and len(internalGeoIDs2) != 0) and (len(set(internalGeoIDs1) & set(internalGeoIDs2)) < len(internalGeoIDs1) - 2):
+                    return False
+            else:
+                return False
+
+        if (identifier1 == identifier2) or ((identifier1OthersFiltered == identifier2OthersFiltered) and ((not complexCheck and identifier1GeoIDs == identifier2GeoIDs) or (complexCheck and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1))):
             return True
         else:
             return False
 
     # Format {"HashName": {"Element:" edge, "Stale": <True/False>, "Identifier": "g1:g2v2;<ElType>;<Occurence>;<BoundaryType -> (Sketch/SketchProjection/Intersection/WiresBoundary)>;;;<extraInfo>"}}
-    def updateElement(self, element, identifier, map, complexCheck=True):
+    def updateElement(self, element, identifier, map, complexCheck = True):
         startTime = time.time()
 
         hasElement = False
 
         for key, value in map.items():
-            if (not complexCheck and value["Identifier"] == identifier) or (complexCheck and self.identifierIsSame(value["Identifier"], identifier)):
+            if self.identifierIsSame(value["Identifier"], identifier, complexCheck):
                 map[key]["Identifier"] = identifier
                 map[key]["Element"] = str(element[0].Name) + "." + str(element[1])
                 map[key]["Stale"] = False
@@ -422,7 +467,7 @@ class Extrusion(Feature):
             face = Part.Face()
             
             if obj.Length.Value != 0:
-                face = Part.makeFace(sketchWires)
+                face = Part.makeFace(sketchWires) # type: ignore
 
             ZOffset = 0
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))
@@ -457,13 +502,8 @@ class Extrusion(Feature):
             basePoint = sketch.Placement.copy()
             basePoint.Base += offsetVector
 
-            print(f"offsetVector: {offsetVector}")
-            print(f"basePoint: {basePoint}")
-
             endExtrudePoint = basePoint.copy()
             endExtrudePoint.Base += extrudeVector
-
-            print(f"endExtrudePoint: {endExtrudePoint}")
 
             if extrudeLength != 0:
                 extrusion = face.extrude(extrudeVector)
@@ -572,14 +612,14 @@ class Extrusion(Feature):
                     identifierList.append(identifier)
                     element = (obj.Boundary, f"Edge{str(len(boundaryEdgesList))}")
                     
-                    self.updateElement(element, identifier, elementMap, False)
+                    self.updateElement(element, identifier, elementMap)
                 
                 if extrudeLength != 0:
                     occurence = 0
                     intersectFaceTol = 1e-2
 
                     for _, val in intersectingFaceMap.items():
-                        faceIdentifier = val["Identifier"]
+                        faceIdentifier = val["Identifier"].split("|")
                         faceShape = val["Shape"]
                         try:
                             projGeoShape = faceShape.makeParallelProjection(geoShape, normal)
@@ -598,13 +638,13 @@ class Extrusion(Feature):
                         numGenEdges = newEdgeNum - oldEdgeNum
 
                         for i in range(numGenEdges):
-                            print("intersection add edge")
+                            print(f"add intersection, face id: {faceIdentifier}, id: {id}")
 
                             identifier = self.makeIdentifier([f"{id}"], "Edge", i, "Intersection", faceIdentifier)
                             identifierList.append(identifier)
                             element = (obj.Boundary, f"Edge{str(oldEdgeNum + (i + 1))}")
                             
-                            self.updateElement(element, identifier, elementMap, False)
+                            self.updateElement(element, identifier, elementMap)
                             occurence += 1
 
                     geoShape = geo.toShape()
@@ -629,7 +669,7 @@ class Extrusion(Feature):
                         identifierList.append(identifier)
                         element = (obj.Boundary, f"Edge{str(len(boundaryEdgesList))}")
                         
-                        self.updateElement(element, identifier, elementMap, False)
+                        self.updateElement(element, identifier, elementMap)
 
             createPointsTime = time.time() - startTime
 
@@ -664,13 +704,13 @@ class Extrusion(Feature):
                         endVertex = f"Vertex{str(oldVertNum+1)}"
                     
                     # Handle start vertex
-                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", "BottomPoint")
+                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", extraInfo = "BottomPoint")
                     identifierList.append(identifier)
                     element = (obj.Boundary, startVertex)
                     self.updateElement(element, identifier, elementMap)
 
                     # Handle end vertex
-                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", "TopPoint")
+                    identifier = self.makeIdentifier(v["IDs"], "Vertex", 0, "WiresBoundary", extraInfo = "TopPoint")
                     identifierList.append(identifier)
                     element = (obj.Boundary, endVertex)
                     self.updateElement(element, identifier, elementMap)
@@ -702,7 +742,6 @@ class Extrusion(Feature):
 
             obj.ElementMap = json.dumps(elementMap)
             
-            print("set boundary shape placement")
             boundaryShape = Part.Compound(boundaryElementsList)
             obj.Boundary.Shape = boundaryShape
             obj.Boundary.ViewObject.LineWidth = boundaryLineWidth

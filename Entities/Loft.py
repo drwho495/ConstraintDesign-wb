@@ -331,8 +331,6 @@ class Loft(Feature):
         
         if len(identifier2Support1IDs) == 0 or len(identifier2Support2IDs) == 0 or len(set(allSupport1IDs) & set(identifier2Support1IDs)) == 0 or len(set(allSupport2IDs) & set(identifier2Support2IDs)):
             useDualCheck = False
-        else:
-            print(f"id2: {identifier2}")
 
         support1Occurences = 0
         support2Occurences = 0

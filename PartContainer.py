@@ -452,6 +452,7 @@ class ViewProviderPartContainer:
         if (hasattr(self, "Object") 
             and self.Object != None 
             and self.Object.Object != None
+            and hasattr(self.Object.Object, "IsLink")
             and self.Object.Object.IsLink
         ):
             return os.path.join(os.path.dirname(__file__), "icons", "ConstraintLinkPart.svg")

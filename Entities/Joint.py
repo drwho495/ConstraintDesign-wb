@@ -82,13 +82,9 @@ class JointTaskPanel:
     def update(self):
         selected = self.selector.getSelection()
 
-        print(selected)
-
         self.joint.Support = selected
         self.joint.SupportType = self.selectedType # needed because some logic in the proxy causes the enum selection to be overrided
         self.joint.Proxy.execute(self.joint)
-
-        print(self.joint.SupportType)
 
         self.updateEnumeration()
 
@@ -102,10 +98,7 @@ class JointTaskPanel:
         self.close()
 
     def reject(self):
-        print("reject joint")
         self.joint.Proxy.execute(self.joint)
-
-        print(f"old: {self.oldSupport}")
 
         self.joint.Support = self.oldSupport
         self.joint.SupportType = self.oldMapMode

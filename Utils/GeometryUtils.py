@@ -37,7 +37,7 @@ def getIntersectingFaces(
         if (not common.isNull() 
             and not common.ShapeType == "Compound"
         ):
-            retFaceMap[faceName] = {"Identifier": identifier, "Shape": faceShape}
+            retFaceMap[faceName] = {"Identifier": "|".join(identifier), "Shape": faceShape}
 
     return retFaceMap
 
@@ -56,8 +56,14 @@ def getIDsOfFaces(
             for i, face in enumerate(shape.Faces):
                 faceName = f"Face{i + 1}"
                 for edge in face.Edges:
-                        if not faceName in retMap and (hasattr(mapEdge, "Curve") and hasattr(edge, "Curve")) and edge.Curve.isSame(mapEdge.Curve, 1e-2, 1e-2) and "Identifier" in val:
-                            retMap[faceName] = val["Identifier"]
+                    if doEdgesIntersect(mapEdge, edge) and "Identifier" in val:
+                        identifier = val["Identifier"].rstrip(';')
+
+                        if not faceName in retMap:
+                            retMap[faceName] = []
+                        
+                        if identifier not in retMap[faceName]:
+                            retMap[faceName].append(identifier)
     return retMap
 
 
@@ -89,34 +95,52 @@ def getDirectionOfLine(
 ) -> App.Vector: 
     direction = linePoints[1].sub(linePoints[0])
     if direction.Length == 0:
-        print("direction failed")
         return App.Vector()
     return abs(direction.normalize())
+
+def pointOnCurve(
+    curve: Part.Curve,
+    vector: App.Vector
+):
+    try:
+        foundParam = curve.parameter(vector)
+
+        return curve.value(foundParam).isEqual(vector, 1e-7)
+    except:
+        return False
 
 def doEdgesIntersect(
     edge1: Part.Edge,
     edge2: Part.Edge,
     tolerance: float = 1e-2
 ) -> bool:
-    if len(edge1.Vertexes) >= 2 and len(edge2.Vertexes) >= 2:
-        edge1Points = [edge1.Vertexes[0].Point, edge1.Vertexes[-1].Point]
-        edge2Points = [edge2.Vertexes[0].Point, edge2.Vertexes[-1].Point]
+    if hasattr(edge1, "Curve") and hasattr(edge2, "Curve"):
+        edge1Curve: Part.Curve = edge1.Curve
+        edge2Curve: Part.Curve = edge2.Curve
 
-        if edge1Points[0].isEqual(edge2Points[0], tolerance) and edge1Points[1].isEqual(edge2Points[1], tolerance):
-            return True
-        elif (
-            ((isPointOnLine(edge1Points, edge2Points[0], tolerance) or isPointOnLine(edge1Points, edge2Points[1], tolerance))
-            or (isPointOnLine(edge2Points, edge1Points[0], tolerance) or isPointOnLine(edge2Points, edge1Points[1], tolerance)))
-            and getDirectionOfLine(edge1Points).isEqual(getDirectionOfLine(edge2Points), .2)
-        ):
-            return True
-    elif (hasattr(edge1, "Curve") and hasattr(edge2, "Curve") 
-          and (edge1.Curve.TypeId == "Part::GeomCircle" and edge2.Curve.TypeId == "Part::GeomCircle")
-    ):
+        if edge1Curve.TypeId == "Part::GeomLine":
+            edge1Curve = Part.LineSegment(edge1.Vertexes[0].Point, edge1.Vertexes[-1].Point)
+        
+        if edge2Curve.TypeId == "Part::GeomLine":
+            edge2Curve = Part.LineSegment(edge2.Vertexes[0].Point, edge2.Vertexes[-1].Point)
+
+        edge1Start = edge1Curve.value(edge1Curve.FirstParameter)
+        edge2Start = edge2Curve.value(edge2Curve.FirstParameter)
+
+        edge1End = edge1Curve.value(edge1Curve.LastParameter)
+        edge2End = edge2Curve.value(edge2Curve.LastParameter)
+
         if (
-            edge1.Curve.Axis.isEqual(edge2.Curve.Axis, tolerance)
-            and edge1.Curve.Location.isEqual(edge2.Curve.Location, 1) # needs lower tolerance
-            and abs(edge1.Curve.Radius - edge2.Curve.Radius) < tolerance
+            (((edge1Start.isEqual(edge2Start, tolerance) and edge1End.isEqual(edge2End, tolerance))
+            or (edge1Start.isEqual(edge2End, tolerance) and edge1End.isEqual(edge2Start, tolerance)))
+            or (
+                (pointOnCurve(edge1Curve, edge2Start) and pointOnCurve(edge1Curve, edge2End))
+                or (pointOnCurve(edge2Curve, edge1Start) and pointOnCurve(edge2Curve, edge1End))
+            ))
+            and (
+                pointOnCurve(edge1Curve, edge2Curve.value((edge2Curve.FirstParameter + edge2Curve.LastParameter) / 2))
+                or pointOnCurve(edge2Curve, edge1Curve.value((edge1Curve.FirstParameter + edge1Curve.LastParameter) / 2))
+            )
         ):
             return True
     return False

@@ -40,7 +40,6 @@ class FeatureCopy(Feature):
                 obj.TipName = ""
             
             if (hasattr(obj, "CopyType") and obj.CopyType == 0) or (not hasattr(obj, "CopyType") and copyType == 0):
-                print("add plane props")
                 if not hasattr(obj, "PlaneType"):
                     obj.addProperty("App::PropertyString", "PlaneType", "ConstraintDesign", "The type of plane to mirror about.")
                     obj.PlaneType = "None"
@@ -172,8 +171,6 @@ class FeatureCopy(Feature):
 
             if obj.Support != None and isType(obj.Support, "PartContainer"):
                 supportContainer = obj.Support
-            else:
-                print("set support failed")
 
         if supportContainer != None:
             pcGroup = supportContainer.Proxy.getGroup(supportContainer, False, True)
@@ -274,7 +271,6 @@ class FeatureCopy(Feature):
 
                                     if hasattr(fixObj, "AttachmentSupport"):
                                         fixObj.AttachmentSupport = []
-                                        print("clear support\n\n\n\n")
                                     
                                     for propName in item.PropertiesList:
                                         typeId = item.getTypeIdOfProperty(propName)
@@ -291,7 +287,6 @@ class FeatureCopy(Feature):
                                                         if len(propStringID) == hashSize and propStringID in elementMap:
                                                             newFullStringId = f"{obj.Name}.{propStringID}"
                                                             setattr(fixObj, propName, newFullStringId)
-                                                            print(f"change id from {prop} -> {newFullStringId}")
                                                 elif typeId == "App::PropertyStringList":
                                                     newArr = []
 
@@ -303,7 +298,6 @@ class FeatureCopy(Feature):
                                                             if len(propStringID) == hashSize and propStringID in elementMap:
                                                                 newFullStringId = f"{obj.Name}.{propStringID}"
                                                                 newArr.append(newFullStringId)
-                                                                print(f"change id from {prop} -> {newFullStringId}")
                                                     
                                                     setattr(fixObj, propName, newArr)
                                         elif (hasattr(item, propName) 
@@ -313,6 +307,7 @@ class FeatureCopy(Feature):
                                               and len(fixObj.getPropertyStatus(propName)) != 0
                                               and fixObj.getPropertyStatus(propName)[0] != "ReadOnly"
                                               and propName != "ExpressionEngine" # this is not set as readonly for some reason
+                                              and propName != "Visibility"
                                         ):
                                             setattr(fixObj, propName, getattr(item, propName))
                                         
