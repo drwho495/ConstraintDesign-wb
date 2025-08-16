@@ -51,19 +51,22 @@ def getIDsOfFaces(
     for _, val in elementMap.items():
         mapEdgeArray = val["Element"].split(".")
 
-        if len(mapEdgeArray) == 2 and mapEdgeArray[1].startswith("Edge"):
-            mapEdge = boundaryShape.getElement(mapEdgeArray[1])
-            for i, face in enumerate(shape.Faces):
-                faceName = f"Face{i + 1}"
-                for edge in face.Edges:
-                    if doEdgesIntersect(mapEdge, edge) and "Identifier" in val:
-                        identifier = val["Identifier"].rstrip(';')
+        if len(mapEdgeArray) == 2 and mapEdgeArray[1].startswith("Edge") and (not hasattr(val, "Stale") or not val["Stale"]):
+            numb = int(mapEdgeArray[1][4:])
 
-                        if not faceName in retMap:
-                            retMap[faceName] = []
-                        
-                        if identifier not in retMap[faceName]:
-                            retMap[faceName].append(identifier)
+            if len(boundaryShape.Edges) >= numb:
+                mapEdge = boundaryShape.getElement(mapEdgeArray[1])
+                for i, face in enumerate(shape.Faces):
+                    faceName = f"Face{i + 1}"
+                    for edge in face.Edges:
+                        if doEdgesIntersect(mapEdge, edge) and "Identifier" in val:
+                            identifier = val["Identifier"].rstrip(';')
+
+                            if not faceName in retMap:
+                                retMap[faceName] = []
+                            
+                            if identifier not in retMap[faceName]:
+                                retMap[faceName].append(identifier)
     return retMap
 
 

@@ -55,6 +55,11 @@ class FeatureCopy(Feature):
             if not hasattr(obj, "UpdateObject"):
                 obj.addProperty("App::PropertyBool", "UpdateObject", "ConstraintDesign", "Marks if this LinkFeature should be updated.")
                 obj.UpdateObject = False
+            
+            if not hasattr(obj, "IsVariantLink"):
+                obj.addProperty("App::PropertyBool", "IsVariantLink", "ConstraintDesign", "This is set internally to signify if this link is currently using a cached document.")
+                obj.setEditorMode("IsVariantLink", 3)
+                obj.IsVariantLink = False
         
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
@@ -198,6 +203,8 @@ class FeatureCopy(Feature):
                     tipName = obj.TipName
                 else:
                     tipName = container.LinkTipName
+
+        obj.IsVariantLink = createVariantLink
 
         if obj.CopyType != 2 or (obj.UpdateObject or (createVariantLink and cachedObjectChanged)):
             if isType(supportContainer, "PartContainer"):

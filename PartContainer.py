@@ -3,11 +3,12 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
+import Utils.MojoUtils as MojoUtils
+import json
+import Cache.DocumentCacheManager as DocumentCacheManager
 from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear, getDocumentByFileName, getVariablesOfVariableContainer
 from Utils.Constants import *
 from Entities.FeatureCopy import makeFeatureCopy
-import Utils.MojoUtils as MojoUtils
-import json
 
 class PartContainer:
     def updateProps(self, obj, isLink = False):
@@ -352,6 +353,32 @@ class PartContainer:
         obj.Origin = origin
 
         self.addObject(obj, origin)
+    
+    # if allow cached is enabled, then we will try to find the cached document if this is currently a variant link
+    def getLinkedObj(self, obj, allowCached = False):
+        self.updateProps(obj)
+
+        if obj.IsLink:
+            if len(obj.ObjectLinkFilePath) != 0:
+                document = getDocumentByFileName(obj.ObjectLinkFilePath)
+
+                if document != None and len(obj.ObjectLinkName) != 0:
+                    linkedObj = document.getObject(obj.ObjectLinkName)
+
+                    if (allowCached 
+                        and obj.LinkFeature != None 
+                        and hasattr(obj.LinkFeature, "IsVariantLink") 
+                        and obj.LinkFeature.IsVariantLink
+                    ):
+                        _, cachedObj = DocumentCacheManager.getCacheDocument(linkedObj, obj)
+
+                        if cachedObj != None:
+                            return cachedObj
+                        else:
+                            return linkedObj
+                    else:
+                        return linkedObj
+        return None
     
     def deleteChild(self, obj, child):
         if child in obj.Group:

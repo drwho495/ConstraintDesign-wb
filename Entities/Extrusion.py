@@ -288,7 +288,7 @@ class Extrusion(Feature):
         
         if not hasattr(obj, "IncludeConstruction"):
             obj.addProperty("App::PropertyBool", "IncludeConstruction", "ConstraintDesign", "Tells the boundary generator to include construction geometry.")
-            obj.IncludeConstruction = True
+            obj.IncludeConstruction = False
         
         if not hasattr(obj, "MakeIntersectionGeometry"):
             obj.addProperty("App::PropertyBool", "MakeIntersectionGeometry", "ConstraintDesign", "Determines if boundaries should include edges projected onto faces.")
@@ -419,7 +419,7 @@ class Extrusion(Feature):
                 internalGeoIDs1 = internalGeoIDs1Matches[0].split("|")
                 internalGeoIDs2 = internalGeoIDs2Matches[0].split("|")
 
-                if (len(internalGeoIDs1) != 0 and len(internalGeoIDs2) != 0) and (len(set(internalGeoIDs1) & set(internalGeoIDs2)) < len(internalGeoIDs1) - 2):
+                if (len(internalGeoIDs1) != 0 and len(internalGeoIDs2) != 0) and (len(set(internalGeoIDs1) & set(internalGeoIDs2)) < 2):
                     return False
             else:
                 return False
@@ -638,8 +638,6 @@ class Extrusion(Feature):
                         numGenEdges = newEdgeNum - oldEdgeNum
 
                         for i in range(numGenEdges):
-                            print(f"add intersection, face id: {faceIdentifier}, id: {id}")
-
                             identifier = self.makeIdentifier([f"{id}"], "Edge", i, "Intersection", faceIdentifier)
                             identifierList.append(identifier)
                             element = (obj.Boundary, f"Edge{str(oldEdgeNum + (i + 1))}")
