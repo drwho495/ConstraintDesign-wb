@@ -344,11 +344,36 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
         App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nList contents: {','.join(stringList)}\n")
         return None
     
-def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
+def addElementToCompoundArray(element, compoundList, edgesList, vertexList, faceList = []):
     edgesList.extend(element.Edges)
     vertexList.extend(element.Vertexes)
-
+    faceList.extend(element.Faces)
     compoundList.append(element) 
+
+def getElementNameInLists(element, edgeList, vertexList, faceList):
+    if isinstance(element, Part.Edge):
+        for i, edge in enumerate(edgeList):
+            if edge.isSame(element):
+                return f"Edge{i + 1}"
+    elif isinstance(element, Part.Vertex):
+        for i, vertex in enumerate(vertexList):
+            if vertex.isSame(element):
+                return f"Vertex{i + 1}"
+    elif isinstance(element, Part.Face):
+        for i, face in enumerate(faceList):
+            if face.isSame(element):
+                return f"Face{i + 1}"
+    return None
+
+def getElementNameInShape(element, shape):
+    return getElementNameInLists(element, shape.Edges, shape.Vertexes, shape.Faces)
+
+def getElementTypeOfName(elementName):
+    elementNameEnd = elementName.split(".")[-1]
+
+    if elementNameEnd.startswith("Face"): return "Face"
+    elif elementNameEnd.startswith("Edge"): return "Edge"
+    elif elementNameEnd.startswith("Vertex"): return "Vertex"
 
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     """

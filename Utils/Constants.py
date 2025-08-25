@@ -10,6 +10,7 @@ boundaryPointSize = 6
 gridSquareSize = 30
 gridSize = 20_0000
 hashSize = 8 # do not change this please
+standardElementSimilarityMinimum = 2
 
 variableContainerDefaultProps = ['ExpressionEngine',
                                  'Label',
