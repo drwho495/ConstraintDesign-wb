@@ -15,7 +15,7 @@
       <subdirectory>./</subdirectory>
       <icon>icons/ConstraintPart.svg</icon>
       <tag>design</tag>
-      <freecadmin>0.21.2</freecadmin>
+      <freecadmin>1.0.0</freecadmin>
     </workbench>
   </content>
 </package>
