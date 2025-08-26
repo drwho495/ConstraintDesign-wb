@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<package format="1">
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Constraint Design</name>
   <description>This assembly workbench use lets you put FreeCAD parts (Part and Body) together inside a standard assembly container.</description>
   <version>beta-0.1</version>
-  <date>2025.7.3</date>
+  <date>2025.8.26</date>
   <maintainer email="drwho495555@gmail.com">Austin Bacher</maintainer>
   <license file="LICENSE">LGPL-2.1-only</license>
   <url type="repository" branch="main">https://github.com/drwho495/ConstraintDesign-wb</url>
