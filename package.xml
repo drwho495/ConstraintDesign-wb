@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <package format="1">
-  <name>ConstraintDesign</name>
+  <name>Constraint Design</name>
   <description>This assembly workbench use lets you put FreeCAD parts (Part and Body) together inside a standard assembly container.</description>
   <version>beta-0.1</version>
   <date>2025.7.3</date>
