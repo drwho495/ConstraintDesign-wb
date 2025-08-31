@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.Feature import Feature
 
 class Derive(Feature):
@@ -94,8 +94,8 @@ class Derive(Feature):
             newShape = Part.makeCompound([prevShape, newShape])
 
         obj.Shape = newShape
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.purgeTouched()
 
         return newShape

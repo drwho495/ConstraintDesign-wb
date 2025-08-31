@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils import GuiUtils
@@ -512,8 +512,8 @@ class Loft(Feature):
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
         obj.Boundary.Shape = Part.Compound(boundaryElementList)
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.Visibility = True
         obj.Boundary.purgeTouched()
 

@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Utils import GuiUtils
-from Utils.Constants import *
+from Utils import Constants
 from PySide import QtWidgets
 from SoSwitchMarker import SoSwitchMarker
 from Entities.Entity import Entity

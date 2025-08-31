@@ -12,7 +12,7 @@ from Commands.CreateExposedGeo import CreateExposedGeo
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
 from Utils import GuiUtils
-import Utils.MojoUtils as MojoUtils
+from Utils import MojoUtils
 import Grid.GridManager as GridManager
 from DesignWorkbench import ConstraintDesign
 

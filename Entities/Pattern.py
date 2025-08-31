@@ -10,7 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Entities.Feature import Feature
-from Utils.Constants import *
+from Utils import Constants
 from PySide import QtWidgets
 from Utils import GuiUtils
 import copy
@@ -470,8 +470,8 @@ class Pattern(Feature):
         
         obj.Shape = finalShape
         obj.Boundary.Shape = boundaryCompound
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
 
         obj.Boundary.purgeTouched()
 

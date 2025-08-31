@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Utils import SketchUtils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.ExposedGeo import makeExposedGeo
 from Entities.Entity import Entity
 from PySide import QtWidgets
@@ -120,7 +120,7 @@ class ConstraintSketch(Entity):
                 for i, exGeo in enumerate(obj.ExternalGeometry):
                     object = exGeo[0]
 
-                    if not Utils.isType(object, datumTypes):
+                    if not Utils.isType(object, Constants.datumTypes):
                         obj.delExternal(i)
         
         self.lastProp = prop

@@ -9,7 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.Feature import Feature
 
 # this needs to be merged with Derive in a class like PartShapeCopy
@@ -149,8 +149,8 @@ class PartMirror(Feature):
                 obj.ElementMap = json.dumps(elementMap)
                 
         obj.Boundary.Shape = datumShape
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.ViewObject.LineWidth = 1
         obj.Boundary.purgeTouched()
         obj.IndividualShape = newShape.copy()

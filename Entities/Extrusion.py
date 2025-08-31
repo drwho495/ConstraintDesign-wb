@@ -9,7 +9,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Utils import SketchUtils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.Feature import Feature
 from PySide import QtWidgets
 from Utils import GuiUtils
@@ -456,7 +456,7 @@ class Extrusion(Feature):
         self.timeTakeUE = 0
         self.updateProps(obj)
 
-        if hasattr(obj,"Support") and Utils.isType(obj.Support, supportTypes):
+        if hasattr(obj,"Support") and Utils.isType(obj.Support, Constants.supportTypes):
             sketch = obj.Support
             container = self.getContainer(obj)
 
@@ -742,8 +742,8 @@ class Extrusion(Feature):
             
             boundaryShape = Part.Compound(boundaryElementsList)
             obj.Boundary.Shape = boundaryShape
-            obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-            obj.Boundary.ViewObject.PointSize = boundaryPointSize
+            obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+            obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
 
             obj.Support.purgeTouched()
             obj.Boundary.purgeTouched()
@@ -865,7 +865,7 @@ def makeExtrusion(container=None, support=None, showGui = True):
         doc = container.Document
         doc.openTransaction("CreateExtrusion")
 
-        if support is not None and Utils.isType(support, supportTypes):
+        if support is not None and Utils.isType(support, Constants.supportTypes):
             obj = doc.addObject("Part::FeaturePython", "Extrusion")
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")

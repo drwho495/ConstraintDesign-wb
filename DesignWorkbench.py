@@ -18,7 +18,7 @@ from Commands.CreateSketch import CreateConstraintSketch
 from Commands.CreateJoint import CreateJoint
 from Utils import GuiUtils
 import Grid.GridManager as GridManager
-from Utils.Constants import *
+from Utils import Constants
 import FreeCAD as App
 import FreeCADGui as Gui
 

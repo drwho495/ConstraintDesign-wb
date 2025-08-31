@@ -3,11 +3,11 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-import Utils.MojoUtils as MojoUtils
+from Utils import MojoUtils
 import json
 import Cache.DocumentCacheManager as DocumentCacheManager
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.FeatureCopy import makeFeatureCopy
 
 class PartContainer:
@@ -91,8 +91,8 @@ class PartContainer:
         if not hasattr(obj, "ObjectVisibilityDict"):
             self.updateProps(obj)
         
-        if Utils.isType(supportObject, supportTypes):
-            feature = Utils.getParent(supportObject, featureTypes)
+        if Utils.isType(supportObject, Constants.supportTypes):
+            feature = Utils.getParent(supportObject, Constants.featureTypes)
             group = self.getGroup(obj, True, True)
 
             if feature != None:
@@ -106,7 +106,7 @@ class PartContainer:
                     itemGroup = [item]
                     hide = False
 
-                    if item in supportObject.OutList or Utils.isType(supportObject, datumTypes) or item == feature or group.index(item) > cutoffIndex:
+                    if item in supportObject.OutList or Utils.isType(supportObject, Constants.datumTypes) or item == feature or group.index(item) > cutoffIndex:
                         hide = True
 
                     if hasattr(item, "Group"):
@@ -212,7 +212,7 @@ class PartContainer:
     def getGroup(self, obj, withNonFeatureEntities = False, skipSketch=False):
         filteredGroup = []
         for item in obj.Group:
-            if (hasattr(item, "Type") and item.Type in featureTypes) or (Utils.isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and Utils.isType(item, datumTypes)):
+            if (hasattr(item, "Type") and item.Type in Constants.featureTypes) or (Utils.isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and Utils.isType(item, Constants.datumTypes)):
                 filteredGroup.append(item)
         
         return filteredGroup
@@ -297,7 +297,7 @@ class PartContainer:
         for i, child in enumerate(group):
             if Utils.isType(child, "BoundarySketch"):
                 child.Proxy.updateSketch(child, obj)
-            elif Utils.isType(child, featureTypes):
+            elif Utils.isType(child, Constants.featureTypes):
                 if i >= startIndex and not child.Suppressed:
                     if hasattr(child.Proxy, "getSupports"):
                         supports = child.Proxy.getSupports(child)
@@ -309,7 +309,7 @@ class PartContainer:
                                 depList.extend(support.OutList)
 
                             for item in depList:
-                                if Utils.isType(item, datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
+                                if Utils.isType(item, Constants.datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
 
@@ -334,7 +334,7 @@ class PartContainer:
             child.purgeTouched()
 
         #handle datums that haven't already been recomputed
-        for item in self.getGroupOfTypes(obj, datumTypes, recomputedNameList):
+        for item in self.getGroupOfTypes(obj, Constants.datumTypes, recomputedNameList):
             if hasattr(item.Proxy, "generateShape"):
                 item.Proxy.generateShape(item, Part.Shape())
         

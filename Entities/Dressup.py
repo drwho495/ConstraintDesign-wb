@@ -7,8 +7,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Utils import GuiUtils
-from Utils.Constants import *
-import Utils.GeometryUtils as GeometryUtils
+from Utils import Constants
+from Utils import GeometryUtils
 from PySide import QtWidgets
 import json
 from Entities.Feature import Feature
@@ -478,8 +478,8 @@ class FeatureDressup(Feature):
                                 map[k]["Stale"] = True
                         
                         obj.Boundary.Shape = boundaryShape
-                        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-                        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+                        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+                        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
                         obj.ElementMap = json.dumps(map)
                         cutCompound = Part.Compound(cutCompoundArray)
                         obj.IndividualShape = cutCompound.copy()

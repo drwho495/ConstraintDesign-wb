@@ -4,7 +4,7 @@ import FreeCADGui
 import Part
 from PySide import QtGui
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 
 class MoveDesignObject:
     def __init__(self, dir):
@@ -31,8 +31,8 @@ class MoveDesignObject:
             selectedObj = selection[0]
             parent = Utils.getParent(selectedObj, "PartContainer")
 
-            types = featureTypes.copy()
-            types.extend(datumTypes)
+            types = Constants.featureTypes.copy()
+            types.extend(Constants.datumTypes)
 
             if parent != None and Utils.isType(selectedObj, types) and hasattr(parent, "Group"):
                 group = parent.Group

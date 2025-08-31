@@ -10,7 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 import Cache.DocumentCacheManager as DocCacheManager
 from Utils import Utils
-from Utils.Constants import *
+from Utils import Constants
 from Entities.Feature import Feature
 
 # this is a type of feature that copies another part container (Derive, PartMirror, and LinkFeature all originate from this class)
@@ -291,7 +291,7 @@ class FeatureCopy(Feature):
                                                         propArr = prop.split(".")
                                                         propStringID = propArr[-1]
 
-                                                        if len(propStringID) == hashSize and propStringID in elementMap:
+                                                        if len(propStringID) == Constants.hashSize and propStringID in elementMap:
                                                             newFullStringId = f"{obj.Name}.{propStringID}"
                                                             setattr(fixObj, propName, newFullStringId)
                                                 elif typeId == "App::PropertyStringList":
@@ -302,7 +302,7 @@ class FeatureCopy(Feature):
                                                             propArr = singleOldID.split(".")
                                                             propStringID = propArr[-1]
 
-                                                            if len(propStringID) == hashSize and propStringID in elementMap:
+                                                            if len(propStringID) == Constants.hashSize and propStringID in elementMap:
                                                                 newFullStringId = f"{obj.Name}.{propStringID}"
                                                                 newArr.append(newFullStringId)
                                                     
@@ -330,8 +330,8 @@ class FeatureCopy(Feature):
         else:
             newShape = obj.Shape
 
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.purgeTouched()
 
         return newShape
