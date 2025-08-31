@@ -5,8 +5,8 @@ import sys
 import math
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import getIDsFromSelection, getElementFromHash, generateHashName, getObjectsFromScope
-from Utils.GuiUtils import SelectorWidget
+from Utils import Utils
+from Utils import GuiUtils
 from Utils.Constants import *
 import Utils.GeometryUtils as GeometryUtils
 from PySide import QtWidgets
@@ -48,7 +48,7 @@ class DressupTaskPanel:
 
         self.dressup = obj
         self.container = self.dressup.Proxy.getContainer(self.dressup)
-        self.selector = SelectorWidget(addOldSelection=addOldSelection, startSelection=startSelection, container=self.container)
+        self.selector = GuiUtils.SelectorWidget(addOldSelection=addOldSelection, startSelection=startSelection, container=self.container)
         layout.addWidget(self.selector)
 
         self.deleteAfterCancel = deleteAfterCancel
@@ -288,7 +288,7 @@ class FeatureDressup(Feature):
                 map[stringId]["Stale"] = False
         
         if not foundElement:
-            newId = generateHashName(map)
+            newId = Utils.generateHashName(map)
 
             map[newId] = {"Identifier": identifier, "Stale": False, "Element": f"{element[0].Name}.{element[1]}"}
         
@@ -325,7 +325,7 @@ class FeatureDressup(Feature):
                             for stringID in datumEdges:
                                 if stringID in skipHashes: continue
                                 try:
-                                    element = getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
+                                    element = Utils.getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
                                 except Exception as e:
                                     App.Console.PrintError(str(e) + "\n")
                                     continue
@@ -413,7 +413,7 @@ class FeatureDressup(Feature):
                         boundaryShape = Part.Shape()
 
                         for stringID in obj.Edges:
-                            fullElement = getElementFromHash(container, stringID, obj.Label)
+                            fullElement = Utils.getElementFromHash(container, stringID, obj.Label)
 
                             if fullElement[0] != None:
                                 element = fullElement[0].Shape.getElement(fullElement[1])
@@ -673,7 +673,7 @@ def makeDressup(dressupType):
             obj.Boundary = boundary
             activeObject.Proxy.addObject(activeObject, boundary, False)
 
-        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+        hashes = Utils.getIDsFromSelection(Gui.Selection.getCompleteSelection())
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         activeObject.Proxy.setTip(activeObject, obj)

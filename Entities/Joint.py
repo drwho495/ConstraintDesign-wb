@@ -5,8 +5,8 @@ import sys
 import math
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import getIDsFromSelection, getElementFromHash
-from Utils.GuiUtils import SelectorWidget
+from Utils import Utils
+from Utils import GuiUtils
 from Utils.Constants import *
 from PySide import QtWidgets
 from SoSwitchMarker import SoSwitchMarker
@@ -55,7 +55,7 @@ class JointTaskPanel:
         self.updateEnumeration()
 
         self.container = self.joint.Proxy.getContainer(self.joint)
-        self.selector = SelectorWidget(addOldSelection = addOldSelection, startSelection = startSelection, container = self.container)
+        self.selector = GuiUtils.SelectorWidget(addOldSelection = addOldSelection, startSelection = startSelection, container = self.container)
         self.selector.selectionChanged.connect(self.selectionChanged)
         layout.addWidget(self.selector)
         layout.addLayout(self.mapModeEnumerationLayout)
@@ -191,7 +191,7 @@ class FeatureJoint(Entity):
         obj.MapMode = obj.SupportType
 
         if container != None:
-            elements = getElementFromHash(container, obj.Support, asList=True, requestingObjectLabel=obj.Label)
+            elements = Utils.getElementFromHash(container, obj.Support, asList=True, requestingObjectLabel=obj.Label)
 
             if len(elements) != 0:
                 elementSupport = []
@@ -400,7 +400,7 @@ def makeJoint(useCase = "Generic"):
         FeatureJoint(obj, useCase)
         ViewProviderJoint(obj.ViewObject)
 
-        hashes = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+        hashes = Utils.getIDsFromSelection(Gui.Selection.getCompleteSelection())
 
         activeObject.Proxy.addObject(activeObject, obj, True)
         # obj.Proxy.showGui(obj, True)

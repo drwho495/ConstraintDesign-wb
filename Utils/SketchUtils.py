@@ -3,7 +3,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 import Part
 from PySide import QtGui
-from Utils.Utils import isType
+from Utils import Utils
 from Utils.Constants import *
 from Entities.ExposedGeo import makeExposedGeo
 import sys
@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 def getIDDict(support, includeConstruction = True, includeExternalConstruction = False):
     #"ID": geometry
     idDict = {}
-    if isType(support, "BoundarySketch"):
+    if Utils.isType(support, "BoundarySketch"):
         for geoF in support.GeometryFacadeList:
             if not includeConstruction and geoF.Construction: continue
 

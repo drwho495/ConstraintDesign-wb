@@ -8,7 +8,7 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, makeBoundaryCompound
+from Utils import Utils
 from Utils.Constants import *
 from Entities.Feature import Feature
 
@@ -62,7 +62,7 @@ class Derive(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(Derive, self).generateHashName(map)
+            hash = super(Derive, self).Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -72,7 +72,7 @@ class Derive(Feature):
         newShape = Part.Shape()
         datumShape = Part.Shape()
 
-        if isType(obj.Support, "PartContainer"):
+        if Utils.isType(obj.Support, "PartContainer"):
             if obj.TipName == "":
                 obj.TipName = obj.Support.Tip.Name
 
@@ -214,7 +214,7 @@ def makeDerive():
         else:
             selectedObject = selectedObject[0]
 
-        if selectedObject != None and isType(selectedObject, "PartContainer"):
+        if selectedObject != None and Utils.isType(selectedObject, "PartContainer"):
             mirror = App.ActiveDocument.addObject("Part::FeaturePython", "Derive")
             boundary = App.ActiveDocument.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
