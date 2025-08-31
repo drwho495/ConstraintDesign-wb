@@ -6,7 +6,7 @@ import sys
 import os
 import FreeCAD as App
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import getParent
+from Utils import Utils
 
 class Entity(ABC):
     @abstractmethod
@@ -18,4 +18,4 @@ class Entity(ABC):
         pass
 
     def getContainer(self, obj):
-        return getParent(obj, "PartContainer")
+        return Utils.getParent(obj, "PartContainer")

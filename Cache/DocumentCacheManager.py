@@ -1,6 +1,6 @@
 import FreeCAD as App
 import FreeCADGui as Gui
-import Utils as Utils
+from Utils import Utils
 from typing import Tuple
 import os
 

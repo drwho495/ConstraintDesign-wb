@@ -7,8 +7,8 @@ import os
 import FreeCAD as App
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Entities.Entity import Entity
-from Utils.Constants import *
-from Utils.Utils import getParent
+from Utils import Constants
+from Utils import Utils
 
 class Feature(Entity):
     @abstractmethod
@@ -63,4 +63,4 @@ class Feature(Entity):
 
     @abstractmethod
     def getContainer(self, obj):
-        return getParent(obj, "PartContainer")
+        return Utils.getParent(obj, "PartContainer")

@@ -1,7 +1,7 @@
 # SPDX-License: LGPL-2.1-or-later
 
 from __future__ import annotations
-from Utils.Utils import getP2PDistanceAlongNormal
+from Utils import Utils
 import Part  # type: ignore
 import FreeCAD as App  # type: ignore
 

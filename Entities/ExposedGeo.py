@@ -5,11 +5,11 @@ import Part
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getParent, getIDsFromSelection, getObjectsFromScope, getElementFromHash
-from Utils.Constants import *
+from Utils import Utils
+from Utils import Constants
 from Entities.Entity import Entity
 from PySide import QtWidgets
-from Utils.GuiUtils import SelectorWidget
+from Utils import GuiUtils
 
 missingStr = "(MISSING) "
 useCases = ["Generic", "Sketch"]
@@ -37,7 +37,7 @@ class ExposedGeoTaskPanel:
         # Now add the selector and labels after the buttons
         self.oldSupport = getattr(obj, 'Support', None)
         self.container = obj.Proxy.getContainer(obj)
-        self.selector = SelectorWidget(sizeLimit=1, addOldSelection=addOldSelection, startSelection=[self.oldSupport] if self.oldSupport else [], container=self.container)
+        self.selector = GuiUtils.SelectorWidget(sizeLimit=1, addOldSelection=addOldSelection, startSelection=[self.oldSupport] if self.oldSupport else [], container=self.container)
         self.selector.selectionChanged.connect(self.selectionChanged)
         layout.addWidget(self.selector)
 
@@ -128,7 +128,7 @@ class ExposedGeo(Entity):
         isInSketch = False
 
         for item in obj.InList:
-            if isType(item, "BoundarySketch"):
+            if Utils.isType(item, "BoundarySketch"):
                 isInSketch = True
                 break
 
@@ -138,7 +138,7 @@ class ExposedGeo(Entity):
             obj.Document.removeObject(obj.Name)
             return prevShape
 
-        feature, elementName = getElementFromHash(container, obj.Support, requestingObjectLabel=obj.Label)
+        feature, elementName = Utils.getElementFromHash(container, obj.Support, requestingObjectLabel=obj.Label)
 
         if feature == None or elementName == None: # do not add error here, getElementFromHash already errors
             if hasattr(obj, "Missing"):
@@ -324,7 +324,7 @@ def makeExposedGeo(
         stringIDList = []
 
         if stringID == None:
-            stringIDList = getIDsFromSelection(Gui.Selection.getCompleteSelection())
+            stringIDList = Utils.getIDsFromSelection(Gui.Selection.getCompleteSelection())
         else:
             if isinstance(stringID, str):
                 stringIDList = [stringID]

@@ -16,9 +16,9 @@ from Commands.EditSketchPlacement import EditConstraintSketch
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
 from Commands.CreateJoint import CreateJoint
-from Utils.GuiUtils import SelectorWidget
+from Utils import GuiUtils
 import Grid.GridManager as GridManager
-from Utils.Constants import *
+from Utils import Constants
 import FreeCAD as App
 import FreeCADGui as Gui
 

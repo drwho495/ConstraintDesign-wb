@@ -8,8 +8,8 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getIDsFromSelection, getElementFromHash, makeBoundaryCompound, getPlaneFromStringIDList
-from Utils.Constants import *
+from Utils import Utils
+from Utils import Constants
 from Entities.Feature import Feature
 
 # this needs to be merged with Derive in a class like PartShapeCopy
@@ -84,7 +84,7 @@ class PartMirror(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(PartMirror, self).generateHashName(map)
+            hash = super(PartMirror, self).Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -94,7 +94,7 @@ class PartMirror(Feature):
         newShape = Part.Shape()
         datumShape = Part.Shape()
 
-        if isType(obj.Support, "PartContainer"):
+        if Utils.isType(obj.Support, "PartContainer"):
             if obj.Support != None:
                 pcGroup = obj.Support.Proxy.getGroup(obj.Support, False, True)
 
@@ -149,8 +149,8 @@ class PartMirror(Feature):
                 obj.ElementMap = json.dumps(elementMap)
                 
         obj.Boundary.Shape = datumShape
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.ViewObject.LineWidth = 1
         obj.Boundary.purgeTouched()
         obj.IndividualShape = newShape.copy()
@@ -305,7 +305,7 @@ def makePartMirror():
             if planeType == "Face":
                 mirror.PlaneFace = selectedObject[0]
             elif planeType == "Hashes":
-                hashes = getIDsFromSelection(fullSelection)
+                hashes = Utils.getIDsFromSelection(fullSelection)
 
                 if (type(hashes) == list and len(hashes) == 0) or hashes == None:
                     App.Console.PrintError("Unable to find string IDs from selection!")

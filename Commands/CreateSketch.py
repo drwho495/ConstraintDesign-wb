@@ -3,7 +3,7 @@ import FreeCADGui as Gui
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import getIDsFromSelection
+from Utils import Utils
 from Entities.ConstraintSketch import makeSketch
 
 class CreateConstraintSketch:
@@ -16,7 +16,7 @@ class CreateConstraintSketch:
         
     def Activated(self):
         selection = Gui.Selection.getCompleteSelection()
-        elements = getIDsFromSelection(selection)
+        elements = Utils.getIDsFromSelection(selection)
 
         if App.GuiUp == True:
             makeSketch(elements)

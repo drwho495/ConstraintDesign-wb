@@ -8,12 +8,12 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import addElementToCompoundArray, getP2PDistanceAlongNormal, generateHashName, getParent
-from Utils.Constants import *
+from Utils import Utils
+from Utils import Constants
 from Entities.Feature import Feature
 from PySide import QtWidgets
-from Utils.GuiUtils import SelectorWidget
-from Utils.SketchUtils import getIDDict
+from Utils import GuiUtils
+from Utils import SketchUtils
 import copy
 
 class LoftTaskPanel:
@@ -101,7 +101,7 @@ class LoftTaskPanel:
         # Starting offset section end
     
     def createSOffsetUTE(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
         return widget
     
     def createSOffsetBlind(self):
@@ -122,7 +122,7 @@ class LoftTaskPanel:
         return self.sOffestBlindWidget
     
     def createUTEDimension(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
         return widget
 
     def createBlindDimension(self):
@@ -357,7 +357,7 @@ class Loft(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = generateHashName(map)
+            hash = Utils.generateHashName(map)
 
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Stale": False, "Identifer": identifier}
         
@@ -375,7 +375,7 @@ class Loft(Feature):
         outerWires = []
         innerWires = []
 
-        container = getParent(obj, "PartContainer")
+        container = Utils.getParent(obj, "PartContainer")
 
         for support in obj.Supports:
             if hasattr(container, "Group") and support not in container.Group:
@@ -427,7 +427,7 @@ class Loft(Feature):
         boundaryVertexesList = []
 
         for supportNum, sketch in enumerate(obj.Supports):
-            idList = getIDDict(sketch)
+            idList = SketchUtils.getIDDict(sketch)
 
             for id,geo in idList.items():
                 geoShape = geo.toShape()
@@ -463,7 +463,7 @@ class Loft(Feature):
                     else:
                         support2GeoIDList.append(geoID)
                 
-                addElementToCompoundArray(newShape, boundaryElementList, boundaryEdgesList, boundaryVertexesList)
+                Utils.addElementToCompoundArray(newShape, boundaryElementList, boundaryEdgesList, boundaryVertexesList)
                 
                 identifier = self.makeIdentifer(str(id), geoType, "Sketch", sketch.Name)
                 identifierList.append(identifier)
@@ -474,8 +474,8 @@ class Loft(Feature):
 
         for i, edge in enumerate(finalShape.Edges):
             # avoid another for loop for better speed
-            distance1 = getP2PDistanceAlongNormal(obj.Supports[0].Placement.Base, edge.CenterOfMass, obj.Supports[0].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
-            distance2 = getP2PDistanceAlongNormal(obj.Supports[1].Placement.Base, edge.CenterOfMass, obj.Supports[1].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
+            distance1 = Utils.getP2PDistanceAlongNormal(obj.Supports[0].Placement.Base, edge.CenterOfMass, obj.Supports[0].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
+            distance2 = Utils.getP2PDistanceAlongNormal(obj.Supports[1].Placement.Base, edge.CenterOfMass, obj.Supports[1].Placement.Rotation.multVec(App.Vector(0, 0, 1)))
 
             # could cause issues with really small lofts, but i dont really care right now
             if abs(distance1) > tol and abs(distance2) > tol:
@@ -493,7 +493,7 @@ class Loft(Feature):
                 if len(idsArray) != 0:
                     idString = ":".join(idsArray)
 
-                    addElementToCompoundArray(edge.copy(), boundaryElementList, boundaryEdgesList, boundaryVertexesList)
+                    Utils.addElementToCompoundArray(edge.copy(), boundaryElementList, boundaryEdgesList, boundaryVertexesList)
 
                     element = (obj.Boundary, "Edge" + str(len(boundaryEdgesList)))
                     identifier = self.makeIdentifer(idString, "Edge", "WiresDatum", "")
@@ -512,8 +512,8 @@ class Loft(Feature):
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
         obj.Boundary.Shape = Part.Compound(boundaryElementList)
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.Visibility = True
         obj.Boundary.purgeTouched()
 

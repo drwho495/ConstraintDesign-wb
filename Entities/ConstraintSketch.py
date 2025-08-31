@@ -3,14 +3,14 @@ import FreeCADGui as Gui
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getPlaneFromStringIDList, getParent, getStringID
-from Utils.SketchUtils import hasExternalGeometryBug
-from Utils.Constants import *
+from Utils import Utils
+from Utils import SketchUtils
+from Utils import Constants
 from Entities.ExposedGeo import makeExposedGeo
 from Entities.Entity import Entity
 from PySide import QtWidgets
 import Part
-from Utils.GuiUtils import SelectorWidget
+from Utils import GuiUtils
 
 class ExternalGeoSelector:
     def __init__(self, sketch):
@@ -32,13 +32,13 @@ class ExternalGeoSelector:
             object = document.getObject(objectName)
 
             if object != None and object != self.sketch:
-                container = getParent(self.sketch, "PartContainer")
+                container = Utils.getParent(self.sketch, "PartContainer")
 
-                if isType(object, "ExposedGeometry") and hasattr(object, "UseCase") and object.UseCase == "Sketch":
+                if Utils.isType(object, "ExposedGeometry") and hasattr(object, "UseCase") and object.UseCase == "Sketch":
                     return
 
                 if container != None:
-                    stringId = getStringID(container, (object, elementName))
+                    stringId = Utils.getStringID(container, (object, elementName))
 
                     if stringId != None:
                         Gui.Selection.clearSelection()
@@ -68,8 +68,8 @@ class ConstraintSketchTaskPanel:
         layout.addLayout(buttonLayout)
 
         self.oldSupportHashes = list(getattr(obj, 'SupportHashes', []))
-        self.container = getParent(obj, "PartContainer")
-        self.selector = SelectorWidget(sizeLimit=4, addOldSelection=True, startSelection=self.oldSupportHashes, container=self.container)
+        self.container = Utils.getParent(obj, "PartContainer")
+        self.selector = GuiUtils.SelectorWidget(sizeLimit=4, addOldSelection=True, startSelection=self.oldSupportHashes, container=self.container)
         self.selector.selectionChanged.connect(self.selectionChanged)
         layout.addWidget(self.selector)
 
@@ -120,14 +120,14 @@ class ConstraintSketch(Entity):
                 for i, exGeo in enumerate(obj.ExternalGeometry):
                     object = exGeo[0]
 
-                    if not isType(object, datumTypes):
+                    if not Utils.isType(object, Constants.datumTypes):
                         obj.delExternal(i)
         
         self.lastProp = prop
 
     def addStringIDExternalGeo(self, obj, stringID, container = None):
         if container == None:
-            container = getParent(obj, "PartContainer")
+            container = Utils.getParent(obj, "PartContainer")
         
         exposedGeo = makeExposedGeo(stringID, container, "Sketch")
         exposedGeo.Proxy.generateShape(exposedGeo, Part.Shape())
@@ -153,7 +153,7 @@ class ConstraintSketch(Entity):
     
     def updateSketch(self, obj, container=None):
         if container == None:
-            container = getParent(obj, "PartContainer")
+            container = Utils.getParent(obj, "PartContainer")
 
         if hasattr(obj, "Support") and not hasattr(obj, "SupportHashes"):
             obj.addProperty("App::PropertyStringList", "SupportHashes", "Base")
@@ -238,7 +238,7 @@ class ConstraintSketchViewObject:
     # def onDelete(self, vobj, _):
     #     try:
     #         for item in vobj.Object.OutList:
-    #             if isType(item, "ExposedGeometry") and hasattr(item, "UseCase") and item.UseCase == "Sketch":
+    #             if Utils.isType(item, "ExposedGeometry") and hasattr(item, "UseCase") and item.UseCase == "Sketch":
     #                 item.Document.removeObject(item.Name)
     #     except Exception as e:
     #         App.Console.PrintWarning(f"{str(e)} occured while trying to delete sketch dependencies!\n")
@@ -300,7 +300,7 @@ def makeSketch(stringIDs, editAfter=False):
     if len(stringIDs) != 0:
         obj.SupportHashes = stringIDs
 
-    if activeObject != None and isType(activeObject, "PartContainer"):
+    if activeObject != None and Utils.isType(activeObject, "PartContainer"):
         activeObject.Proxy.addObject(activeObject, obj)
     
     if editAfter:

@@ -7,13 +7,13 @@ import re
 import json
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, getDistanceToElement, generateHashName, addElementToCompoundArray, getP2PDistanceAlongNormal, makeBoundaryCompound
-from Utils.SketchUtils import getIDDict
-from Utils.Constants import *
+from Utils import Utils
+from Utils import SketchUtils
+from Utils import Constants
 from Entities.Feature import Feature
 from PySide import QtWidgets
-from Utils.GuiUtils import SelectorWidget
-from Utils.GeometryUtils import getIntersectingFaces
+from Utils import GuiUtils
+from Utils import GeometryUtils
 from typing import List
 
 dimensionTypes = ["Blind", "UpToEntity"]
@@ -105,7 +105,7 @@ class ExtrusionTaskPanel:
         # Starting offset section end
     
     def createSOffsetUTE(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
         return widget
     
     def createSOffsetBlind(self):
@@ -126,7 +126,7 @@ class ExtrusionTaskPanel:
         return self.sOffestBlindWidget
     
     def createUTEDimension(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
         return widget
 
     def createBlindDimension(self):
@@ -444,7 +444,7 @@ class Extrusion(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = generateHashName(map)
+            hash = Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "Stale": False, "Identifier": identifier}
         
@@ -456,11 +456,11 @@ class Extrusion(Feature):
         self.timeTakeUE = 0
         self.updateProps(obj)
 
-        if hasattr(obj,"Support") and isType(obj.Support, supportTypes):
+        if hasattr(obj,"Support") and Utils.isType(obj.Support, Constants.supportTypes):
             sketch = obj.Support
             container = self.getContainer(obj)
 
-            if isType(sketch, "BoundarySketch"):
+            if Utils.isType(sketch, "BoundarySketch"):
                 sketch.Proxy.updateSketch(sketch, container)
                 
             sketchWires = list(filter(lambda w: w.isClosed(), sketch.Shape.Wires))
@@ -561,7 +561,7 @@ class Extrusion(Feature):
             boundaryEdgesList = []
             boundaryVertexesList = []
             tol = 1e-5
-            facadeDict = getIDDict(sketch, includeConstruction = obj.IncludeConstruction)
+            facadeDict = SketchUtils.getIDDict(sketch, includeConstruction = obj.IncludeConstruction)
 
             for id, geo in facadeDict.items():
                 if hasattr(geo, "StartPoint") and hasattr(geo, "EndPoint"):
@@ -596,7 +596,7 @@ class Extrusion(Feature):
                 geoShape.Orientation = "Forward"
                 oldVertNum = len(boundaryVertexesList)
 
-                addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+                Utils.addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
 
                 newVertNum = len(boundaryVertexesList)
                 newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
@@ -626,14 +626,14 @@ class Extrusion(Feature):
                         except:
                             continue
 
-                        startDist = getP2PDistanceAlongNormal(basePoint.Base, faceShape.CenterOfMass, normal)
-                        endDist = getP2PDistanceAlongNormal(endExtrudePoint.Base, faceShape.CenterOfMass, normal)
+                        startDist = Utils.getP2PDistanceAlongNormal(basePoint.Base, faceShape.CenterOfMass, normal)
+                        endDist = Utils.getP2PDistanceAlongNormal(endExtrudePoint.Base, faceShape.CenterOfMass, normal)
 
                         if faceShape.Surface.TypeId == "Part::GeomPlane" and abs(startDist) < intersectFaceTol or abs(endDist) < intersectFaceTol:
                             continue
 
                         oldEdgeNum = len(boundaryEdgesList)
-                        addElementToCompoundArray(projGeoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+                        Utils.addElementToCompoundArray(projGeoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
                         newEdgeNum = len(boundaryEdgesList)
                         numGenEdges = newEdgeNum - oldEdgeNum
 
@@ -651,7 +651,7 @@ class Extrusion(Feature):
                     oldVertNum = len(boundaryVertexesList)
 
                     # boundaryShape = Part.Compound([boundaryShape, geoShape])
-                    addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+                    Utils.addElementToCompoundArray(geoShape, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
 
                     newVertNum = len(boundaryVertexesList)
                     newVertexList = boundaryVertexesList[oldVertNum:newVertNum]
@@ -686,7 +686,7 @@ class Extrusion(Feature):
                     line.Placement = basePoint
                     oldVertNum = len(boundaryVertexesList)
                     # boundaryShape = Part.Compound([boundaryShape, line])
-                    addElementToCompoundArray(line, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
+                    Utils.addElementToCompoundArray(line, boundaryElementsList, boundaryEdgesList, boundaryVertexesList)
 
                     newVertNum = len(boundaryVertexesList)
 
@@ -742,8 +742,8 @@ class Extrusion(Feature):
             
             boundaryShape = Part.Compound(boundaryElementsList)
             obj.Boundary.Shape = boundaryShape
-            obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-            obj.Boundary.ViewObject.PointSize = boundaryPointSize
+            obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+            obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
 
             obj.Support.purgeTouched()
             obj.Boundary.purgeTouched()
@@ -865,7 +865,7 @@ def makeExtrusion(container=None, support=None, showGui = True):
         doc = container.Document
         doc.openTransaction("CreateExtrusion")
 
-        if support is not None and isType(support, supportTypes):
+        if support is not None and Utils.isType(support, Constants.supportTypes):
             obj = doc.addObject("Part::FeaturePython", "Extrusion")
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")

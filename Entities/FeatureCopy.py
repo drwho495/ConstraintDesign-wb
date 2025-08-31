@@ -9,8 +9,8 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 import Cache.DocumentCacheManager as DocCacheManager
-from Utils.Utils import isType, makeBoundaryCompound, getIDsFromSelection, getPlaneFromStringIDList, getDocumentByFileName, getVariablesOfVariableContainer
-from Utils.Constants import *
+from Utils import Utils
+from Utils import Constants
 from Entities.Feature import Feature
 
 # this is a type of feature that copies another part container (Derive, PartMirror, and LinkFeature all originate from this class)
@@ -97,7 +97,7 @@ class FeatureCopy(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(FeatureCopy, self).generateHashName(map)
+            hash = super(FeatureCopy, self).Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -128,7 +128,7 @@ class FeatureCopy(Feature):
                 and container.ObjectLinkName != None
                 and container.ObjectLinkName != ""
             ):
-                linkDocument = getDocumentByFileName(container.ObjectLinkFilePath)
+                linkDocument = Utils.getDocumentByFileName(container.ObjectLinkFilePath)
                 supportContainer = linkDocument.getObject(container.ObjectLinkName)
 
                 if (supportContainer != None 
@@ -136,7 +136,7 @@ class FeatureCopy(Feature):
                     and supportContainer.VariableContainer != None
                 ):
                     variables = supportContainer.VariableContainer
-                    properties = getVariablesOfVariableContainer(variables)
+                    properties = Utils.getVariablesOfVariableContainer(variables)
                     cacheDocument = None
                     cachedContainer = None
 
@@ -174,7 +174,7 @@ class FeatureCopy(Feature):
         else:
             tipName = obj.TipName
 
-            if obj.Support != None and isType(obj.Support, "PartContainer"):
+            if obj.Support != None and Utils.isType(obj.Support, "PartContainer"):
                 supportContainer = obj.Support
 
         if supportContainer != None:
@@ -207,7 +207,7 @@ class FeatureCopy(Feature):
         obj.IsVariantLink = createVariantLink
 
         if obj.CopyType != 2 or (obj.UpdateObject or (createVariantLink and cachedObjectChanged)):
-            if isType(supportContainer, "PartContainer"):
+            if Utils.isType(supportContainer, "PartContainer"):
                 tip = supportContainer.Document.getObject(tipName)
                 if tip != None:
                     face = None
@@ -291,7 +291,7 @@ class FeatureCopy(Feature):
                                                         propArr = prop.split(".")
                                                         propStringID = propArr[-1]
 
-                                                        if len(propStringID) == hashSize and propStringID in elementMap:
+                                                        if len(propStringID) == Constants.hashSize and propStringID in elementMap:
                                                             newFullStringId = f"{obj.Name}.{propStringID}"
                                                             setattr(fixObj, propName, newFullStringId)
                                                 elif typeId == "App::PropertyStringList":
@@ -302,7 +302,7 @@ class FeatureCopy(Feature):
                                                             propArr = singleOldID.split(".")
                                                             propStringID = propArr[-1]
 
-                                                            if len(propStringID) == hashSize and propStringID in elementMap:
+                                                            if len(propStringID) == Constants.hashSize and propStringID in elementMap:
                                                                 newFullStringId = f"{obj.Name}.{propStringID}"
                                                                 newArr.append(newFullStringId)
                                                     
@@ -330,8 +330,8 @@ class FeatureCopy(Feature):
         else:
             newShape = obj.Shape
 
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.purgeTouched()
 
         return newShape
@@ -448,7 +448,7 @@ def makeFeatureCopy(copyType = 0, copyObject = None, container = None):
     if container == None:
         container = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if container != None and isType(container, "PartContainer"):
+    if container != None and Utils.isType(container, "PartContainer"):
         doc = container.Document
         planeType = "None"
         supportSelection = []
@@ -473,7 +473,7 @@ def makeFeatureCopy(copyType = 0, copyObject = None, container = None):
             if len(selection) != 0:
                 copyObject = selection[0]
 
-        if (copyType == 2 or copyObject != None) and isType(copyObject, "PartContainer"):
+        if (copyType == 2 or copyObject != None) and Utils.isType(copyObject, "PartContainer"):
             doc.openTransaction("CreateFeatureCopy")
 
             name = "FeatureCopy"
@@ -499,7 +499,7 @@ def makeFeatureCopy(copyType = 0, copyObject = None, container = None):
                 if planeType == "Face":
                     obj.PlaneFace = copyObject[0]
                 elif planeType == "Hashes":
-                    hashes = getIDsFromSelection(fullSelection)
+                    hashes = Utils.getIDsFromSelection(fullSelection)
 
                     if (type(hashes) == list and len(hashes) == 0) or hashes == None:
                         App.Console.PrintError("Unable to find string IDs from selection!")

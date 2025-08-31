@@ -1,6 +1,6 @@
 from PySide import QtWidgets, QtCore, QtGui
 import FreeCADGui as Gui
-from Utils.Utils import getIDsFromSelection, getElementFromHash, getStringID
+from Utils import Utils
 from Utils.Constants import *
 import copy
 
@@ -86,7 +86,7 @@ class SelectorWidget(QtWidgets.QWidget):
             return
 
         if self.activeContainer != None:
-            element = getElementFromHash(self.activeContainer, hash)
+            element = Utils.getElementFromHash(self.activeContainer, hash)
 
             if element != None:
                 self.preselected = hash
@@ -107,7 +107,7 @@ class SelectorWidget(QtWidgets.QWidget):
             selection = [selection]
         
         if len(selection) != 0 and type(selection[0]) != str:
-            stringIdSelection = getIDsFromSelection(selection, self.activeContainer)
+            stringIdSelection = Utils.getIDsFromSelection(selection, self.activeContainer)
         else:
             stringIdSelection = selection
 
@@ -115,7 +115,7 @@ class SelectorWidget(QtWidgets.QWidget):
             if sel == self.preselected:
                 continue
 
-            element = getElementFromHash(self.activeContainer, sel)
+            element = Utils.getElementFromHash(self.activeContainer, sel)
 
             if element[0] != None and element[1] != None:
                 Gui.Selection.removeSelection(self.activeContainer.Document.Name, self.activeContainer.Name, f'{element[0].Name}.{element[1]}')

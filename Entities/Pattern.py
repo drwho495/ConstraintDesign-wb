@@ -8,11 +8,11 @@ import string
 import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
-from Utils.Utils import isType, makeBoundaryCompound, getPlaneFromStringIDList
+from Utils import Utils
 from Entities.Feature import Feature
-from Utils.Constants import *
+from Utils import Constants
 from PySide import QtWidgets
-from Utils.GuiUtils import SelectorWidget
+from Utils import GuiUtils
 import copy
 
 dimensionTypes = ["Blind", "UpToEntity"]
@@ -104,7 +104,7 @@ class PatternTaskPanel:
         # Starting offset section end
     
     def createSOffsetUTE(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
         return widget
     
     def createSOffsetBlind(self):
@@ -125,7 +125,7 @@ class PatternTaskPanel:
         return self.sOffestBlindWidget
     
     def createUTEDimension(self):
-        widget = SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
+        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
         return widget
 
     def createBlindDimension(self):
@@ -349,7 +349,7 @@ class Pattern(Feature):
         #         hasElement = True
 
         # if hasElement == False:
-        #     hash = generateHashName(map)
+        #     hash = Utils.generateHashName(map)
             
         #     map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType, "ElType": elType}
         
@@ -470,8 +470,8 @@ class Pattern(Feature):
         
         obj.Shape = finalShape
         obj.Boundary.Shape = boundaryCompound
-        obj.Boundary.ViewObject.LineWidth = boundaryLineWidth
-        obj.Boundary.ViewObject.PointSize = boundaryPointSize
+        obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
+        obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
 
         obj.Boundary.purgeTouched()
 
@@ -586,7 +586,7 @@ class ViewProviderPattern:
 def makePattern(patternType):
     activeObject = Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign")
 
-    if isType(activeObject, "PartContainer"):
+    if Utils.isType(activeObject, "PartContainer"):
         selectedObjects = Gui.Selection.getSelection()
         doc = activeObject.Document
         doc.openTransaction("CreatePattern")

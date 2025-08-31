@@ -3,11 +3,11 @@ import FreeCADGui as Gui
 import Part
 import time
 import os
-import Utils.MojoUtils as MojoUtils
+from Utils import MojoUtils
 import json
 import Cache.DocumentCacheManager as DocumentCacheManager
-from Utils.Utils import isType, getDependencies, getParent, isGearsWBPart, fixGear, getDocumentByFileName, getVariablesOfVariableContainer
-from Utils.Constants import *
+from Utils import Utils
+from Utils import Constants
 from Entities.FeatureCopy import makeFeatureCopy
 
 class PartContainer:
@@ -91,8 +91,8 @@ class PartContainer:
         if not hasattr(obj, "ObjectVisibilityDict"):
             self.updateProps(obj)
         
-        if isType(supportObject, supportTypes):
-            feature = getParent(supportObject, featureTypes)
+        if Utils.isType(supportObject, Constants.supportTypes):
+            feature = Utils.getParent(supportObject, Constants.featureTypes)
             group = self.getGroup(obj, True, True)
 
             if feature != None:
@@ -106,7 +106,7 @@ class PartContainer:
                     itemGroup = [item]
                     hide = False
 
-                    if item in supportObject.OutList or isType(supportObject, datumTypes) or item == feature or group.index(item) > cutoffIndex:
+                    if item in supportObject.OutList or Utils.isType(supportObject, Constants.datumTypes) or item == feature or group.index(item) > cutoffIndex:
                         hide = True
 
                     if hasattr(item, "Group"):
@@ -157,7 +157,7 @@ class PartContainer:
                 addIndex = index
 
                 for i, feature in enumerate(group):
-                    deps = getDependencies(feature, obj)
+                    deps = Utils.getDependencies(feature, obj)
 
                     if len(deps) != 0 and obj.Tip.Name in deps:
                         if i > index: addIndex += 1
@@ -192,7 +192,7 @@ class PartContainer:
     def setShownObj(self, obj, feature):
         inEdit = Gui.ActiveDocument.getInEdit()
 
-        if obj.ShownFeature == feature or (inEdit != None and isType(inEdit.Object, "BoundarySketch")):
+        if obj.ShownFeature == feature or (inEdit != None and Utils.isType(inEdit.Object, "BoundarySketch")):
             return
         
         obj.ShownFeature = feature
@@ -212,7 +212,7 @@ class PartContainer:
     def getGroup(self, obj, withNonFeatureEntities = False, skipSketch=False):
         filteredGroup = []
         for item in obj.Group:
-            if (hasattr(item, "Type") and item.Type in featureTypes) or (isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and isType(item, datumTypes)):
+            if (hasattr(item, "Type") and item.Type in Constants.featureTypes) or (Utils.isType(item, "BoundarySketch") and not skipSketch) or (withNonFeatureEntities and Utils.isType(item, Constants.datumTypes)):
                 filteredGroup.append(item)
         
         return filteredGroup
@@ -227,7 +227,7 @@ class PartContainer:
         sortedGroup = []
 
         for item in obj.Group:
-            if isType(item, type) and item.Name not in excludeObjectNames:
+            if Utils.isType(item, type) and item.Name not in excludeObjectNames:
                 sortedGroup.append(item)
         
         return sortedGroup
@@ -244,7 +244,7 @@ class PartContainer:
 
         if obj.IsLink:
             if len(obj.ObjectLinkFilePath) != 0 and len(obj.ObjectLinkName) != 0:
-                linkObj = getDocumentByFileName(obj.ObjectLinkFilePath).getObject(obj.ObjectLinkName)
+                linkObj = Utils.getDocumentByFileName(obj.ObjectLinkFilePath).getObject(obj.ObjectLinkName)
 
                 if linkObj:
                     if obj.LinkFeature == None:
@@ -253,7 +253,7 @@ class PartContainer:
                         obj.LinkFeature = newLinkFeature
                     
                     if hasattr(linkObj, "VariableContainer") and linkObj.VariableContainer != None:
-                        properties = getVariablesOfVariableContainer(linkObj.VariableContainer)
+                        properties = Utils.getVariablesOfVariableContainer(linkObj.VariableContainer)
 
                         for name, val in properties.items():
                             if not hasattr(obj, name):
@@ -278,7 +278,7 @@ class PartContainer:
 
         if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
-        if inEdit != None and isType(inEdit.Object, "BoundarySketch"):
+        if inEdit != None and Utils.isType(inEdit.Object, "BoundarySketch"):
             return
         
         if obj.ObjectVisibilityDict != "{}":
@@ -295,9 +295,9 @@ class PartContainer:
 
         # handle features
         for i, child in enumerate(group):
-            if isType(child, "BoundarySketch"):
+            if Utils.isType(child, "BoundarySketch"):
                 child.Proxy.updateSketch(child, obj)
-            elif isType(child, featureTypes):
+            elif Utils.isType(child, Constants.featureTypes):
                 if i >= startIndex and not child.Suppressed:
                     if hasattr(child.Proxy, "getSupports"):
                         supports = child.Proxy.getSupports(child)
@@ -309,7 +309,7 @@ class PartContainer:
                                 depList.extend(support.OutList)
 
                             for item in depList:
-                                if isType(item, datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
+                                if Utils.isType(item, Constants.datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
 
@@ -334,7 +334,7 @@ class PartContainer:
             child.purgeTouched()
 
         #handle datums that haven't already been recomputed
-        for item in self.getGroupOfTypes(obj, datumTypes, recomputedNameList):
+        for item in self.getGroupOfTypes(obj, Constants.datumTypes, recomputedNameList):
             if hasattr(item.Proxy, "generateShape"):
                 item.Proxy.generateShape(item, Part.Shape())
         
@@ -360,7 +360,7 @@ class PartContainer:
 
         if obj.IsLink:
             if len(obj.ObjectLinkFilePath) != 0:
-                document = getDocumentByFileName(obj.ObjectLinkFilePath)
+                document = Utils.getDocumentByFileName(obj.ObjectLinkFilePath)
 
                 if document != None and len(obj.ObjectLinkName) != 0:
                     linkedObj = document.getObject(obj.ObjectLinkName)
@@ -417,8 +417,8 @@ class PartContainer:
                 newObjects = list(set(obj.Group) - set(self.oldGroup))
 
                 for newItem in newObjects:
-                    if isGearsWBPart(newItem) and not isType(newItem, "GearsWBPart"):
-                        fixGear(newItem, obj, True)
+                    if Utils.isGearsWBPart(newItem) and not Utils.isType(newItem, "GearsWBPart"):
+                        Utils.fixGear(newItem, obj, True)
             
             self.oldGroup = obj.Group
 
