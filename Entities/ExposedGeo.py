@@ -162,7 +162,7 @@ class ExposedGeo(Entity):
                 obj.ViewObject.ShowInTree = False
                 obj.Visibility = False
 
-        scoreDocument, scopeContainer, _, _ = getObjectsFromScope(container, hashStr)
+        scoreDocument, scopeContainer, _, _ = Utils.getObjectsFromScope(container, hashStr)
         
         if elementName != None:
             element = feature.Shape.getElement(elementName).copy()
@@ -342,7 +342,7 @@ def makeExposedGeo(
                 obj = None
 
                 for egStringID in stringIDList:
-                    _, _, afterFeature, _ = getObjectsFromScope(activeObject, egStringID)
+                    _, _, afterFeature, _ = Utils.getObjectsFromScope(activeObject, egStringID)
 
                     obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
                     ExposedGeo(obj, useCase)

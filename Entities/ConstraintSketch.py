@@ -116,7 +116,7 @@ class ConstraintSketch(Entity):
             self.lastProp = ""
 
         if prop == "Constraints" and self.lastProp != prop: # dont ask
-            if not hasExternalGeometryBug():
+            if not SketchUtils.hasExternalGeometryBug():
                 for i, exGeo in enumerate(obj.ExternalGeometry):
                     object = exGeo[0]
 
@@ -171,7 +171,7 @@ class ConstraintSketch(Entity):
         
         if hasattr(obj, "SupportType") and hasattr(obj, "SupportPlane") and hasattr(obj, "SupportHashes"):
             if obj.SupportType == "Hashes" and len(obj.SupportHashes) != 0:
-                plane = getPlaneFromStringIDList(container, obj.SupportHashes, obj.Label)
+                plane = SketchUtils.getPlaneFromStringIDList(container, obj.SupportHashes, obj.Label)
 
                 if plane != None:
                     originVector = App.Vector(0,0,0)

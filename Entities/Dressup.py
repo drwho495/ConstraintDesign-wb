@@ -358,7 +358,7 @@ class FeatureDressup(Feature):
                                     try:
                                         if correctEdge:
                                             # elementsToDressup.append(edge)
-                                            _, _, _, singleID = getObjectsFromScope(container, stringID)
+                                            _, _, _, singleID = Utils.getObjectsFromScope(container, stringID)
                                             elementsToDressup[singleID] = edge
 
                                     except Exception as e:
@@ -417,7 +417,7 @@ class FeatureDressup(Feature):
 
                             if fullElement[0] != None:
                                 element = fullElement[0].Shape.getElement(fullElement[1])
-                                _, _, _, singleID = getObjectsFromScope(container, stringID)
+                                _, _, _, singleID = Utils.getObjectsFromScope(container, stringID)
 
                                 forward = True
 

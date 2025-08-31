@@ -603,7 +603,7 @@ class ViewProviderExtrusion:
         return
 
     def getIcon(self):
-        return os.path.join(os.path.dirname(__file__), "..", "icons", "Extrusion.svg")
+        return os.path.join(os.path.dirname(__file__), "..", "icons", "Loft.svg")
     
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
