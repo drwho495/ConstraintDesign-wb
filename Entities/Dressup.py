@@ -319,7 +319,6 @@ class FeatureDressup(Feature):
 
             if not hasattr(obj, "Reversed"):
                 obj.addProperty("App::PropertyBool", "Reversed", "ConstraintDesign", "Determines if the countersinks should be reversed.")
-                obj.Angle = 90
 
             if not hasattr(obj, "Boundary"):
                 obj.addProperty("App::PropertyXLink", "Boundary", "ConstraintDesign", "Boundary of this dressup")
