@@ -29,6 +29,7 @@ class PatternTaskPanel:
         self.extrusion = obj
         self.activeLayouts = []
         self.container = self.extrusion.Proxy.getContainer(self.extrusion)
+        self.unitMult = None
 
         button_layout = QtWidgets.QHBoxLayout()
         self.applyButton = QtWidgets.QPushButton("Apply")
@@ -43,198 +44,129 @@ class PatternTaskPanel:
         
         self.applyButton.clicked.connect(self.accept)
         self.updateButton.clicked.connect(self.update)
+        self.oldXCount = obj.XAxisCount if hasattr(obj, 'XAxisCount') else None
+        self.oldYCount = obj.YAxisCount if hasattr(obj, 'YAxisCount') else None
+
         self.cancelButton.clicked.connect(self.reject)
 
-        self.dimensionTypeComboLayout = QtWidgets.QHBoxLayout()
-        self.dimensionTypeLabel = QtWidgets.QLabel("Type:")
-        self.dimensionTypeCombo = QtWidgets.QComboBox()
-        self.dimensionTypeComboLayout.setContentsMargins(0, 5, 0, 0)
-
-        self.oldType = obj.DimensionType
-
-        for type in dimensionTypes:
-            self.dimensionTypeCombo.addItem(type, type)
-        
-        self.dimensionTypeCombo.setCurrentIndex(dimensionTypes.index(obj.DimensionType))
-
-        self.dimensionTypeComboLayout.addWidget(self.dimensionTypeLabel)
-        self.dimensionTypeComboLayout.addWidget(self.dimensionTypeCombo)
-        self.layout.addLayout(self.dimensionTypeComboLayout)
-
-        self.blindDimensionWidget = self.createBlindDimension()
-        self.selectorWidget = self.createUTEDimension()
-        self.updateGuiDimensionType()
-
-        self.dimensionTypeCombo.currentIndexChanged.connect(self.dimensionTypeChanged)
-        self.layout.addWidget(self.selectorWidget)
-        self.layout.addWidget(self.blindDimensionWidget)
-
-        # Starting offset section start
-        self.startingOffsetLayout = QtWidgets.QVBoxLayout()
-        self.startingOffsetComboRow = QtWidgets.QHBoxLayout()
-        self.offsetLabel = QtWidgets.QLabel("Starting Offset Type:")
-        self.startOffsetCombo = QtWidgets.QComboBox()
-        self.startingOffsetComboRow.setContentsMargins(0, 5, 0, 0)
-        self.oldStartingOffsetType = obj.StartingOffsetType
-        self.oldStartingOffsetEnabled = obj.StartingOffset
-        self.oldStartingOffsetLength = obj.StartingOffsetLength
-
-        self.sOffestBlindWidget = self.createSOffsetBlind()
-        self.sOffsetSelectorWidget = self.createSOffsetUTE()
-
-        self.startingOffsetComboRow.addWidget(self.offsetLabel)
-        self.startingOffsetComboRow.addWidget(self.startOffsetCombo)
-        self.startingOffsetLayout.addLayout(self.startingOffsetComboRow)
-        self.startingOffsetLayout.addWidget(self.sOffestBlindWidget)
-        self.startingOffsetLayout.addWidget(self.sOffsetSelectorWidget)
-
-        self.layout.addLayout(self.startingOffsetLayout)
-
-        self.startOffsetCombo.addItem("None", "None")
-        for type in startingOffsetTypes:
-            self.startOffsetCombo.addItem(type, type)
-        
-        self.startOffsetCombo.currentIndexChanged.connect(self.offsetTypeChanged)
-
-        if self.extrusion.StartingOffset:
-            self.startOffsetCombo.setCurrentIndex(startingOffsetTypes.index(obj.StartingOffsetType) + 1)
-        else:
-            self.startOffsetCombo.setCurrentIndex(0)
-        
-        self.updateGuiStartingOffset()
-        # Starting offset section end
+        self.patternWidget = self.createBlindDimension()
+        self.layout.addWidget(self.patternWidget)
     
     def createSOffsetUTE(self):
-        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.StartingOffsetUpToEntity], sizeLimit=1)
-        return widget
+        return QtWidgets.QWidget()
     
     def createSOffsetBlind(self):
-        self.sOffestBlindWidget = QtWidgets.QWidget()
-        self.sOffestBlindLayout = QtWidgets.QHBoxLayout()
-        self.sOffestBlindLayout.setContentsMargins(10, 0, 0, 0)
-        self.sOffsetBlindLabel = QtWidgets.QLabel("Starting Offset Length:")
-        self.sOffsetBlindInput = QtWidgets.QDoubleSpinBox()
-        self.sOffsetBlindInput.setMinimum(-100000)
-        self.sOffsetBlindInput.setMaximum(100000)
-        self.sOffsetBlindInput.setSingleStep(1)
-        self.sOffsetBlindInput.setValue(self.oldStartingOffsetLength)
-
-        self.sOffestBlindLayout.addWidget(self.sOffsetBlindLabel)
-        self.sOffestBlindLayout.addWidget(self.sOffsetBlindInput)
-        self.sOffestBlindWidget.setLayout(self.sOffestBlindLayout)
-
-        return self.sOffestBlindWidget
+        return QtWidgets.QWidget()
     
     def createUTEDimension(self):
-        widget = GuiUtils.SelectorWidget(container=self.container, startSelection=[self.extrusion.UpToEntity], sizeLimit=1)
-        return widget
+        return QtWidgets.QWidget()
 
     def createBlindDimension(self):
-        self.oldLength = self.extrusion.Length
+        if hasattr(self.extrusion.XAxisLength, 'getUserPreferred'):
+            self.xUnitMult = self.extrusion.XAxisLength.getUserPreferred()[1]
+            self.oldX = self.extrusion.XAxisLength.Value
+        else:
+            self.xUnitMult = 1
+            self.oldX = self.extrusion.XAxisLength
+        if hasattr(self.extrusion.YAxisLength, 'getUserPreferred'):
+            self.yUnitMult = self.extrusion.YAxisLength.getUserPreferred()[1]
+            self.oldY = self.extrusion.YAxisLength.Value
+        else:
+            self.yUnitMult = 1
+            self.oldY = self.extrusion.YAxisLength
 
         widget = QtWidgets.QWidget()
-        self.blindDimensionRow = QtWidgets.QHBoxLayout()
-        self.blindLabel = QtWidgets.QLabel("Length:")
-        self.blindInput = QtWidgets.QDoubleSpinBox()
-        self.blindInput.setMinimum(-100000)
-        self.blindInput.setMaximum(100000)
-        self.blindInput.setSingleStep(1)
-        self.blindDimensionRow.setContentsMargins(10, 0, 0, 0)
-        self.blindInput.setValue(self.oldLength)
+        layout = QtWidgets.QVBoxLayout()
 
-        self.blindDimensionRow.addWidget(self.blindLabel)
-        self.blindDimensionRow.addWidget(self.blindInput)
-        self.blindDimensionRow.addStretch()
+        xRow = QtWidgets.QHBoxLayout()
+        xLabel = QtWidgets.QLabel("X Length:")
+        self.xInput = QtWidgets.QDoubleSpinBox()
+        self.xInput.setMinimum(-100000)
+        self.xInput.setMaximum(100000)
+        self.xInput.setSingleStep(1)
+        xRow.setContentsMargins(10, 0, 0, 0)
+        self.xInput.setValue(self.oldX / self.xUnitMult)
+        xRow.addWidget(xLabel)
+        xRow.addWidget(self.xInput)
+        xRow.addStretch()
 
+        yRow = QtWidgets.QHBoxLayout()
+        yLabel = QtWidgets.QLabel("Y Length:")
+        self.yInput = QtWidgets.QDoubleSpinBox()
+        self.yInput.setMinimum(-100000)
+        self.yInput.setMaximum(100000)
+        self.yInput.setSingleStep(1)
+        yRow.setContentsMargins(10, 0, 0, 0)
+        self.yInput.setValue(self.oldY / self.yUnitMult)
+        yRow.addWidget(yLabel)
+        yRow.addWidget(self.yInput)
+        yRow.addStretch()
 
-        widget.setLayout(self.blindDimensionRow)
+        countsRow = QtWidgets.QHBoxLayout()
+        xCountLabel = QtWidgets.QLabel("X Count:")
+        self.xCountInput = QtWidgets.QSpinBox()
+        self.xCountInput.setMinimum(1)
+        self.xCountInput.setMaximum(100000)
+        self.xCountInput.setValue(self.extrusion.XAxisCount)
+        yCountLabel = QtWidgets.QLabel("Y Count:")
+        self.yCountInput = QtWidgets.QSpinBox()
+        self.yCountInput.setMinimum(1)
+        self.yCountInput.setMaximum(100000)
+        self.yCountInput.setValue(self.extrusion.YAxisCount)
+        countsRow.addWidget(xCountLabel)
+        countsRow.addWidget(self.xCountInput)
+        countsRow.addWidget(yCountLabel)
+        countsRow.addWidget(self.yCountInput)
+        countsRow.addStretch()
 
+        layout.addLayout(xRow)
+        layout.addLayout(yRow)
+        layout.addLayout(countsRow)
+        widget.setLayout(layout)
         return widget
     
     def offsetTypeChanged(self, index):
-        newType = self.startOffsetCombo.itemData(index)
-
-        if newType == "None":
-            self.extrusion.StartingOffset = False
-        else:
-            self.extrusion.StartingOffset = True
-            self.extrusion.StartingOffsetType = newType
-        
-        self.updateGuiStartingOffset()
+        pass
     
     def dimensionTypeChanged(self, index):
-        newType = self.dimensionTypeCombo.itemData(index)
-        self.extrusion.DimensionType = newType
-
-        self.updateGuiDimensionType()
+        pass
     
     def updateGuiStartingOffset(self):
-        if self.extrusion.StartingOffset:
-            if self.extrusion.StartingOffsetType == "Blind":
-                self.sOffestBlindWidget.show()
-                self.sOffsetSelectorWidget.hide()
-                self.sOffsetSelectorWidget.toggleSelections(False)
-            elif self.extrusion.StartingOffsetType == "UpToEntity":
-                self.sOffestBlindWidget.hide()
-                self.sOffsetSelectorWidget.show()
-                self.sOffsetSelectorWidget.toggleSelections(True)
+        pass
     
     def updateGuiDimensionType(self):
-        if self.extrusion.DimensionType == "Blind":
-            self.selectorWidget.hide()
-            self.selectorWidget.toggleSelections(False)
-            
-            self.blindDimensionWidget.show()
-                
-        elif self.extrusion.DimensionType == "UpToEntity":
-            self.blindDimensionWidget.hide()
-            Gui.Selection.clearSelection()
-
-            self.selectorWidget.toggleSelections(True)
-            self.selectorWidget.show()
-
-            self.oldUpToEntity = self.extrusion.UpToEntity
+        pass
 
     def update(self):
-        if self.extrusion.DimensionType == "Blind":
-            self.extrusion.Length = self.blindInput.value()
-        elif self.extrusion.DimensionType == "UpToEntity":
-            selection = self.selectorWidget.getSelection()
-
-            if len(selection) != 0:
-                self.extrusion.UpToEntity = selection[0]
-        
-        if self.extrusion.StartingOffset:
-            if self.extrusion.StartingOffsetType == "Blind":
-                self.extrusion.StartingOffsetLength = self.sOffsetBlindInput.value()
-            elif self.extrusion.StartingOffsetType == "UpToEntity":
-                selection = self.sOffsetSelectorWidget.getSelection()
-
-                if len(selection) != 0:
-                    self.extrusion.StartingOffsetUpToEntity = selection[0]
-
+        if hasattr(self.extrusion.XAxisLength, 'Value'):
+            self.extrusion.XAxisLength.Value = (self.xInput.value() * self.xUnitMult)
+        else:
+            self.extrusion.XAxisLength = self.xInput.value()
+        if hasattr(self.extrusion.YAxisLength, 'Value'):
+            self.extrusion.YAxisLength.Value = (self.yInput.value() * self.yUnitMult)
+        else:
+            self.extrusion.YAxisLength = self.yInput.value()
+        self.extrusion.XAxisCount = self.xCountInput.value()
+        self.extrusion.YAxisCount = self.yCountInput.value()
         self.container.recompute()
     
     def accept(self):
         self.update()
 
-        self.selectorWidget.cleanup()
-        self.sOffsetSelectorWidget.cleanup()
-
         Gui.Control.closeDialog()
 
     def reject(self):
-        if hasattr(self, "oldLength"):
-            self.extrusion.Length = self.oldLength
-        if hasattr(self, "oldUpToEntity"):
-            self.extrusion.UpToEntity = self.oldUpToEntity
-
-        self.extrusion.DimensionType = self.oldType
-
+        if hasattr(self, "oldX"):
+            if hasattr(self.extrusion.XAxisLength, 'Value'):
+                self.extrusion.XAxisLength.Value = self.oldX
+            else:
+                self.extrusion.XAxisLength = self.oldX
+        if hasattr(self, "oldY"):
+            if hasattr(self.extrusion.YAxisLength, 'Value'):
+                self.extrusion.YAxisLength.Value = self.oldY
+            else:
+                self.extrusion.YAxisLength = self.oldY
         self.container.recompute()
-
-        self.selectorWidget.cleanup()
-        self.sOffsetSelectorWidget.cleanup()
 
         Gui.Control.closeDialog()
 
@@ -272,17 +204,37 @@ class Pattern(Feature):
                 obj.addProperty("App::PropertyInteger", "XAxisCount", "ConstraintDesign", "Number of features propogated along the X axis.")
                 obj.XAxisCount = 2
             
-            if not hasattr(obj, "XAxisLength"):
-                obj.addProperty("App::PropertyFloat", "XAxisLength", "ConstraintDesign")
-                obj.XAxisLength = 10
+            if (not hasattr(obj, "XAxisLength")
+                or obj.getTypeIdOfProperty("XAxisLength") == "App::PropertyFloat"
+                or obj.getTypeIdOfProperty("XAxisLength") == "App::PropertyLength"
+            ):
+                newVal = 10
+                if hasattr(obj, "XAxisLength"):
+                    if hasattr(obj.XAxisLength, "Value"):
+                        newVal = obj.XAxisLength.Value
+                    else:
+                        newVal = obj.XAxisLength
+                    obj.removeProperty("XAxisLength")
+                obj.addProperty("App::PropertyDistance", "XAxisLength", "ConstraintDesign")
+                obj.XAxisLength.Value = newVal
             
             if not hasattr(obj, "YAxisCount"):
                 obj.addProperty("App::PropertyInteger", "YAxisCount", "ConstraintDesign", "Number of features propogated along the Y axis.")
                 obj.YAxisCount = 2
             
-            if not hasattr(obj, "YAxisLength"):
-                obj.addProperty("App::PropertyFloat", "YAxisLength", "ConstraintDesign")
-                obj.YAxisLength = 10
+            if (not hasattr(obj, "YAxisLength")
+                or obj.getTypeIdOfProperty("YAxisLength") == "App::PropertyFloat"
+                or obj.getTypeIdOfProperty("YAxisLength") == "App::PropertyLength"
+            ):
+                newVal = 10
+                if hasattr(obj, "YAxisLength"):
+                    if hasattr(obj.YAxisLength, "Value"):
+                        newVal = obj.YAxisLength.Value
+                    else:
+                        newVal = obj.YAxisLength
+                    obj.removeProperty("YAxisLength")
+                obj.addProperty("App::PropertyDistance", "YAxisLength", "ConstraintDesign")
+                obj.YAxisLength.Value = newVal
 
             if not hasattr(obj, "DirectionPlane"):
                 obj.addProperty("App::PropertyStringList", "DirectionPlane", "ConstraintDesign")
@@ -406,10 +358,10 @@ class Pattern(Feature):
             placementLocations = []
             
             for Yi in range(obj.YAxisCount):
-                y = Yi * obj.YAxisLength
+                y = Yi * (obj.YAxisLength.Value if hasattr(obj.YAxisLength, 'Value') else obj.YAxisLength)
 
                 for Xi in range(obj.XAxisCount):
-                    x = Xi * obj.XAxisLength
+                    x = Xi * (obj.XAxisLength.Value if hasattr(obj.XAxisLength, 'Value') else obj.XAxisLength)
 
                     if x == 0 and y == 0:
                         continue
