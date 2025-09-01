@@ -255,7 +255,6 @@ class FeatureDressup(Feature):
 
             if (not hasattr(obj, "Radius")
                 or obj.getTypeIdOfProperty("Radius") == "App::PropertyFloat"
-                or obj.getTypeIdOfProperty("Radius") == "App::PropertyLength"
             ):
                 newVal = 1.0
                 if hasattr(obj, "Radius"):
@@ -275,7 +274,6 @@ class FeatureDressup(Feature):
 
             if (not hasattr(obj, "Length")
                 or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat"
-                or obj.getTypeIdOfProperty("Length") == "App::PropertyLength"
             ):
                 newVal = 1.0
                 if hasattr(obj, "Length"):
@@ -291,7 +289,6 @@ class FeatureDressup(Feature):
 
             if (not hasattr(obj, "Diameter")
                 or obj.getTypeIdOfProperty("Diameter") == "App::PropertyFloat"
-                or obj.getTypeIdOfProperty("Diameter") == "App::PropertyLength"
             ):
                 newVal = 8
                 if hasattr(obj, "Diameter"):

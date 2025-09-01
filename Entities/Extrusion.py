@@ -299,7 +299,6 @@ class Extrusion(Feature):
         
         if (not hasattr(obj, "Length")
             or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat"
-            or obj.getTypeIdOfProperty("Length") == "App::PropertyLength"
         ):
             newLength = 10
 

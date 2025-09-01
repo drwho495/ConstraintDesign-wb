@@ -206,7 +206,6 @@ class Pattern(Feature):
             
             if (not hasattr(obj, "XAxisLength")
                 or obj.getTypeIdOfProperty("XAxisLength") == "App::PropertyFloat"
-                or obj.getTypeIdOfProperty("XAxisLength") == "App::PropertyLength"
             ):
                 newVal = 10
                 if hasattr(obj, "XAxisLength"):
@@ -224,7 +223,6 @@ class Pattern(Feature):
             
             if (not hasattr(obj, "YAxisLength")
                 or obj.getTypeIdOfProperty("YAxisLength") == "App::PropertyFloat"
-                or obj.getTypeIdOfProperty("YAxisLength") == "App::PropertyLength"
             ):
                 newVal = 10
                 if hasattr(obj, "YAxisLength"):
