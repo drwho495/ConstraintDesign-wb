@@ -76,7 +76,7 @@ class ExtrusionTaskPanel:
         self.startingOffsetComboRow.setContentsMargins(0, 5, 0, 0)
         self.oldStartingOffsetType = obj.StartingOffsetType
         self.oldStartingOffsetEnabled = obj.StartingOffset
-        self.oldStartingOffsetLength = obj.StartingOffsetLength
+        self.oldStartingOffsetLength = obj.StartingOffsetLength.Value
         self.oldStartingOffsetUTE = obj.StartingOffsetUpToEntity
 
         self.sOffestBlindWidget = self.createSOffsetBlind()
@@ -209,7 +209,7 @@ class ExtrusionTaskPanel:
         
         if self.extrusion.StartingOffset:
             if self.extrusion.StartingOffsetType == "Blind":
-                self.extrusion.StartingOffsetLength = (self.sOffsetBlindInput.value() * self.unitMult)
+                self.extrusion.StartingOffsetLength.Value = (self.sOffsetBlindInput.value() * self.unitMult)
             elif self.extrusion.StartingOffsetType == "UpToEntity":
                 selection = self.sOffsetSelectorWidget.getSelection()
 
@@ -235,7 +235,7 @@ class ExtrusionTaskPanel:
         self.extrusion.DimensionType = self.oldType
         self.extrusion.StartingOffset = self.oldStartingOffsetEnabled
         self.extrusion.StartingOffsetType = self.oldStartingOffsetType
-        self.extrusion.StartingOffsetLength = self.oldStartingOffsetLength
+        self.extrusion.StartingOffsetLength.Value = self.oldStartingOffsetLength
         self.extrusion.StartingOffsetUpToEntity = self.oldStartingOffsetUTE
 
         # self.container.recompute()
@@ -299,7 +299,6 @@ class Extrusion(Feature):
         
         if (not hasattr(obj, "Length")
             or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat"
-            or obj.getTypeIdOfProperty("Length") == "App::PropertyLength"
         ):
             newLength = 10
 
@@ -330,8 +329,19 @@ class Extrusion(Feature):
         if not hasattr(obj, "StartingOffsetUpToEntity"):
             obj.addProperty("App::PropertyString", "StartingOffsetUpToEntity", "ConstraintDesign")
         
-        if not hasattr(obj, "StartingOffsetLength"):
-            obj.addProperty("App::PropertyFloat", "StartingOffsetLength", "ConstraintDesign")
+        if (not hasattr(obj, "StartingOffsetLength")
+            or obj.getTypeIdOfProperty("StartingOffsetLength") == "App::PropertyFloat"
+            or obj.getTypeIdOfProperty("StartingOffsetLength") == "App::PropertyLength"
+        ):
+            newStartingOffset = 0
+            if hasattr(obj, "StartingOffsetLength"):
+                if hasattr(obj.StartingOffsetLength, "Value"):
+                    newStartingOffset = obj.StartingOffsetLength.Value
+                else:
+                    newStartingOffset = obj.StartingOffsetLength
+                obj.removeProperty("StartingOffsetLength")
+            obj.addProperty("App::PropertyDistance", "StartingOffsetLength", "ConstraintDesign")
+            obj.StartingOffsetLength.Value = newStartingOffset
     
     def showGui(self, obj):
         Gui.Control.showDialog(ExtrusionTaskPanel(obj))
@@ -484,7 +494,7 @@ class Extrusion(Feature):
                         
             if obj.StartingOffset:
                 if obj.StartingOffsetType == "Blind":
-                    ZOffset += obj.StartingOffsetLength
+                    ZOffset += obj.StartingOffsetLength.Value
                 elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
                     ZOffset += Utils.getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal, requestingObjectLabel=obj.Label)
             
