@@ -136,22 +136,13 @@ class DressupTaskPanel:
             self.dressup.Radius.Value = radius
         elif self.dressup.DressupType == 1:
             length = self.lengthInput.value()
-            if hasattr(self.dressup.Length, 'Value'):
-                self.dressup.Length.Value = (length * self.lengthUnitMult)
-            else:
-                self.dressup.Length = length
+            self.dressup.Length.Value = (length * self.lengthUnitMult)
         elif self.dressup.DressupType == 2:
             diameter = self.diameterInput.value()
-            if hasattr(self.dressup.Diameter, 'Value'):
-                self.dressup.Diameter.Value = (diameter * self.diameterUnitMult)
-            else:
-                self.dressup.Diameter = diameter
+            self.dressup.Diameter.Value = (diameter * self.diameterUnitMult)
 
             angle = self.angleInput.value()
-            if hasattr(self.dressup.Angle, 'Value'):
-                self.dressup.Angle.Value = angle
-            else:
-                self.dressup.Angle = angle
+            self.dressup.Angle.Value = angle
 
         self.dressup.Edges = selected
         self.container.recompute()
@@ -173,19 +164,10 @@ class DressupTaskPanel:
         if self.dressup.DressupType == 0:
             self.dressup.Radius.Value = self.oldRadius
         elif self.dressup.DressupType == 1:
-            if hasattr(self.dressup.Length, 'Value'):
-                self.dressup.Length.Value = self.oldLength
-            else:
-                self.dressup.Length = self.oldLength
+            self.dressup.Length.Value = self.oldLength
         elif self.dressup.DressupType == 2:
-            if hasattr(self.dressup.Diameter, 'Value'):
-                self.dressup.Diameter.Value = self.oldDiameter
-            else:
-                self.dressup.Diameter = self.oldDiameter
-            if hasattr(self.dressup.Angle, 'Value'):
-                self.dressup.Angle.Value = self.oldAngle
-            else:
-                self.dressup.Angle = self.oldAngle
+            self.dressup.Diameter.Value = self.oldDiameter
+            self.dressup.Angle.Value = self.oldAngle
 
         # self.container.recompute()
         
@@ -442,7 +424,7 @@ class FeatureDressup(Feature):
 
                             for stringID, filletElement in elementsToDressup.items():
                                 try:
-                                    filletShape = prevShape.makeFillet((obj.Radius.Value if hasattr(obj.Radius, 'Value') else obj.Radius), filletElement)
+                                    filletShape = prevShape.makeFillet(obj.Radius.Value, filletElement)
 
                                     cutShapeList.append(prevShape.cut(filletShape))
                                     fuseShapeList.append(filletShape.cut(prevShape))
@@ -456,24 +438,24 @@ class FeatureDressup(Feature):
                             if len(fuseShapeList) != 0:
                                 dressupShape = dressupShape.fuse(Part.makeCompound(fuseShapeList))
                         else:
-                            dressupShape = prevShape.makeFillet((obj.Radius.Value if hasattr(obj.Radius, 'Value') else obj.Radius), list(elementsToDressup.values()))
+                            dressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
                 except Exception as e:
                     App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
             elif hasattr(obj, "DressupType") and obj.DressupType == 1:
                 try:
                     if len(elementsToDressup) != 0:
-                        dressupShape = prevShape.makeChamfer((obj.Length.Value if hasattr(obj.Length, 'Value') else obj.Length), list(elementsToDressup.values()))
+                        dressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
                 except Exception as e:
                     dressupShape = prevShape
                     App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
             elif hasattr(obj, "DressupType") and obj.DressupType == 2:
                     try:
-                        depth = ( (obj.Diameter.Value if hasattr(obj.Diameter, 'Value') else obj.Diameter)/2 ) * math.tan((math.radians((obj.Angle.Value if hasattr(obj.Angle, 'Value') else obj.Angle))) / 2)
+                        depth = (obj.Diameter.Value/2) * math.tan((math.radians(obj.Angle.Value)) / 2)
 
                         # I have two of these to save on possible computation time, I should't need to constantly recreate
                         # the cone each time.
-                        forwardCone = Part.makeCone((obj.Diameter.Value if hasattr(obj.Diameter, 'Value') else obj.Diameter)/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
-                        reversedCone = Part.makeCone((obj.Diameter.Value if hasattr(obj.Diameter, 'Value') else obj.Diameter)/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
+                        forwardCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
+                        reversedCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
                         cutCompoundArray = []
                         map = json.loads(obj.ElementMap)
                         boundaryShape = Part.Shape()
@@ -502,7 +484,7 @@ class FeatureDressup(Feature):
                                     placement.Rotation = element.Placement.Rotation
 
                                     topCircle = Part.Circle()
-                                    topCircle.Radius = (obj.Diameter.Value if hasattr(obj.Diameter, 'Value') else obj.Diameter)/2
+                                    topCircle.Radius = obj.Diameter.Value/2
                                     topCircleSh = topCircle.toShape()
                                     topCircleSh.Placement = placement
 
@@ -511,8 +493,8 @@ class FeatureDressup(Feature):
                                     identifiers.append(identifier)
                                     map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
 
-                                    thetaRad = math.radians((obj.Angle.Value if hasattr(obj.Angle, 'Value') else obj.Angle) / 2)
-                                    deltaR = (obj.Diameter.Value if hasattr(obj.Diameter, 'Value') else obj.Diameter)/2 - radius
+                                    thetaRad = math.radians(obj.Angle.Value / 2)
+                                    deltaR = obj.Diameter.Value/2 - radius
                                     slantDist = deltaR * math.tan(thetaRad)
 
                                     if not forward:

@@ -62,18 +62,10 @@ class PatternTaskPanel:
         return QtWidgets.QWidget()
 
     def createBlindDimension(self):
-        if hasattr(self.extrusion.XAxisLength, 'getUserPreferred'):
-            self.xUnitMult = self.extrusion.XAxisLength.getUserPreferred()[1]
-            self.oldX = self.extrusion.XAxisLength.Value
-        else:
-            self.xUnitMult = 1
-            self.oldX = self.extrusion.XAxisLength
-        if hasattr(self.extrusion.YAxisLength, 'getUserPreferred'):
-            self.yUnitMult = self.extrusion.YAxisLength.getUserPreferred()[1]
-            self.oldY = self.extrusion.YAxisLength.Value
-        else:
-            self.yUnitMult = 1
-            self.oldY = self.extrusion.YAxisLength
+        self.xUnitMult = self.extrusion.XAxisLength.getUserPreferred()[1]
+        self.oldX = self.extrusion.XAxisLength.Value
+        self.yUnitMult = self.extrusion.YAxisLength.getUserPreferred()[1]
+        self.oldY = self.extrusion.YAxisLength.Value
 
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
@@ -138,14 +130,8 @@ class PatternTaskPanel:
         pass
 
     def update(self):
-        if hasattr(self.extrusion.XAxisLength, 'Value'):
-            self.extrusion.XAxisLength.Value = (self.xInput.value() * self.xUnitMult)
-        else:
-            self.extrusion.XAxisLength = self.xInput.value()
-        if hasattr(self.extrusion.YAxisLength, 'Value'):
-            self.extrusion.YAxisLength.Value = (self.yInput.value() * self.yUnitMult)
-        else:
-            self.extrusion.YAxisLength = self.yInput.value()
+        self.extrusion.XAxisLength.Value = (self.xInput.value() * self.xUnitMult)
+        self.extrusion.YAxisLength.Value = (self.yInput.value() * self.yUnitMult)
         self.extrusion.XAxisCount = self.xCountInput.value()
         self.extrusion.YAxisCount = self.yCountInput.value()
         self.container.recompute()
@@ -157,15 +143,9 @@ class PatternTaskPanel:
 
     def reject(self):
         if hasattr(self, "oldX"):
-            if hasattr(self.extrusion.XAxisLength, 'Value'):
-                self.extrusion.XAxisLength.Value = self.oldX
-            else:
-                self.extrusion.XAxisLength = self.oldX
+            self.extrusion.XAxisLength.Value = self.oldX
         if hasattr(self, "oldY"):
-            if hasattr(self.extrusion.YAxisLength, 'Value'):
-                self.extrusion.YAxisLength.Value = self.oldY
-            else:
-                self.extrusion.YAxisLength = self.oldY
+            self.extrusion.YAxisLength.Value = self.oldY
         self.container.recompute()
 
         Gui.Control.closeDialog()
@@ -356,10 +336,10 @@ class Pattern(Feature):
             placementLocations = []
             
             for Yi in range(obj.YAxisCount):
-                y = Yi * (obj.YAxisLength.Value if hasattr(obj.YAxisLength, 'Value') else obj.YAxisLength)
+                y = Yi * obj.YAxisLength.Value
 
                 for Xi in range(obj.XAxisCount):
-                    x = Xi * (obj.XAxisLength.Value if hasattr(obj.XAxisLength, 'Value') else obj.XAxisLength)
+                    x = Xi * obj.XAxisLength.Value
 
                     if x == 0 and y == 0:
                         continue
