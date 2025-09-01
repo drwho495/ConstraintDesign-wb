@@ -442,13 +442,9 @@ class ViewProviderPattern:
         self.Origin = None
     
     def onDelete(self, vobj, subelements):
-        if hasattr(vobj.Object, "WiresDatum"):
-            if vobj.Object.WiresDatum != None:
-                vobj.Object.Document.removeObject(vobj.Object.WiresDatum.Name)
-
-        if hasattr(vobj.Object, "SketchProjection"):
-            if vobj.Object.SketchProjection != None:
-                vobj.Object.Document.removeObject(vobj.Object.SketchProjection.Name)
+        if hasattr(vobj.Object, "Boundary"):
+            if vobj.Object.Boundary != None:
+                vobj.Object.Document.removeObject(vobj.Object.Boundary.Name)
         
         return True
     
@@ -522,9 +518,13 @@ def makePattern(patternType):
         selectedObjects = Gui.Selection.getSelection()
         doc = activeObject.Document
         doc.openTransaction("CreatePattern")
+        name = "Pattern"
+
+        if patternType == 0:
+            name = "LinearPattern"
 
         if len(selectedObjects) != 0:
-            obj = doc.addObject("Part::FeaturePython", "Pattern")
+            obj = doc.addObject("Part::FeaturePython", name)
             boundary = doc.addObject("Part::Feature", "Boundary")
             boundary.addProperty("App::PropertyString", "Type")
             boundary.Type = "Boundary"

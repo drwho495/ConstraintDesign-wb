@@ -493,15 +493,6 @@ class ViewProviderPartContainer:
         else:
             return os.path.join(os.path.dirname(__file__), "icons", "ConstraintPart.svg")
     
-    # def claimChildren(self):
-        # App.Console.PrintMessage('claimChildren called\n')
-        # if hasattr(self, "Object"):
-            # return self.Object.Object.Group
-        # return []
-
-    # def dragObject(self, obj):
-        # App.Console.PrintMessage(obj)
-
     def __getstate__(self):
         # Called when saving
         return None
@@ -544,5 +535,9 @@ def makePartContainer(linkToObject = None):
         
         obj.ObjectLinkFilePath = linkToObject.Document.FileName
         obj.ObjectLinkName = linkToObject.Name
+    else:
+        # after creating the container, 
+        # set it as the active object to make the user's workflow easier
+        obj.ViewObject.Proxy.setEdit(obj.ViewObject, None)
 
     return obj
