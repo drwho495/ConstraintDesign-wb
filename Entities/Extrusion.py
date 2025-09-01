@@ -486,12 +486,12 @@ class Extrusion(Feature):
                 if obj.StartingOffsetType == "Blind":
                     ZOffset += obj.StartingOffsetLength
                 elif obj.StartingOffsetType == "UpToEntity" and obj.StartingOffsetUpToEntity != "":
-                    ZOffset += getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal, requestingObjectLabel=obj.Label)
+                    ZOffset += Utils.getDistanceToElement(obj, obj.StartingOffsetUpToEntity, sketch.Placement.Base, normal, requestingObjectLabel=obj.Label)
             
             offsetVector = normal * ZOffset       
 
             if obj.DimensionType == "UpToEntity" and obj.UpToEntity != "":
-                extrudeLength = getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal, requestingObjectLabel=obj.Label)
+                extrudeLength = Utils.getDistanceToElement(obj, obj.UpToEntity, (sketch.Placement.Base + offsetVector), normal, requestingObjectLabel=obj.Label)
 
             extrudeVector = normal * extrudeLength
             extrusion = prevShape
@@ -522,8 +522,8 @@ class Extrusion(Feature):
                         else:
                             break
                     
-                    boundaryCompound, compElMap = makeBoundaryCompound(filteredFeatures, True, "_")
-                    intersectingFaceMap = getIntersectingFaces(prevShape,
+                    boundaryCompound, compElMap = Utils.makeBoundaryCompound(filteredFeatures, True, "_")
+                    intersectingFaceMap = GeometryUtils.getIntersectingFaces(prevShape,
                                                                extrusion,
                                                                boundaryCompound,
                                                                compElMap)

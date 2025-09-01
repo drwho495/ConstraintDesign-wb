@@ -11,8 +11,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 from Utils import Utils
 from Entities.Feature import Feature
 from Utils import Constants
-from PySide import QtWidgets
 from Utils import GuiUtils
+from Utils import SketchUtils
+from PySide import QtWidgets
 import copy
 
 dimensionTypes = ["Blind", "UpToEntity"]
@@ -360,7 +361,7 @@ class Pattern(Feature):
         finalShape = prevShape.copy()
         individualShape = Part.Shape()
         finalIndividualShape = Part.Shape()
-        baseBoundarySh, initialMap = makeBoundaryCompound(obj.Features, True, obj.Boundary.Name)
+        baseBoundarySh, initialMap = Utils.makeBoundaryCompound(obj.Features, True, obj.Boundary.Name)
         finalMap = {}
         boundaryCompound = Part.Shape()
         occurence = 0 # necessary because of X and Y instances
@@ -397,7 +398,7 @@ class Pattern(Feature):
 
             if len(obj.DirectionPlane) != 0:
                 container = self.getContainer(obj)
-                plane = getPlaneFromStringIDList(container, obj.DirectionPlane, requestingObjectLabel = obj.Label)
+                plane = Utils.getPlaneFromStringIDList(container, obj.DirectionPlane, requestingObjectLabel = obj.Label)
 
                 if plane != None:
                     rot = plane.Rotation

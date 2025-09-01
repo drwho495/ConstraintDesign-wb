@@ -5,7 +5,7 @@ import random
 import string
 import Part
 import importlib
-from Utils.Constants import *
+from Utils import Constants
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
 def getDependencies(obj, activeContainer):
@@ -48,7 +48,7 @@ def getVariablesOfVariableContainer(container: App.DocumentObject) -> dict:
     propertyDict = {}
 
     for prop in container.PropertiesList:
-        if prop not in variableContainerDefaultProps:
+        if prop not in Constants.variableContainerDefaultProps:
             propertyDict[prop] = {
                 "Type": container.getTypeIdOfProperty(prop),
                 "Value": getattr(container, prop)
@@ -129,7 +129,7 @@ def getElementFromHash(activeContainer, fullHash, requestingObjectLabel = "", pr
     for hash in hashesList:
         _, _, feature, hashName = getObjectsFromScope(activeContainer, hash)
 
-        if hasattr(feature, "Proxy") and isType(feature, featureTypes):
+        if hasattr(feature, "Proxy") and isType(feature, Constants.featureTypes):
             if hasattr(feature, "ElementMap"):
                 map = json.loads(feature.ElementMap)
 
@@ -175,9 +175,9 @@ def getStringID(activeContainer, element, fullScope=False, suppressErrors = Fals
         scopeStart = ""
         feature = None
 
-        if isType(boundary, boundaryTypes):
-            feature = getParent(boundary, featureTypes)
-        elif isType(boundary, featureTypes):
+        if isType(boundary, Constants.boundaryTypes):
+            feature = getParent(boundary, Constants.featureTypes)
+        elif isType(boundary, Constants.featureTypes):
             feature = boundary
         elif isType(boundary, "ExposedGeometry"):
             if hasattr(boundary, "Support"):

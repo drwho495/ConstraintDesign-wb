@@ -5,6 +5,7 @@ import FreeCADGui
 import Part
 from PySide import QtGui
 from PartContainer import *
+from Utils import Utils
 
 class CreateConstraintLink:
     """Command to create a ConstraintLink feature"""
@@ -23,7 +24,7 @@ class CreateConstraintLink:
             if len(sel) != 0 and hasattr(sel[0], "Object") and sel[0].Object != None:
                 selectedObj = sel[0].Object
 
-                if isType(selectedObj, "PartContainer"):
+                if Utils.isType(selectedObj, "PartContainer"):
                     makePartContainer(selectedObj)
                 else:
                     App.Console.PrintError("The object you selected was not a ConstraintDesign part container!\n")

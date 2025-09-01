@@ -40,7 +40,7 @@ def getIDDict(support, includeConstruction = True, includeExternalConstruction =
                 
                 if geoF != None and geoF.Id >= 1 and (includeExternalConstruction or defining):
                     idDict[f"eg{geoF.Id}"] = geo
-    elif isType(support, "GearsWBPart"):
+    elif Utils.isType(support, "GearsWBPart"):
         shCopy = support.Shape.copy()
         shCopy.Placement = App.Placement()
 

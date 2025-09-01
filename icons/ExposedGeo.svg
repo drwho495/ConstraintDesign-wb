@@ -93,15 +93,15 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="12.198729"
-     inkscape:cx="37.503907"
-     inkscape:cy="35.454513"
+     inkscape:zoom="5.5437764"
+     inkscape:cx="17.948054"
+     inkscape:cy="30.484635"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:document-units="px"
      inkscape:grid-bbox="true"
      inkscape:window-width="1920"
-     inkscape:window-height="1140"
+     inkscape:window-height="1131"
      inkscape:window-x="0"
      inkscape:window-y="32"
      inkscape:window-maximized="1"
@@ -188,8 +188,8 @@
        d="M 37.200363,59.132565 V 44.71751 L 55.044557,28.243163 V 41.62857 Z"
        style="fill:none;fill-opacity:1;fill-rule:nonzero;stroke:#0b1521;stroke-width:1.23011472;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none" />
     <path
-       style="fill:none;stroke:#09111a;stroke-width:2.46023;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
-       d="M 37.354355,44.889995 54.362631,28.486756 Z"
+       style="fill:none;stroke:#0033de;stroke-width:2.78826003;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       d="M 37.354355,44.889995 54.539967,28.405477 Z"
        id="path1"
        sodipodi:nodetypes="ccc" />
   </g>

@@ -62,7 +62,7 @@ class Derive(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(Derive, self).Utils.generateHashName(map)
+            hash = Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -81,7 +81,7 @@ class Derive(Feature):
             if tip != None:
                 features = obj.Support.Proxy.getGroup(obj.Support, False)
 
-                datumShape, elementMap = makeBoundaryCompound(features, True, obj.Boundary.Name)
+                datumShape, elementMap = Utils.makeBoundaryCompound(features, True, obj.Boundary.Name)
                 datumShape = datumShape
                 newShape = tip.Shape
 

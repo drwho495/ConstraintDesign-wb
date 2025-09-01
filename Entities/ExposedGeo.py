@@ -85,6 +85,8 @@ class ExposedGeo(Entity):
         self.updateProps(obj)
 
     def updateProps(self, obj, useCase="Generic"):
+        obj.ViewObject.LineColor = Constants.exposedGeoLineColor
+
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "ExposedGeometry"

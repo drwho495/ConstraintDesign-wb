@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # a
 import Cache.DocumentCacheManager as DocCacheManager
 from Utils import Utils
 from Utils import Constants
+from Utils import SketchUtils
 from Entities.Feature import Feature
 
 # this is a type of feature that copies another part container (Derive, PartMirror, and LinkFeature all originate from this class)
@@ -218,7 +219,7 @@ class FeatureCopy(Feature):
                         if obj.PlaneType == "Face":
                             face = obj.PlaneFace
                         elif obj.PlaneType == "Hashes":
-                            face = getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
+                            face = Utils.getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
 
                             if face == None:
                                 return prevShape
@@ -235,7 +236,7 @@ class FeatureCopy(Feature):
                         if feat.Name == tipName:
                             break
 
-                    boundaryShape, elementMap = makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
+                    boundaryShape, elementMap = Utils.makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
                     if obj.CopyType == 0:
                         boundaryShape = boundaryShape.mirror(planeCenter, normal)
                         newShape = tip.Shape.mirror(planeCenter, normal)

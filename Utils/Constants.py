@@ -4,6 +4,7 @@ supportTypes = ["BoundarySketch", "GearsWBPart"]
 datumTypes = ["ExposedGeometry", "Joint"]
 boundaryTypes = ["WiresDatum", "SketchProjection", "Boundary"]
 externalFeatureTypes = ["GearsWBPart"]
+exposedGeoLineColor = (0.0, 0.20000000298023224, 0.8705882430076599, 1.0)
 
 boundaryLineWidth = 3
 boundaryPointSize = 6

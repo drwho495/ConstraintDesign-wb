@@ -171,7 +171,7 @@ class ConstraintSketch(Entity):
         
         if hasattr(obj, "SupportType") and hasattr(obj, "SupportPlane") and hasattr(obj, "SupportHashes"):
             if obj.SupportType == "Hashes" and len(obj.SupportHashes) != 0:
-                plane = SketchUtils.getPlaneFromStringIDList(container, obj.SupportHashes, obj.Label)
+                plane = Utils.getPlaneFromStringIDList(container, obj.SupportHashes, obj.Label)
 
                 if plane != None:
                     originVector = App.Vector(0,0,0)

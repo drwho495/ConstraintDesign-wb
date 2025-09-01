@@ -10,6 +10,7 @@ import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
 from Utils import Constants
+from Utils import SketchUtils
 from Entities.Feature import Feature
 
 # this needs to be merged with Derive in a class like PartShapeCopy
@@ -84,7 +85,7 @@ class PartMirror(Feature):
                 hasElement = True
 
         if hasElement == False:
-            hash = super(PartMirror, self).Utils.generateHashName(map)
+            hash = Utils.generateHashName(map)
             
             map[hash] = {"Element": str(element[0].Name) + "." + str(element[1]), "GeoId": id, "Occurrence": occurrence, "FeatureType": featureType}
         
@@ -120,7 +121,7 @@ class PartMirror(Feature):
                 elif obj.PlaneType == "Hashes":
                     container = self.getContainer(obj)
 
-                    face = getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
+                    face = Utils.getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
 
                     if face == None:
                         return prevShape
@@ -142,7 +143,7 @@ class PartMirror(Feature):
                                 break
                             
 
-                datumShape, elementMap = makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
+                datumShape, elementMap = Utils.makeBoundaryCompound(filteredFeatures, True, obj.Boundary.Name)
                 datumShape = datumShape.mirror(planeCenter, normal)
                 newShape = tip.Shape.mirror(planeCenter, normal)
 
