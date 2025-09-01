@@ -71,12 +71,8 @@ class DressupTaskPanel:
 
             layout.addLayout(radius_row)
         elif self.dressup.DressupType == 1:
-            if hasattr(self.dressup.Length, 'getUserPreferred'):
-                self.lengthUnitMult = self.dressup.Length.getUserPreferred()[1]
-                self.oldLength = self.dressup.Length.Value
-            else:
-                self.lengthUnitMult = 1
-                self.oldLength = self.dressup.Length
+            self.lengthUnitMult = self.dressup.Length.getUserPreferred()[1]
+            self.oldLength = self.dressup.Length.Value
 
             lengthRow = QtWidgets.QHBoxLayout()
             lengthLabel = QtWidgets.QLabel("Length:")
@@ -92,16 +88,9 @@ class DressupTaskPanel:
 
             layout.addLayout(lengthRow)
         elif self.dressup.DressupType == 2:
-            if hasattr(self.dressup.Diameter, 'getUserPreferred'):
-                self.diameterUnitMult = self.dressup.Diameter.getUserPreferred()[1]
-                self.oldDiameter = self.dressup.Diameter.Value
-            else:
-                self.diameterUnitMult = 1
-                self.oldDiameter = self.dressup.Diameter
-            if hasattr(self.dressup.Angle, 'Value'):
-                self.oldAngle = self.dressup.Angle.Value
-            else:
-                self.oldAngle = self.dressup.Angle
+            self.diameterUnitMult = self.dressup.Diameter.getUserPreferred()[1]
+            self.oldDiameter = self.dressup.Diameter.Value
+            self.oldAngle = self.dressup.Angle.Value
 
             counterSinkRow = QtWidgets.QHBoxLayout()
             diameterLabel = QtWidgets.QLabel("Diameter:")
