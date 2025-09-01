@@ -303,7 +303,7 @@ class FeatureDressup(Feature):
         elementsToDressup = {}
         container = self.getContainer(obj)
         identifiers = []
-        skipHashes = []
+        skipIDs = []
 
         self.updateProps(obj, obj.DressupType)
 
@@ -323,7 +323,7 @@ class FeatureDressup(Feature):
                     for edge in allShapeEdges:
                         if edge.isValid():
                             for stringID in datumEdges:
-                                if stringID in skipHashes: continue
+                                if stringID in skipIDs: continue
                                 try:
                                     element = Utils.getElementFromHash(container, stringID, requestingObjectLabel=obj.Label)
                                 except Exception as e:
@@ -333,38 +333,19 @@ class FeatureDressup(Feature):
                                 if element[0] != None:
                                     datumEdge = element[0].Shape.getElement(element[1])
                                     correctEdge = False
-                                    intersectionPoints = 0
 
-                                    # try:
-                                        # if edge.CenterOfMass.isEqual(datumEdge.CenterOfMass, 1e-2):
-                                        #     correctEdge = True
-                                        # else:
-                                        #     if not ((edge.Curve.TypeId == datumEdge.Curve.TypeId) or (edge.Curve.TypeId == "Part::GeomBSplineCurve" and datumEdge.Curve.TypeId == "Part::GeomCircle")):
-                                        #         correctEdge = False
-                                        #     else:
-                                        #         try:
-                                        #             intersectionPoints = len(edge.Curve.intersectCC(datumEdge.Curve))
-                                        #         except:
-                                        #             intersectionPoints = -1
-                                                
-                                        #         if intersectionPoints > 2 or intersectionPoints == -1:
-                                        #             correctEdge = True
                                     if GeometryUtils.doEdgesIntersect(edge, datumEdge):
                                         correctEdge = True
-                                    # except Exception as e:
-                                        # print(f"exception while checking: {str(e)}")
-                                        # correctEdge = False
                                     
                                     try:
                                         if correctEdge:
-                                            # elementsToDressup.append(edge)
                                             _, _, _, singleID = Utils.getObjectsFromScope(container, stringID)
                                             elementsToDressup[singleID] = edge
 
                                     except Exception as e:
                                         print(e)
                                 else:
-                                    skipHashes.append(stringID)
+                                    skipIDs.append(stringID)
             
             dressupShape = prevShape
             if hasattr(obj, "DressupType") and obj.DressupType == 0:
@@ -382,7 +363,6 @@ class FeatureDressup(Feature):
                                     fuseShapeList.append(filletShape.cut(prevShape))
                                 except:
                                     App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed on " + stringID + "!\n")
-
                         
                             if len(cutShapeList) != 0:
                                 dressupShape = dressupShape.cut(Part.makeCompound(cutShapeList))

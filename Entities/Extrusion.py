@@ -424,7 +424,11 @@ class Extrusion(Feature):
             else:
                 return False
 
-        if (identifier1 == identifier2) or ((identifier1OthersFiltered == identifier2OthersFiltered) and ((not complexCheck and identifier1GeoIDs == identifier2GeoIDs) or (complexCheck and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1))):
+        if ((identifier1 == identifier2) 
+            or ((identifier1OthersFiltered == identifier2OthersFiltered) 
+                and ((not complexCheck and identifier1GeoIDs == identifier2GeoIDs) 
+                     or (complexCheck 
+                         and (identifier1Array[1:3] == identifier2Array[1:3]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1 or identifier1GeoIDs == identifier2GeoIDs)))):
             return True
         else:
             return False

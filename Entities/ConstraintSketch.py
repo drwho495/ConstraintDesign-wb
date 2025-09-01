@@ -1,6 +1,7 @@
 import FreeCAD as App
 import FreeCADGui as Gui
 import sys
+import json
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
@@ -123,6 +124,11 @@ class ConstraintSketch(Entity):
                     if not Utils.isType(object, Constants.datumTypes):
                         obj.delExternal(i)
         
+        if prop == "Geometry" and hasattr(obj, "SketchMap"):
+            self.updateSketchMap(obj)
+        else:
+            print(prop)
+        
         self.lastProp = prop
 
     def addStringIDExternalGeo(self, obj, stringID, container = None):
@@ -152,6 +158,8 @@ class ConstraintSketch(Entity):
         obj.recompute()
     
     def updateSketch(self, obj, container=None):
+        self.updateProps(obj)
+
         if container == None:
             container = Utils.getParent(obj, "PartContainer")
 
@@ -189,6 +197,44 @@ class ConstraintSketch(Entity):
                 obj.SupportPlane.purgeTouched() # sometimes it doesn't listen
         obj.recompute()
     
+    def updateSketchMap(self, obj, copy = False):
+        sketchMap = {}
+        mapCounter = obj.MapCounter
+
+        try:
+            sketchMap = json.loads(obj.SketchMap)
+        except:
+            raise Exception("The sketch map has been corrupted!\n")
+        
+        values = list(sketchMap.values())
+        facadeIDList = []
+        
+        # add new IDs
+        for facade in obj.GeometryFacadeList:
+            facadeIDList.append(facade.Id)
+            
+            if facade.Id not in values:
+                if copy:
+                    sketchMap[facade.Id] = facade.Id
+
+                    if mapCounter < facade.Id + 1:
+                        mapCounter = facade.Id + 1
+                else:
+                    sketchMap[mapCounter] = facade.Id
+                    mapCounter += 1
+        
+        # remove old IDs
+        for key, facadeID in sketchMap.copy().items():
+            if facadeID not in facadeIDList:
+                sketchMap.pop(key)
+        
+        try:
+            obj.SketchMap = json.dumps(sketchMap)
+        except:
+            raise Exception("Unable to serialize sketch map!")
+        
+        obj.MapCounter = mapCounter
+    
     def updateProps(self, obj):
         if hasattr(obj, "AttacherEngine"):
             obj.setEditorMode("AttacherEngine", 3)
@@ -208,6 +254,17 @@ class ConstraintSketch(Entity):
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "Base")
             obj.Type = "BoundarySketch"
+        
+        if not hasattr(obj, "MapCounter"):
+            obj.addProperty("App::PropertyInteger", "MapCounter", "Base")
+            obj.setEditorMode("MapCounter", 3)
+            obj.MapCounter = 0
+        
+        if not hasattr(obj, "SketchMap"):
+            obj.addProperty("App::PropertyString", "SketchMap", "Base")
+            obj.setEditorMode("SketchMap", 3)
+            obj.SketchMap = "{}"
+            self.updateSketchMap(obj, True)
 
         if not hasattr(obj, "SupportType"):
             obj.addProperty("App::PropertyEnumeration", "SupportType", "Base")

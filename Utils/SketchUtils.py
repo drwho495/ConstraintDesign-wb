@@ -2,6 +2,7 @@ import os
 import FreeCAD as App
 import FreeCADGui as Gui
 import Part
+import json
 from PySide import QtGui
 from Utils import Utils
 from Utils.Constants import *
@@ -13,10 +14,29 @@ def getIDDict(support, includeConstruction = True, includeExternalConstruction =
     #"ID": geometry
     idDict = {}
     if Utils.isType(support, "BoundarySketch"):
-        for geoF in support.GeometryFacadeList:
-            if not includeConstruction and geoF.Construction: continue
+        if hasattr(support, "SketchMap"):
+            facadeMap = {}
+            sketchMap = {}
 
-            idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
+            try:
+                sketchMap = json.loads(support.SketchMap)
+            except:
+                raise Exception("The sketch map has been corrupted!\n")
+
+            for facade in support.GeometryFacadeList:
+                facadeMap[facade.Id] = facade
+
+            for geoID, facadeID in sketchMap.items():
+                if facadeID in facadeMap:
+                    facade = facadeMap[facadeID]
+                    if not includeConstruction and facade.Construction: continue
+
+                    idDict[f"g{str(geoID)}"] = facade.Geometry
+        else:
+            for geoF in support.GeometryFacadeList:
+                if not includeConstruction and geoF.Construction: continue
+
+                idDict[f"g{str(geoF.Id)}"] = geoF.Geometry
         
         externalGeo = support.ExternalGeo.copy()
 
