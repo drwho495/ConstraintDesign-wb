@@ -54,7 +54,8 @@ class DressupTaskPanel:
         self.deleteAfterCancel = deleteAfterCancel
 
         if self.dressup.DressupType == 0:
-            self.oldRadius = self.dressup.Radius
+            self.radiusUnitMult = self.dressup.Radius.getUserPreferred()[1]
+            self.oldRadius = self.dressup.Radius.Value
 
             radius_row = QtWidgets.QHBoxLayout()
             radius_label = QtWidgets.QLabel("Radius:")
@@ -62,7 +63,7 @@ class DressupTaskPanel:
             self.radius_input.setMinimum(0)
             self.radius_input.setMaximum(100000)
             self.radius_input.setSingleStep(1)
-            self.radius_input.setValue(self.oldRadius)
+            self.radius_input.setValue(self.oldRadius / self.radiusUnitMult)
 
             radius_row.addWidget(radius_label)
             radius_row.addWidget(self.radius_input)
@@ -70,7 +71,8 @@ class DressupTaskPanel:
 
             layout.addLayout(radius_row)
         elif self.dressup.DressupType == 1:
-            self.oldLength = self.dressup.Length
+            self.lengthUnitMult = self.dressup.Length.getUserPreferred()[1]
+            self.oldLength = self.dressup.Length.Value
 
             lengthRow = QtWidgets.QHBoxLayout()
             lengthLabel = QtWidgets.QLabel("Length:")
@@ -78,7 +80,7 @@ class DressupTaskPanel:
             self.lengthInput.setMinimum(0)
             self.lengthInput.setMaximum(100000)
             self.lengthInput.setSingleStep(1)
-            self.lengthInput.setValue(self.oldLength)
+            self.lengthInput.setValue(self.oldLength / self.lengthUnitMult)
 
             lengthRow.addWidget(lengthLabel)
             lengthRow.addWidget(self.lengthInput)
@@ -86,8 +88,9 @@ class DressupTaskPanel:
 
             layout.addLayout(lengthRow)
         elif self.dressup.DressupType == 2:
-            self.oldDiameter = self.dressup.Diameter
-            self.oldAngle = self.dressup.Angle
+            self.diameterUnitMult = self.dressup.Diameter.getUserPreferred()[1]
+            self.oldDiameter = self.dressup.Diameter.Value
+            self.oldAngle = self.dressup.Angle.Value
 
             counterSinkRow = QtWidgets.QHBoxLayout()
             diameterLabel = QtWidgets.QLabel("Diameter:")
@@ -95,7 +98,7 @@ class DressupTaskPanel:
             self.diameterInput.setMinimum(0)
             self.diameterInput.setMaximum(100000)
             self.diameterInput.setSingleStep(1)
-            self.diameterInput.setValue(self.oldDiameter)
+            self.diameterInput.setValue(self.oldDiameter / self.diameterUnitMult)
 
             angleLabel = QtWidgets.QLabel("Angle:")
             self.angleInput = QtWidgets.QDoubleSpinBox()
@@ -118,19 +121,17 @@ class DressupTaskPanel:
         selected = self.selector.getSelection()
 
         if self.dressup.DressupType == 0:
-            radius = self.radius_input.value()
-            
-            self.dressup.Radius = radius
+            radius = self.radius_input.value() * self.radiusUnitMult
+            self.dressup.Radius.Value = radius
         elif self.dressup.DressupType == 1:
             length = self.lengthInput.value()
-            
-            self.dressup.Length = length
+            self.dressup.Length.Value = (length * self.lengthUnitMult)
         elif self.dressup.DressupType == 2:
             diameter = self.diameterInput.value()
-            self.dressup.Diameter = diameter
+            self.dressup.Diameter.Value = (diameter * self.diameterUnitMult)
 
             angle = self.angleInput.value()
-            self.dressup.Angle = angle
+            self.dressup.Angle.Value = angle
 
         self.dressup.Edges = selected
         self.container.recompute()
@@ -150,12 +151,12 @@ class DressupTaskPanel:
         self.dressup.Edges = self.oldHashes
 
         if self.dressup.DressupType == 0:
-            self.dressup.Radius = self.oldRadius
+            self.dressup.Radius.Value = self.oldRadius
         elif self.dressup.DressupType == 1:
-            self.dressup.Length = self.oldLength
+            self.dressup.Length.Value = self.oldLength
         elif self.dressup.DressupType == 2:
-            self.dressup.Diameter = self.oldDiameter
-            self.dressup.Angle = self.oldAngle
+            self.dressup.Diameter.Value = self.oldDiameter
+            self.dressup.Angle.Value = self.oldAngle
 
         # self.container.recompute()
         
@@ -223,9 +224,18 @@ class FeatureDressup(Feature):
         if hasattr(obj, "DressupType") and obj.DressupType == 0:
             obj.Type = "Fillet"
 
-            if not hasattr(obj, "Radius"):
-                obj.addProperty("App::PropertyFloat", "Radius", "ConstraintDesign", "Radius of fillet.")
-                obj.Radius = 1.0
+            if (not hasattr(obj, "Radius")
+                or obj.getTypeIdOfProperty("Radius") == "App::PropertyFloat"
+            ):
+                newVal = 1.0
+                if hasattr(obj, "Radius"):
+                    if hasattr(obj.Radius, "Value"):
+                        newVal = obj.Radius.Value
+                    else:
+                        newVal = obj.Radius
+                    obj.removeProperty("Radius")
+                obj.addProperty("App::PropertyDistance", "Radius", "ConstraintDesign", "Radius of fillet.")
+                obj.Radius.Value = newVal
             
             if not hasattr(obj, "IndividualFillet"):
                 obj.addProperty("App::PropertyBool", "IndividualFillet", "ConstraintDesign", "This fillets each edge individually, then uses boolean operations to merge them together.")
@@ -233,23 +243,50 @@ class FeatureDressup(Feature):
         elif hasattr(obj, "DressupType") and obj.DressupType == 1:
             obj.Type = "Chamfer"
 
-            if not hasattr(obj, "Length"):
-                obj.addProperty("App::PropertyFloat", "Length", "ConstraintDesign", "Length of fillet.")
-                obj.Length = 1.0
+            if (not hasattr(obj, "Length")
+                or obj.getTypeIdOfProperty("Length") == "App::PropertyFloat"
+            ):
+                newVal = 1.0
+                if hasattr(obj, "Length"):
+                    if hasattr(obj.Length, "Value"):
+                        newVal = obj.Length.Value
+                    else:
+                        newVal = obj.Length
+                    obj.removeProperty("Length")
+                obj.addProperty("App::PropertyDistance", "Length", "ConstraintDesign", "Length of fillet.")
+                obj.Length.Value = newVal
         elif hasattr(obj, "DressupType") and obj.DressupType == 2:
             obj.Type = "Countersink"
 
-            if not hasattr(obj, "Diameter"):
-                obj.addProperty("App::PropertyFloat", "Diameter", "ConstraintDesign", "Diameter of the countersink.")
-                obj.Diameter = 8
+            if (not hasattr(obj, "Diameter")
+                or obj.getTypeIdOfProperty("Diameter") == "App::PropertyFloat"
+            ):
+                newVal = 8
+                if hasattr(obj, "Diameter"):
+                    if hasattr(obj.Diameter, "Value"):
+                        newVal = obj.Diameter.Value
+                    else:
+                        newVal = obj.Diameter
+                    obj.removeProperty("Diameter")
+                obj.addProperty("App::PropertyDistance", "Diameter", "ConstraintDesign", "Diameter of the countersink.")
+                obj.Diameter.Value = newVal
 
-            if not hasattr(obj, "Angle"):
-                obj.addProperty("App::PropertyFloat", "Angle", "ConstraintDesign", "Angle of the countersink in degrees.")
-                obj.Angle = 90
+            if (not hasattr(obj, "Angle")
+                or obj.getTypeIdOfProperty("Angle") == "App::PropertyFloat"
+                or obj.getTypeIdOfProperty("Angle") == "App::PropertyAngle"
+            ):
+                newVal = 90
+                if hasattr(obj, "Angle"):
+                    if hasattr(obj.Angle, "Value"):
+                        newVal = obj.Angle.Value
+                    else:
+                        newVal = obj.Angle
+                    obj.removeProperty("Angle")
+                obj.addProperty("App::PropertyAngle", "Angle", "ConstraintDesign", "Angle of the countersink in degrees.")
+                obj.Angle.Value = newVal
 
             if not hasattr(obj, "Reversed"):
                 obj.addProperty("App::PropertyBool", "Reversed", "ConstraintDesign", "Determines if the countersinks should be reversed.")
-                obj.Angle = 90
 
             if not hasattr(obj, "Boundary"):
                 obj.addProperty("App::PropertyXLink", "Boundary", "ConstraintDesign", "Boundary of this dressup")
@@ -357,7 +394,7 @@ class FeatureDressup(Feature):
 
                             for stringID, filletElement in elementsToDressup.items():
                                 try:
-                                    filletShape = prevShape.makeFillet(obj.Radius, filletElement)
+                                    filletShape = prevShape.makeFillet(obj.Radius.Value, filletElement)
 
                                     cutShapeList.append(prevShape.cut(filletShape))
                                     fuseShapeList.append(filletShape.cut(prevShape))
@@ -370,24 +407,24 @@ class FeatureDressup(Feature):
                             if len(fuseShapeList) != 0:
                                 dressupShape = dressupShape.fuse(Part.makeCompound(fuseShapeList))
                         else:
-                            dressupShape = prevShape.makeFillet(obj.Radius, list(elementsToDressup.values()))
+                            dressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
                 except Exception as e:
                     App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
             elif hasattr(obj, "DressupType") and obj.DressupType == 1:
                 try:
                     if len(elementsToDressup) != 0:
-                        dressupShape = prevShape.makeChamfer(obj.Length, list(elementsToDressup.values()))
+                        dressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
                 except Exception as e:
                     dressupShape = prevShape
                     App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
             elif hasattr(obj, "DressupType") and obj.DressupType == 2:
                     try:
-                        depth = obj.Diameter/2 * math.tan((math.radians(obj.Angle)) / 2)
+                        depth = (obj.Diameter.Value/2) * math.tan((math.radians(obj.Angle.Value)) / 2)
 
                         # I have two of these to save on possible computation time, I should't need to constantly recreate
                         # the cone each time.
-                        forwardCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
-                        reversedCone = Part.makeCone(obj.Diameter/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
+                        forwardCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
+                        reversedCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
                         cutCompoundArray = []
                         map = json.loads(obj.ElementMap)
                         boundaryShape = Part.Shape()
@@ -416,7 +453,7 @@ class FeatureDressup(Feature):
                                     placement.Rotation = element.Placement.Rotation
 
                                     topCircle = Part.Circle()
-                                    topCircle.Radius = obj.Diameter/2
+                                    topCircle.Radius = obj.Diameter.Value/2
                                     topCircleSh = topCircle.toShape()
                                     topCircleSh.Placement = placement
 
@@ -425,8 +462,8 @@ class FeatureDressup(Feature):
                                     identifiers.append(identifier)
                                     map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
 
-                                    thetaRad = math.radians(obj.Angle / 2)
-                                    deltaR = obj.Diameter/2 - radius
+                                    thetaRad = math.radians(obj.Angle.Value / 2)
+                                    deltaR = obj.Diameter.Value/2 - radius
                                     slantDist = deltaR * math.tan(thetaRad)
 
                                     if not forward:
