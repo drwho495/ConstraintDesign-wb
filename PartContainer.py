@@ -415,10 +415,17 @@ class PartContainer:
         if prop == "Group":
             if hasattr(self, "oldGroup"):
                 newObjects = list(set(obj.Group) - set(self.oldGroup))
+                removedObjects = list(set(self.oldGroup) - set(obj.Group))
 
                 for newItem in newObjects:
                     if Utils.isGearsWBPart(newItem) and not Utils.isType(newItem, "GearsWBPart"):
                         Utils.fixGear(newItem, obj, True)
+                    elif newItem.TypeId == "App::VarSet" and obj.VariableContainer == None:
+                        obj.VariableContainer = newItem
+                
+                for removedItem in removedObjects:
+                    if removedItem == obj.VariableContainer:
+                        obj.VariableContainer = None
             
             self.oldGroup = obj.Group
 
@@ -514,6 +521,10 @@ def makePartContainer(linkToObject = None):
     isLink = False
 
     if linkToObject != None:
+        if linkToObject.Document.FileName == "":
+            App.Console.PrintError("Please save the document of the selected object before continuing!\n")
+            return None
+
         isLink = True
         name = "ConstraintLink"
 
