@@ -20,8 +20,8 @@ def test_dressup_properties_unit_aware():
 def test_pattern_generate_uses_value():
     p = os.path.join(ROOT, 'Entities', 'Pattern.py')
     s = read(p)
-    assert "hasattr(obj.YAxisLength, 'Value')" in s
-    assert "hasattr(obj.XAxisLength, 'Value')" in s
+    assert 'obj.YAxisLength.Value' in s
+    assert 'obj.XAxisLength.Value' in s
 
 
 def test_dressup_geometry_uses_value():
