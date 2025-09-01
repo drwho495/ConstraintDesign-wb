@@ -337,8 +337,9 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
                 return face.Surface
             else:
                 return face
-        except:
-            App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nThe points created by each element are likely colinear (which means they create a straight line)!\n")
+        except Exception as e:
+            Part.show(Part.Wire(Part.makePolygon(vectors)))
+            App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nThe points created by each element are likely colinear (which means they create a straight line)!\n ex: {e}")
             return None
     else:
         App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nList contents: {','.join(stringList)}\n")

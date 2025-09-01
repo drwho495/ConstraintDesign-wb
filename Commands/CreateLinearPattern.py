@@ -8,7 +8,7 @@ from Entities.Pattern import makePattern
 class CreateLinearPattern:
     def GetResources(self):
         return {
-            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "aefagregeg.svg"),
+            'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "LinearPattern.svg"),
             'MenuText': "Create Linear Pattern Feature",
             'ToolTip': "Creates a new Linear Pattern feature"
         }

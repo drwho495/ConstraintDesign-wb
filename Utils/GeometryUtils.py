@@ -117,6 +117,14 @@ def doEdgesIntersect(
     edge2: Part.Edge,
     tolerance: float = 1e-2
 ) -> bool:
+    try:
+        hasattr(edge1, "Curve")
+        hasattr(edge2, "Curve")
+    except:
+        # undefined curve type
+        print("undefined curve type!")
+        return False
+
     if hasattr(edge1, "Curve") and hasattr(edge2, "Curve"):
         edge1Curve: Part.Curve = edge1.Curve
         edge2Curve: Part.Curve = edge2.Curve

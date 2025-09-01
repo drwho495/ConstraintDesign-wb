@@ -559,7 +559,8 @@ class ViewProviderPattern:
         return
 
     def getIcon(self):
-        return os.path.join(os.path.dirname(__file__), "..", "icons", "Extrusion.svg")
+        if self.Object != None and self.Object.Object != None and self.Object.Object.PatternType == 0:
+            return os.path.join(os.path.dirname(__file__), "..", "icons", "LinearPattern.svg")
     
     def claimChildren(self):
         # App.Console.PrintMessage('claimChildren called\n')
