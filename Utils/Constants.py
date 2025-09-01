@@ -12,7 +12,4 @@ gridSquareSize = 30
 gridSize = 20_0000
 hashSize = 8 # do not change this please
 
-variableContainerDefaultProps = ['ExpressionEngine',
-                                 'Label',
-                                 'Label2',
-                                 'Visibility']
+variableContainerDefaultProps = ['AttacherEngine', 'AttacherType', 'AttachmentOffset', 'AttachmentSupport', 'ExpressionEngine', 'Label', 'Label2', 'MapMode', 'MapPathParameter', 'MapReversed', 'Placement', 'Shape', 'ShapeMaterial', 'Visibility', '_ElementMapVersion']
