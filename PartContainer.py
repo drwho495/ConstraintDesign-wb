@@ -19,7 +19,10 @@ class PartContainer:
 
             if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
-        if not hasattr(obj, "FastRecompute"):
+        if (not hasattr(obj, "FastRecompute")
+            and ((not hasattr(obj, "IsLink") and isLink == False)
+                or (hasattr(obj, "IsLink") and obj.IsLink == False))
+        ):
             obj.addProperty("App::PropertyBool", "FastRecompute", "ConstraintDesign", "This property tells the part container whether to only recompute its features if they have been modified by the user.")
             obj.FastRecompute = True
 
@@ -294,7 +297,7 @@ class PartContainer:
             self.resetVisibility(obj)
 
         tipFound = False
-        foundModifiedFeat = not obj.FastRecompute
+        foundModifiedFeat = not obj.FastRecompute if hasattr(obj, "FastRecompute") else True # links don't have this prop
         group = self.getGroup(obj, True)
         startIndex = 0
 
@@ -337,7 +340,9 @@ class PartContainer:
 
                     if foundModifiedFeat:
                         startTime2 = time.time()
-                        newShape = child.Proxy.generateShape(child, prevShape)
+                        newShape = child.Proxy.generateShape(child, prevShape).copy()
+                        newShape.ElementMap = {}
+                        
                         if hasattr(child, "Modified"):
                             child.Modified = False
 
@@ -361,7 +366,7 @@ class PartContainer:
 
             child.purgeTouched()
 
-        #handle datums that haven't already been recomputed
+        # handle datums that haven't already been recomputed
         for item in self.getGroupOfTypes(obj, Constants.datumTypes, recomputedNameList):
             if hasattr(item.Proxy, "generateShape"):
                 item.Proxy.generateShape(item, Part.Shape())
@@ -399,7 +404,7 @@ class PartContainer:
                         and hasattr(obj.LinkFeature, "IsVariantLink") 
                         and obj.LinkFeature.IsVariantLink
                     ):
-                        _, cachedObj = DocumentCacheManager.getCacheDocument(linkedObj, obj)
+                        _, cachedObj = DocumentCacheManager.getCacheDocumentAndContainer(linkedObj, obj)
 
                         if cachedObj != None:
                             return cachedObj

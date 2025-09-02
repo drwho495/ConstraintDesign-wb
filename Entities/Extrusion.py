@@ -438,7 +438,7 @@ class Extrusion(Feature):
             or ((identifier1OthersFiltered == identifier2OthersFiltered) 
                 and ((not complexCheck and identifier1GeoIDs == identifier2GeoIDs) 
                      or (complexCheck 
-                         and (identifier1Array[1:3] == identifier2Array[1:3]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1 or identifier1GeoIDs == identifier2GeoIDs)))):
+                         and (identifier1Array[1:4] == identifier2Array[1:4]) and len(set(identifier1GeoIDs) & set(identifier2GeoIDs)) >= 1 or identifier1GeoIDs == identifier2GeoIDs)))):
             return True
         else:
             return False
@@ -483,6 +483,7 @@ class Extrusion(Feature):
             
             if obj.Length.Value != 0:
                 face = Part.makeFace(sketchWires) # type: ignore
+                face.ElementMap = {}
 
             ZOffset = 0
             normal = sketch.Placement.Rotation.multVec(App.Vector(0, 0, 1))

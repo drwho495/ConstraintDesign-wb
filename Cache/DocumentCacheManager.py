@@ -10,11 +10,29 @@ import os
 
 cachedDocuments = {}
 
-def getCacheDocument(
+def makeKey(
+    partContainer: App.DocumentObject,
+    variantLinkObj: App.DocumentObject
+):
+    return f"{os.path.split(variantLinkObj.Document.FileName)[1]}_{variantLinkObj.Name}__{os.path.split(partContainer.Document.FileName)[1]}_{partContainer.Name}"
+
+def deleteCacheDocument(
+    partContainer: App.DocumentObject,
+    variantLinkObj: App.DocumentObject
+):
+    keyName = makeKey(partContainer, variantLinkObj)
+
+    if keyName in cachedDocuments:
+        document = cachedDocuments[keyName]["Document"]
+        App.closeDocument(document.Name)
+
+        cachedDocuments.pop(keyName)
+
+def getCacheDocumentAndContainer(
     partContainer: App.DocumentObject,
     variantLinkObj: App.DocumentObject
 ) -> Tuple[App.Document, App.DocumentObject]:
-    keyName = f"{os.path.split(variantLinkObj.Document.FileName)[1]}_{variantLinkObj.Name}__{os.path.split(partContainer.Document.FileName)[1]}_{partContainer.Name}"
+    keyName = makeKey(partContainer, variantLinkObj)
     cacheDoc = None
     docObj = None
 
@@ -23,7 +41,7 @@ def getCacheDocument(
         cachedDocuments[keyName] = {"Document": cacheDoc, "Container": None}
     else:
         cacheDoc = cachedDocuments[keyName]["Document"]
-        docObj = cachedDocuments[keyName]["Container"]
+        docObj = cacheDoc.getObject(cachedDocuments[keyName]["Container"])
     
     return cacheDoc, docObj
 
@@ -32,7 +50,7 @@ def getPartContainer(
 ) -> App.DocumentObject:
     for _, info in cachedDocuments.items():
         if info["Document"].Name == document.Name:
-            return info["Container"]
+            return info["Document"].getObject(info["Container"])
     
 def setPartContainer(
     document: App.Document,
@@ -52,7 +70,8 @@ def setPartContainer(
     for obj in document.Objects:
         document.removeObject(obj.Name)
 
-    keyVal["Container"] = document.copyObject(container, True)
+    copiedContainer = document.copyObject(container, True)
+    keyVal["Container"] = copiedContainer.Name
     cachedDocuments[reqKey] = keyVal
 
-    return keyVal["Container"]
+    return copiedContainer

@@ -148,13 +148,13 @@ class PartMirror(Feature):
                 newShape = tip.Shape.mirror(planeCenter, normal)
 
                 obj.ElementMap = json.dumps(elementMap)
-                
+
         obj.Boundary.Shape = datumShape
         obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
         obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.ViewObject.LineWidth = 1
         obj.Boundary.purgeTouched()
-        obj.IndividualShape = newShape.copy()
+        obj.IndividualShape = newShape
 
         if not prevShape.isNull():
             newShape = Part.Compound([prevShape, newShape])

@@ -237,9 +237,16 @@ class FeatureDressup(Feature):
                 obj.addProperty("App::PropertyDistance", "Radius", "ConstraintDesign", "Radius of fillet.")
                 obj.Radius.Value = newVal
             
-            if not hasattr(obj, "IndividualFillet"):
-                obj.addProperty("App::PropertyBool", "IndividualFillet", "ConstraintDesign", "This fillets each edge individually, then uses boolean operations to merge them together.")
-                obj.IndividualFillet = False
+        if not hasattr(obj, "IndividualMode") or hasattr(obj, "IndividualFillet"):
+            newValue = False 
+            
+            if hasattr(obj, "IndividualFillet"):
+                newValue = obj.IndividualFillet
+                obj.removeProperty("IndividualFillet")
+
+            obj.addProperty("App::PropertyBool", "IndividualMode", "ConstraintDesign", "This fillets/chamfers each edge individually, then uses boolean operations to merge them together.")
+            obj.IndividualMode = newValue
+
         elif hasattr(obj, "DressupType") and obj.DressupType == 1:
             obj.Type = "Chamfer"
 
@@ -385,19 +392,22 @@ class FeatureDressup(Feature):
                                     skipIDs.append(stringID)
             
             dressupShape = prevShape
-            if hasattr(obj, "DressupType") and obj.DressupType == 0:
+            if hasattr(obj, "DressupType") and (obj.DressupType == 0 or obj.DressupType == 1):
                 try:
                     if len(elementsToDressup) != 0:
-                        if obj.IndividualFillet:
+                        if obj.IndividualMode:
                             cutShapeList = []
                             fuseShapeList = []
 
                             for stringID, filletElement in elementsToDressup.items():
                                 try:
-                                    filletShape = prevShape.makeFillet(obj.Radius.Value, filletElement)
+                                    if obj.DressupType == 0:
+                                        newDressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
+                                    else:
+                                        newDressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
 
-                                    cutShapeList.append(prevShape.cut(filletShape))
-                                    fuseShapeList.append(filletShape.cut(prevShape))
+                                    cutShapeList.append(prevShape.cut(newDressupShape))
+                                    fuseShapeList.append(newDressupShape.cut(prevShape))
                                 except:
                                     App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed on " + stringID + "!\n")
                         
@@ -407,16 +417,15 @@ class FeatureDressup(Feature):
                             if len(fuseShapeList) != 0:
                                 dressupShape = dressupShape.fuse(Part.makeCompound(fuseShapeList))
                         else:
-                            dressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
+                            if obj.DressupType == 0:
+                                dressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
+                            else:
+                                dressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
                 except Exception as e:
-                    App.Console.PrintError(obj.Label + ": creating a fillet with the radius of " + str(obj.Radius) + " failed!\n")
-            elif hasattr(obj, "DressupType") and obj.DressupType == 1:
-                try:
-                    if len(elementsToDressup) != 0:
-                        dressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
-                except Exception as e:
-                    dressupShape = prevShape
-                    App.Console.PrintError(obj.Label + ": creating a chamfer with the length of " + str(obj.Length) + " failed!\nException: " + str(e) + "\n")
+                    if obj.DressupType == 0:
+                        App.Console.PrintError(f"{obj.Label}: creating a fillet with the radius of {str(obj.Radius)} failed!\n")
+                    else:
+                        App.Console.PrintError(f"{obj.Label}: creating a chamfer with the radius of {str(obj.Length)} failed!\n")
             elif hasattr(obj, "DressupType") and obj.DressupType == 2:
                     try:
                         depth = (obj.Diameter.Value/2) * math.tan((math.radians(obj.Angle.Value)) / 2)

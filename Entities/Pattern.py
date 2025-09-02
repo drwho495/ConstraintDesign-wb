@@ -398,7 +398,7 @@ class Pattern(Feature):
             
             if len(finalRemoveArray) != 0:
                 finalShape = finalShape.cut(Part.Compound(finalRemoveArray))
-        
+
         obj.Shape = finalShape
         obj.Boundary.Shape = boundaryCompound
         obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth

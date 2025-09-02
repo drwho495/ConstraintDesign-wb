@@ -304,7 +304,7 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
         boundary = elements[0][0]
         elementName = elements[0][1]
         element = boundary.Shape.getElement(elementName)
-        face = Part.makeFace(Part.Wire(element))
+        face = Part.Face(Part.Wire(element))
         
         if hasattr(element, "Curve") and element.Curve.TypeId == "Part::GeomCircle":
             if not asFace:

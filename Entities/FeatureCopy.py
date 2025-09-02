@@ -147,7 +147,7 @@ class FeatureCopy(Feature):
                             createVariantLink = True
                     
                     if createVariantLink:
-                        cacheDocument, cachedContainer = DocCacheManager.getCacheDocument(supportContainer, container)
+                        cacheDocument, cachedContainer = DocCacheManager.getCacheDocumentAndContainer(supportContainer, container)
 
                         if cachedContainer != None and hasattr(cachedContainer, "VariableContainer"):
                             for name, val in properties.copy().items():
@@ -183,27 +183,31 @@ class FeatureCopy(Feature):
 
             if pcGroup != None or len(pcGroup) != 0:
                 nameGroup = []
-                updateName = (tipName == "")
 
                 for item in pcGroup:
                     nameGroup.append(item.Name)
                 
-                if obj.CopyType != 2:
-                    obj.TipName = nameGroup
-                else:
-                    container.LinkTipName = nameGroup
+                if(tipName == "" 
+                              or ((obj.CopyType == 2 and container.getEnumerationsOfProperty("LinkTipName") != nameGroup)
+                                  or (obj.CopyType != 2 and obj.getEnumerationsOfProperty("TipName") != nameGroup))
+                ):
+                    if obj.CopyType != 2:
+                        obj.TipName = nameGroup
+                    else:
+                        container.LinkTipName = nameGroup
 
-                if updateName:
                     if obj.CopyType != 2:
                         obj.TipName = supportContainer.Tip.Name
                     else:
                         container.LinkTipName = supportContainer.Tip.Name
-                
-                # we update it like this because we dont know if updateName is set and if the enum value is reset or not
-                if obj.CopyType != 2:
-                    tipName = obj.TipName
-                else:
-                    tipName = container.LinkTipName
+                    
+                    if obj.CopyType != 2:
+                        tipName = obj.TipName
+                    else:
+                        tipName = container.LinkTipName
+
+        if createVariantLink != obj.IsVariantLink:
+            obj.UpdateObject = True
 
         obj.IsVariantLink = createVariantLink
 
@@ -509,7 +513,7 @@ def makeFeatureCopy(copyType = 0, copyObject = None, container = None):
 
             if copyType != 2:
                 obj.Proxy.setSupport(obj, copyObject)
-                obj.UpdateObject = True
+                # obj.UpdateObject = True
 
             obj.Proxy.setBoundary(obj, boundary)
 
