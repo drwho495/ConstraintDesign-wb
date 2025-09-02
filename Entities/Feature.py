@@ -26,9 +26,19 @@ class Feature(Entity):
 
     @abstractmethod
     def onChanged(self, obj, prop):
-        if prop == "Visibility" and obj.Visibility == True:
-            container = self.getContainer(obj)
+        if prop == "Modified": return
+        
+        container = self.getContainer(obj)
+        
+        if (container != None 
+            and not App.isRestoring()
+            and hasattr(container, "Recalculating") 
+            and not container.Recalculating
+            and prop not in Constants.modifiedUpdateExclusionProps
+        ):
+            self.markModified(obj)
 
+        if prop == "Visibility" and obj.Visibility == True:
             if container != None:
                 container.Proxy.setShownObj(container, obj)
 
@@ -43,7 +53,7 @@ class Feature(Entity):
             return {0: {"Shape": obj.IndividualShape, "Remove": False}}
 
     @abstractmethod
-    def updateProps(self, obj, hasIndividualShape=True, hasRemove=True):
+    def updateProps(self, obj, hasIndividualShape = True, hasRemove = True, hasModified = True):
         if not hasattr(obj, "Suppressed"):
             obj.addProperty("App::PropertyBool", "Suppressed", "ConstraintDesign", "Is feature used.")
             obj.Suppressed = False
@@ -51,6 +61,11 @@ class Feature(Entity):
         if not hasattr(obj, "Remove") and hasRemove:
             obj.addProperty("App::PropertyBool", "Remove", "ConstraintDesign", "Determines the type of boolean operation to perform.")
             obj.Remove = False
+        
+        if not hasattr(obj, "Modified") and hasModified:
+            obj.addProperty("App::PropertyBool", "Modified", "ConstraintDesign")
+            obj.setEditorMode("Modified", 3)
+            obj.Modified = True
         
         if not hasattr(obj, "ElementMap"):
             obj.addProperty("App::PropertyString", "ElementMap", "ConstraintDesign", "The element map of this extrusion.")

@@ -19,6 +19,10 @@ class PartContainer:
 
             if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
+        if not hasattr(obj, "FastRecompute"):
+            obj.addProperty("App::PropertyBool", "FastRecompute", "ConstraintDesign", "This property tells the part container whether to only recompute its features if they have been modified by the user.")
+            obj.FastRecompute = True
+
         if not hasattr(obj, "Type"):
             obj.addProperty("App::PropertyString", "Type", "ConstraintDesign", "Type of constraint design feature.")
             obj.Type = "PartContainer"
@@ -71,6 +75,10 @@ class PartContainer:
         
         if not hasattr(obj, "Frozen"):
             obj.addProperty("App::PropertyBool", "Frozen", "ConstraintDesign", "This property stops a PartContainer and its features from recalculating. You should use this when assembling parts. Sketches are still solved.")
+
+        if not hasattr(obj, "Recalculating"):
+            obj.addProperty("App::PropertyBool", "Recalculating", "ConstraintDesign")
+            obj.setEditorMode("Recalculating", 3)
 
         if not hasattr(obj, "ShownFeature"):
             obj.addProperty("App::PropertyXLink", "ShownFeature", "ConstraintDesign", "The feature that is being shown.")
@@ -241,6 +249,7 @@ class PartContainer:
 
     def recalculateShapes(self, obj, startObj = None, force = False):
         self.updateProps(obj)
+        obj.Recalculating = True
 
         if obj.IsLink:
             if len(obj.ObjectLinkFilePath) != 0 and len(obj.ObjectLinkName) != 0:
@@ -285,6 +294,7 @@ class PartContainer:
             self.resetVisibility(obj)
 
         tipFound = False
+        foundModifiedFeat = not obj.FastRecompute
         group = self.getGroup(obj, True)
         startIndex = 0
 
@@ -298,7 +308,16 @@ class PartContainer:
             if Utils.isType(child, "BoundarySketch"):
                 child.Proxy.updateSketch(child, obj)
             elif Utils.isType(child, Constants.featureTypes):
-                if i >= startIndex and not child.Suppressed:
+                if (not foundModifiedFeat 
+                    and (not hasattr(child, "Modified")
+                         or child.Modified
+                   )
+                ):
+                    foundModifiedFeat = True
+
+                if (i >= startIndex
+                    and not child.Suppressed
+                ):
                     if hasattr(child.Proxy, "getSupports"):
                         supports = child.Proxy.getSupports(child)
 
@@ -309,13 +328,22 @@ class PartContainer:
                                 depList.extend(support.OutList)
 
                             for item in depList:
-                                if Utils.isType(item, Constants.datumTypes) and item.Name not in recomputedNameList and hasattr(item.Proxy, "generateShape"):
+                                if (Utils.isType(item, Constants.datumTypes) 
+                                    and item.Name not in recomputedNameList 
+                                    and hasattr(item.Proxy, "generateShape")
+                                ):
                                     item.Proxy.generateShape(item, Part.Shape())
                                     recomputedNameList.append(item.Name)
 
-                    startTime2 = time.time()
-                    newShape = child.Proxy.generateShape(child, prevShape)
-                    App.Console.PrintLog(f"Time to recompute {child.Label}: {str(time.time() - startTime2)}\n")
+                    if foundModifiedFeat:
+                        startTime2 = time.time()
+                        newShape = child.Proxy.generateShape(child, prevShape)
+                        if hasattr(child, "Modified"):
+                            child.Modified = False
+
+                        App.Console.PrintLog(f"Time to recompute {child.Label}: {str(time.time() - startTime2)}\n")
+                    elif hasattr(child, "Shape"):
+                        newShape = child.Shape
 
                     recomputedNameList.append(child.Name)
 
@@ -347,6 +375,7 @@ class PartContainer:
         
         App.Console.PrintLog(f"Time to recompute: {str(time.time() - startTime)}\n")
 
+        obj.Recalculating = False
         obj.purgeTouched()
     
     def addOrigin(self, obj, origin):

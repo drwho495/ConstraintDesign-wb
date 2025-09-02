@@ -13,9 +13,16 @@ class Entity(ABC):
     def __init__(self):
         pass
 
+    def markModified(self, obj, mark = True):
+        if hasattr(obj, "Modified"):
+            obj.Modified = mark
+
     @abstractmethod
-    def updateProps(self, obj):
-        pass
+    def updateProps(self, obj, hasModified = False):
+        if not hasattr(obj, "Modified") and hasModified:
+            obj.addProperty("App::PropertyBool", "Modified", "ConstraintDesign")
+            obj.setEditorMode("Modified", 3)
+            obj.Modified = True
 
     def getContainer(self, obj):
         return Utils.getParent(obj, "PartContainer")

@@ -113,6 +113,20 @@ class ConstraintSketch(Entity):
         self.updateProps(obj)
     
     def onChanged(self, obj, prop): # needed for versions of the program where the sketch python isnt bugged
+        if prop == "Modified": return
+        container = self.getContainer(obj)
+        
+        if (container != None 
+            and hasattr(obj, "Modified") 
+            and obj.Modified == False 
+            and hasattr(container, "Recalculating") 
+            and not container.Recalculating
+        ):
+            self.markModified(obj)
+            featureParent = Utils.getParent(obj, Constants.featureTypes)
+
+            if featureParent != None and hasattr(featureParent, "Proxy"): featureParent.Proxy.markModified(featureParent)
+
         if not hasattr(self, "lastProp"):
             self.lastProp = ""
 
@@ -157,7 +171,8 @@ class ConstraintSketch(Entity):
 
         obj.recompute()
     
-    def updateSketch(self, obj, container=None):
+    def updateSketch(self, obj, container = None, resetModified = True):
+        self.markModified(obj, not resetModified)
         self.updateProps(obj)
 
         if container == None:
@@ -236,6 +251,8 @@ class ConstraintSketch(Entity):
         obj.MapCounter = mapCounter
     
     def updateProps(self, obj):
+        super(ConstraintSketch, self).updateProps(obj, True)
+
         if hasattr(obj, "AttacherEngine"):
             obj.setEditorMode("AttacherEngine", 3)
         

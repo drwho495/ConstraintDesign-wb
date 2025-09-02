@@ -456,6 +456,7 @@ class Extrusion(Feature):
                 map[key]["Stale"] = False
 
                 hasElement = True
+                break
 
         if hasElement == False:
             hash = Utils.generateHashName(map)

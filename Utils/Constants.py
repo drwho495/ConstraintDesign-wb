@@ -13,3 +13,4 @@ gridSize = 20_0000
 hashSize = 8 # do not change this please
 
 variableContainerDefaultProps = ['AttacherEngine', 'AttacherType', 'AttachmentOffset', 'AttachmentSupport', 'ExpressionEngine', 'Label', 'Label2', 'MapMode', 'MapPathParameter', 'MapReversed', 'Placement', 'Shape', 'ShapeMaterial', 'Visibility', '_ElementMapVersion']
+modifiedUpdateExclusionProps = ['Visibility', 'Modified']
