@@ -130,6 +130,9 @@ class ConstraintSketch(Entity):
         if not hasattr(self, "lastProp"):
             self.lastProp = ""
 
+        if prop == "MakeInternals" and obj.MakeInternals:
+            obj.MakeInternals = False
+
         if prop == "Constraints" and self.lastProp != prop: # dont ask
             if not SketchUtils.hasExternalGeometryBug():
                 for i, exGeo in enumerate(obj.ExternalGeometry):
@@ -261,6 +264,10 @@ class ConstraintSketch(Entity):
         
         if hasattr(obj, "MapMode"):
             obj.setEditorMode("MapMode", 3)
+        
+        if hasattr(obj, "MakeInternals"):
+            obj.MakeInternals = False
+            obj.setEditorMode("MakeInternals", 3)
 
         if not hasattr(obj, "SupportHashes"):
             obj.addProperty("App::PropertyStringList", "SupportHashes", "Base")

@@ -236,17 +236,6 @@ class FeatureDressup(Feature):
                     obj.removeProperty("Radius")
                 obj.addProperty("App::PropertyDistance", "Radius", "ConstraintDesign", "Radius of fillet.")
                 obj.Radius.Value = newVal
-            
-        if not hasattr(obj, "IndividualMode") or hasattr(obj, "IndividualFillet"):
-            newValue = False 
-            
-            if hasattr(obj, "IndividualFillet"):
-                newValue = obj.IndividualFillet
-                obj.removeProperty("IndividualFillet")
-
-            obj.addProperty("App::PropertyBool", "IndividualMode", "ConstraintDesign", "This fillets/chamfers each edge individually, then uses boolean operations to merge them together.")
-            obj.IndividualMode = newValue
-
         elif hasattr(obj, "DressupType") and obj.DressupType == 1:
             obj.Type = "Chamfer"
 
@@ -301,6 +290,16 @@ class FeatureDressup(Feature):
             if not hasattr(obj, "Group"):
                 obj.addProperty("App::PropertyLinkList", "Group", "ConstraintDesign", "Group of this dressup")
 
+        if not hasattr(obj, "IndividualMode") or hasattr(obj, "IndividualFillet"):
+            newValue = False 
+            
+            if hasattr(obj, "IndividualFillet"):
+                newValue = obj.IndividualFillet
+                obj.removeProperty("IndividualFillet")
+
+            obj.addProperty("App::PropertyBool", "IndividualMode", "ConstraintDesign", "This fillets/chamfers each edge individually, then uses boolean operations to merge them together.")
+            obj.IndividualMode = newValue
+
         if not hasattr(obj, "Edges"):
             obj.addProperty("App::PropertyStringList", "Edges", "ConstraintDesign", "Edges to fillet.")
     
@@ -344,7 +343,7 @@ class FeatureDressup(Feature):
 
         datumEdges = obj.Edges
         allShapeEdges = prevShape.Edges
-        elementsToDressup = {}
+        elementsToDressup = []
         container = self.getContainer(obj)
         identifiers = []
         skipIDs = []
@@ -384,7 +383,8 @@ class FeatureDressup(Feature):
                                     try:
                                         if correctEdge:
                                             _, _, _, singleID = Utils.getObjectsFromScope(container, stringID)
-                                            elementsToDressup[singleID] = edge
+                                            
+                                            elementsToDressup.append((singleID, edge))
 
                                     except Exception as e:
                                         print(e)
@@ -399,12 +399,12 @@ class FeatureDressup(Feature):
                             cutShapeList = []
                             fuseShapeList = []
 
-                            for stringID, filletElement in elementsToDressup.items():
+                            for stringID, filletElement in elementsToDressup:
                                 try:
                                     if obj.DressupType == 0:
-                                        newDressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
+                                        newDressupShape = prevShape.makeFillet(obj.Radius.Value, [filletElement])
                                     else:
-                                        newDressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
+                                        newDressupShape = prevShape.makeChamfer(obj.Length.Value, [filletElement])
 
                                     cutShapeList.append(prevShape.cut(newDressupShape))
                                     fuseShapeList.append(newDressupShape.cut(prevShape))
@@ -417,10 +417,14 @@ class FeatureDressup(Feature):
                             if len(fuseShapeList) != 0:
                                 dressupShape = dressupShape.fuse(Part.makeCompound(fuseShapeList))
                         else:
+                            rawElements = []
+
+                            for _, edge in elementsToDressup: rawElements.append(edge)
+
                             if obj.DressupType == 0:
-                                dressupShape = prevShape.makeFillet(obj.Radius.Value, list(elementsToDressup.values()))
+                                dressupShape = prevShape.makeFillet(obj.Radius.Value, rawElements)
                             else:
-                                dressupShape = prevShape.makeChamfer(obj.Length.Value, list(elementsToDressup.values()))
+                                dressupShape = prevShape.makeChamfer(obj.Length.Value, rawElements)
                 except Exception as e:
                     if obj.DressupType == 0:
                         App.Console.PrintError(f"{obj.Label}: creating a fillet with the radius of {str(obj.Radius)} failed!\n")

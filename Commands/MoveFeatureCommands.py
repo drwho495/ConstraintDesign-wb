@@ -37,6 +37,9 @@ class MoveDesignObject:
             if parent != None and Utils.isType(selectedObj, types) and hasattr(parent, "Group"):
                 group = parent.Group
 
+                if hasattr(selectedObj, "Proxy") and hasattr(selectedObj.Proxy, "markModified"):
+                    selectedObj.Proxy.markModified(selectedObj)
+
                 if selectedObj in group:
                     index = group.index(selectedObj)
                     objects = [selectedObj]
