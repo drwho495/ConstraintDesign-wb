@@ -213,6 +213,10 @@ class Pattern(Feature):
                     obj.removeProperty("YAxisLength")
                 obj.addProperty("App::PropertyDistance", "YAxisLength", "ConstraintDesign")
                 obj.YAxisLength.Value = newVal
+            
+            if not hasattr(obj, "TotalDistance"):
+                obj.addProperty("App::PropertyBool", "TotalDistance", "ConstraintDesign", "If true, the pattern's total length will be what is set in [X/Y]AxisLength, instead of the distance per instance.")
+                obj.TotalDistance = False
 
             if not hasattr(obj, "DirectionPlane"):
                 obj.addProperty("App::PropertyStringList", "DirectionPlane", "ConstraintDesign")
@@ -301,6 +305,12 @@ class Pattern(Feature):
         removeShape = Part.Shape()
         finalAddArray = []
         finalRemoveArray = []
+        xAxisLength = obj.XAxisLength.Value
+        yAxisLength = obj.YAxisLength.Value
+
+        if obj.TotalDistance:
+            xAxisLength /= (obj.XAxisCount - 1)
+            yAxisLength /= (obj.YAxisCount - 1)
 
         for feature in obj.Features:
             featureShapes = feature.Proxy.getIndividualShapes(feature)
@@ -336,10 +346,10 @@ class Pattern(Feature):
             placementLocations = []
             
             for Yi in range(obj.YAxisCount):
-                y = Yi * obj.YAxisLength.Value
+                y = Yi * yAxisLength
 
                 for Xi in range(obj.XAxisCount):
-                    x = Xi * obj.XAxisLength.Value
+                    x = Xi * xAxisLength
 
                     if x == 0 and y == 0:
                         continue
