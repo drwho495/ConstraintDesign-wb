@@ -164,7 +164,7 @@ class ExposedGeo(Entity):
                 obj.ViewObject.ShowInTree = False
                 obj.Visibility = False
 
-        scoreDocument, scopeContainer, _, _ = Utils.getObjectsFromScope(container, hashStr)
+        scopeDocument, scopeContainer, _, _ = Utils.getObjectsFromScope(container, hashStr)
         
         if elementName != None:
             element = feature.Shape.getElement(elementName).copy()
@@ -177,13 +177,13 @@ class ExposedGeo(Entity):
                 element.applyTranslation(placement.Base * -1)
                 shape = Part.Compound([element])
 
-                # if scoreDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
-                    # globalP = feature.getGlobalPlacement()
+                # needs to be re-enabled, with a standardized globalization method and a property to set if global placement should be used
+                # if scopeDocument.Name != container.Document.Name or scopeContainer.Name != container.Name:
+                #     globalPlac = feature.getGlobalPlacement()
+                #     center = placement.Base
 
-                    # print(globalP)
-
-                    # placement.Base += globalP.Base
-                    # placement.Rotation = globalP.Rotation
+                #     placement.Rotation = globalPlac.Rotation
+                #     placement.Base = globalPlac.multVec(center)
 
                 obj.Shape = shape
         
