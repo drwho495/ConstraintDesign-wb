@@ -143,8 +143,6 @@ class ConstraintSketch(Entity):
         
         if prop == "Geometry" and hasattr(obj, "SketchMap"):
             self.updateSketchMap(obj)
-        else:
-            print(prop)
         
         self.lastProp = prop
 
