@@ -5,6 +5,7 @@ import random
 import string
 import Part
 import importlib
+import os
 from Utils import Constants
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
@@ -56,9 +57,18 @@ def getVariablesOfVariableContainer(container: App.DocumentObject) -> dict:
     return propertyDict
 
 def getDocumentByFileName(fileName):
+    isAbsolute = os.path.isabs(fileName)
+
     for _, document in App.listDocuments().items():
-        if document.FileName == fileName:
+        if (document.FileName == fileName 
+            or (not isAbsolute 
+                and (fileName
+                     == os.path.relpath(document.FileName, os.path.dirname(document.FileName))))
+        ):
             return document
+        
+    if not isAbsolute:
+        fileName = os.path.abspath(os.path.join(os.path.dirname(App.ActiveDocument.FileName), fileName))
     
     oldDocName = App.ActiveDocument.Name
     retDocument = App.openDocument(fileName)
@@ -344,11 +354,14 @@ def getPlaneFromStringIDList(container, stringList, requestingObjectLabel="", as
         App.Console.PrintError(f"{requestingObjectLabel}: unable to create a plane from a list of string IDs!\nList contents: {','.join(stringList)}\n")
         return None
     
-def addElementToCompoundArray(element, compoundList, edgesList, vertexList):
+def addElementToCompoundArray(element, 
+                              compoundList: list, 
+                              edgesList: list, 
+                              vertexList: list
+):
     edgesList.extend(element.Edges)
     vertexList.extend(element.Vertexes)
-
-    compoundList.append(element) 
+    compoundList.append(element)
 
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     """

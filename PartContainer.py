@@ -567,7 +567,8 @@ def makePartContainer(linkToObject = None):
         obj.IsLink = True
         obj.Proxy.setLinkFeature(obj, makeFeatureCopy(2, linkToObject, obj))
         
-        obj.ObjectLinkFilePath = linkToObject.Document.FileName
+        filePath = linkToObject.Document.FileName
+        obj.ObjectLinkFilePath = os.path.relpath(filePath, os.path.dirname(filePath))
         obj.ObjectLinkName = linkToObject.Name
     else:
         # after creating the container, 

@@ -633,12 +633,29 @@ class Extrusion(Feature):
                 if extrudeLength != 0:
                     occurence = 0
                     intersectFaceTol = 1e-2
+                    checkVertexes = []
 
                     for _, val in intersectingFaceMap.items():
                         faceIdentifier = val["Identifier"].split("|")
                         faceShape = val["Shape"]
                         try:
                             projGeoShape = faceShape.makeParallelProjection(geoShape, normal)
+                            duplicate = False
+                            
+                            for edge in projGeoShape.Edges:
+                                checkKey = []
+
+                                for vert in edge.Vertexes:
+                                    checkKey.append(vert.Point)
+
+                                if checkKey in checkVertexes:
+                                    duplicate = True
+                                    break
+                                else:
+                                    checkVertexes.append(checkKey)
+                            
+                            if duplicate:
+                                continue
                         except:
                             continue
 
