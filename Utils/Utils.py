@@ -60,10 +60,14 @@ def getDocumentByFileName(fileName):
     isAbsolute = os.path.isabs(fileName)
 
     for _, document in App.listDocuments().items():
-        if (document.FileName == fileName 
+        print(document.FileName)
+        print(len(document.FileName))
+        print(len(document.FileName) != 0)
+        if (len(document.FileName) != 0
+            and (document.FileName == fileName 
             or (not isAbsolute 
                 and (fileName
-                     == os.path.relpath(document.FileName, os.path.dirname(document.FileName))))
+                     == os.path.relpath(document.FileName, os.path.dirname(document.FileName)))))
         ):
             return document
         

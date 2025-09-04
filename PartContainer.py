@@ -297,7 +297,7 @@ class PartContainer:
             self.resetVisibility(obj)
 
         tipFound = False
-        foundModifiedFeat = not obj.FastRecompute if hasattr(obj, "FastRecompute") else True # links don't have this prop
+        foundModifiedFeat = not obj.FastRecompute if hasattr(obj, "FastRecompute") and not obj.IsLink else True # links don't have this prop
         group = self.getGroup(obj, True)
         startIndex = 0
 
