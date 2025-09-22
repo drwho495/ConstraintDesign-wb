@@ -11,7 +11,7 @@ class CreateConstraintSketch:
         return {
             'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "Sketch.svg"),
             'MenuText': "Create a Sketch",
-            'ToolTip': "Creates a new Sketch with a hasher or plane attachement"
+            'ToolTip': "Creates a new Sketch with a hasher or plane attachment"
         }
         
     def Activated(self):

@@ -181,7 +181,7 @@ class Pattern(Feature):
         
         if patternType == 0:
             if not hasattr(obj, "XAxisCount"):
-                obj.addProperty("App::PropertyInteger", "XAxisCount", "ConstraintDesign", "Number of features propogated along the X axis.")
+                obj.addProperty("App::PropertyInteger", "XAxisCount", "ConstraintDesign", "Number of features propagated along the X axis.")
                 obj.XAxisCount = 2
             
             if (not hasattr(obj, "XAxisLength")
@@ -198,7 +198,7 @@ class Pattern(Feature):
                 obj.XAxisLength.Value = newVal
             
             if not hasattr(obj, "YAxisCount"):
-                obj.addProperty("App::PropertyInteger", "YAxisCount", "ConstraintDesign", "Number of features propogated along the Y axis.")
+                obj.addProperty("App::PropertyInteger", "YAxisCount", "ConstraintDesign", "Number of features propagated along the Y axis.")
                 obj.YAxisCount = 2
             
             if (not hasattr(obj, "YAxisLength")
