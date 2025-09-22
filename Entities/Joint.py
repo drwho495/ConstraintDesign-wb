@@ -17,7 +17,7 @@ useCases = ["Generic", "Assembly"]
 class JointTaskPanel:
     def __init__(self, obj, addOldSelection=True, startSelection=[]):
         self.form = QtWidgets.QWidget()
-        self.form.destroyed.connect(self.close) # run immediatly incase something else errors
+        self.form.destroyed.connect(self.close) # run immediately in case something else errors
 
         layout = QtWidgets.QVBoxLayout(self.form)
         layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
@@ -83,7 +83,7 @@ class JointTaskPanel:
         selected = self.selector.getSelection()
 
         self.joint.Support = selected
-        self.joint.SupportType = self.selectedType # needed because some logic in the proxy causes the enum selection to be overrided
+        self.joint.SupportType = self.selectedType # needed because some logic in the proxy causes the enum selection to be overridden
         self.joint.Proxy.execute(self.joint)
 
         self.updateEnumeration()

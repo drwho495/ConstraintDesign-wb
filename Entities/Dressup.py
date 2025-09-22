@@ -23,7 +23,7 @@ class DressupTaskPanel:
     def __init__(self, obj, addOldSelection=True, startSelection=[], deleteAfterCancel = False):
         super(DressupTaskPanel, self).__init__()
         self.form = QtWidgets.QWidget()
-        self.form.destroyed.connect(self.accept) # run immediatly incase something else errors
+        self.form.destroyed.connect(self.accept) # run immediately in case something else errors
 
         layout = QtWidgets.QVBoxLayout(self.form)
         layout.addWidget(QtWidgets.QLabel("Editing: " + obj.Label))
@@ -434,7 +434,7 @@ class FeatureDressup(Feature):
                     try:
                         depth = (obj.Diameter.Value/2) * math.tan((math.radians(obj.Angle.Value)) / 2)
 
-                        # I have two of these to save on possible computation time, I should't need to constantly recreate
+                        # I have two of these to save on possible computation time, I shouldn't need to constantly recreate
                         # the cone each time.
                         forwardCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,1), 360)
                         reversedCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)

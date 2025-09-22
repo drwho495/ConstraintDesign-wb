@@ -112,7 +112,7 @@ class ConstraintSketch(Entity):
         self.lastProp = ""
         self.updateProps(obj)
     
-    def onChanged(self, obj, prop): # needed for versions of the program where the sketch python isnt bugged
+    def onChanged(self, obj, prop): # needed for versions of the program where the sketch python isn't bugged
         if prop == "Modified": return
         container = self.getContainer(obj)
         
@@ -320,7 +320,7 @@ class ConstraintSketchViewObject:
     #             if Utils.isType(item, "ExposedGeometry") and hasattr(item, "UseCase") and item.UseCase == "Sketch":
     #                 item.Document.removeObject(item.Name)
     #     except Exception as e:
-    #         App.Console.PrintWarning(f"{str(e)} occured while trying to delete sketch dependencies!\n")
+    #         App.Console.PrintWarning(f"{str(e)} occurred while trying to delete sketch dependencies!\n")
         
     #     return True
     

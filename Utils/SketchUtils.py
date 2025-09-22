@@ -54,7 +54,7 @@ def getIDDict(support, includeConstruction = True, includeExternalConstruction =
                 
                 if externalGeoExt != None:
                     try:
-                        defining = externalGeoExt.testFlag("Defining") # This needs to be checked seperately, because of older versions of FreeCAD
+                        defining = externalGeoExt.testFlag("Defining") # This needs to be checked separately, because of older versions of FreeCAD
                     except:
                         pass
                 
@@ -196,7 +196,7 @@ def hasExternalGeometryBug():
 #         return {
 #             'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
 #             'MenuText': "Create a Sketch",
-#             'ToolTip': "Creates a new Sketch with a hasher attachement"
+#             'ToolTip': "Creates a new Sketch with a hasher attachment"
 #         }
         
 #     def Activated(self):
@@ -271,7 +271,7 @@ def hasExternalGeometryBug():
 #         return {
 #             'Pixmap': os.path.join(os.path.dirname(__file__), "..", "icons", "PartContainer.svg"),
 #             'MenuText': "Create external geometry",
-#             'ToolTip': "Creates an external geometry reference in a sketch with persistant naming."
+#             'ToolTip': "Creates an external geometry reference in a sketch with persistent naming."
 #         }
         
 #     def Activated(self):

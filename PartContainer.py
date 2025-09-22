@@ -111,7 +111,7 @@ class PartContainer:
 
                 if updateDict:
                     for item in obj.Group:
-                        objectVisibilityDict[item.Name] = item.Visibility # has to be run seperately, the visibilities change when they shouldn't sometimes
+                        objectVisibilityDict[item.Name] = item.Visibility # has to be run separately, the visibilities change when they shouldn't sometimes
 
                 for item in group:
                     itemGroup = [item]
@@ -136,7 +136,7 @@ class PartContainer:
         if hasattr(obj, "IsLink") and hasattr(obj, "LinkFeature") and obj.IsLink:
             obj.LinkFeature = linkFeature
     
-    def resetVisibility(self, obj): # i store and recieve object's visibility like this because the user might want to have a specifc datum hidden/shown
+    def resetVisibility(self, obj): # i store and receive object's visibility like this because the user might want to have a specific datum hidden/shown
         visibilityList = None
 
         if not hasattr(obj, "ObjectVisibilityDict"):
