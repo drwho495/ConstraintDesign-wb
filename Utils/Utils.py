@@ -6,6 +6,7 @@ import string
 import Part
 import importlib
 import os
+from Utils import GeometryUtils
 from Utils import Constants
 
 # will add many more test cases; this is only used in one area as of right now (will be used more later)
@@ -367,6 +368,18 @@ def addElementToCompoundArray(element,
     vertexList.extend(element.Vertexes)
     compoundList.append(element)
 
+def getElementTypeFromName(name: str) -> str:
+    name = name.split(".")[-1]
+
+    if name.startswith("Edge"):
+        return "Edge"
+    elif name.startswith("Vertex"):
+        return "Vertex"
+    elif name.startswith("Face"):
+        return "Face"
+    
+    return None
+
 def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
     """
         This method makes a Part.Compound out of all of all the selected boundaries
@@ -376,7 +389,9 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
         `boundaryName` is necessary to generate an element map, it is the name of the boundary in which this compound will be set to
     """
 
-    boundaryArray = []
+    elementList = []
+    edgeList = []
+    vertexList = []
     elementMap = {}
     newEdgeNum = 0
     newVertexNum = 0
@@ -396,25 +411,34 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
                 itemElementMap = json.loads(item.ElementMap)
                 
                 for boundary in boundaries:
-                    boundaryArray.append(boundary.Shape)
-                
-                    for hash, value in itemElementMap.items():
-                        elementArray = value["Element"].split(".")
-                        featureName = elementArray[0]
-                        elementName = elementArray[1]
+                    for id, value in itemElementMap.items():
+                        if "Stale" not in value.keys() or not value["Stale"]:
+                            elementArray = value["Element"].split(".")
+                            featureName = elementArray[0]
+                            elementName = elementArray[1]
 
-                        if featureName == boundary.Name:
-                            if elementName.startswith("Edge"):
-                                elementNum = int(elementName[4:])
-                                elementNum += edgeIndex
-                                elementName = "Edge" + str(elementNum)
-                            elif elementName.startswith("Vertex"):
-                                elementNum = int(elementName[6:])
-                                elementNum += vertexIndex
-                                elementName = "Vertex" + str(elementNum)
+                            if elementName != "None":
+                                print(elementName)
+                                element = boundary.Shape.getElement(elementName)
 
-                            value["Element"] = boundaryName + "." + elementName
-                            elementMap[hash] = value
+                                elementList.append(element)
+
+                                if featureName == boundary.Name:
+                                    if elementName.startswith("Edge"):
+                                        elementNum = int(elementName[4:])
+                                        elementNum += edgeIndex
+                                        elementName = "Edge" + str(elementNum)
+
+                                        edgeList.insert(elementNum - 1, element)
+                                    elif elementName.startswith("Vertex"):
+                                        elementNum = int(elementName[6:])
+                                        elementNum += vertexIndex
+                                        elementName = "Vertex" + str(elementNum)
+
+                                        vertexList.insert(elementNum - 1, element)
+
+                                    value["Element"] = boundaryName + "." + elementName
+                                    elementMap[id] = value
                     
                     edgeIndex += len(boundary.Shape.Edges)
                     vertexIndex += len(boundary.Shape.Vertexes)
@@ -423,6 +447,8 @@ def makeBoundaryCompound(features, generateElementMap=False, boundaryName = ""):
 
     
     if generateElementMap:
-        return Part.makeCompound(boundaryArray), elementMap
+        elementList = GeometryUtils.mapElementsFromMap(edgeList, vertexList, elementMap)
+        
+        return Part.makeCompound(elementList), elementMap
     else:
-        return Part.makeCompound(boundaryArray)
+        return Part.makeCompound(elementList)

@@ -16,6 +16,7 @@ from Commands.EditSketchPlacement import EditConstraintSketch
 from Commands.MoveFeatureCommands import MoveDesignObject
 from Commands.CreateSketch import CreateConstraintSketch
 from Commands.CreateJoint import CreateJoint
+from Commands.AddVarset import AddVarset
 from Utils import GuiUtils
 import Grid.GridManager as GridManager
 from Utils import Constants
@@ -62,7 +63,8 @@ class ConstraintDesign(Gui.Workbench):
         # List the commands to be added to the workbench
         mainCommands = [
             "CreatePartContainer",
-            "CreateConstraintLink"
+            "CreateConstraintLink",
+            "AddVarset"
         ]
 
         featureCommands = [

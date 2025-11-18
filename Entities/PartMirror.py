@@ -114,20 +114,23 @@ class PartMirror(Feature):
             tip = obj.Document.getObject(obj.TipName)
 
             if tip != None:
-                face = None
+                plane = None
 
-                if obj.PlaneType == "Face":
-                    face = obj.PlaneFace
+                if obj.PlaneType == "Plane":
+                    placement = obj.PlaneFace[0][0].Placement
+                    plane = Part.Plane(placement.Base, placement.Rotation.multVec(App.Vector(0, 0, 1)))
                 elif obj.PlaneType == "Hashes":
                     container = self.getContainer(obj)
 
-                    face = Utils.getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label, asFace = True)
+                    plane = Utils.getPlaneFromStringIDList(container, obj.PlaneHash, requestingObjectLabel = obj.Label)
 
-                    if face == None:
+                    if plane == None:
                         return prevShape
+                else:
+                    raise Exception("Invalid Plane Type!")
                 
-                planeCenter = face.Vertexes[0].Point
-                normal = face.normalAt(0, 0)
+                planeCenter = plane.Position
+                normal = plane.normal(0, 0)
 
                 features = obj.Support.Proxy.getGroup(obj.Support, False)
                 filteredFeatures = features

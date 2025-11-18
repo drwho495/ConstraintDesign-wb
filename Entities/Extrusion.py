@@ -576,7 +576,7 @@ class Extrusion(Feature):
             boundaryElementsList = []
             boundaryEdgesList = []
             boundaryVertexesList = []
-            tol = 1e-5
+            tol = 1e-3
             facadeDict = SketchUtils.getIDDict(sketch, includeConstruction = obj.IncludeConstruction)
 
             for id, geo in facadeDict.items():
@@ -769,11 +769,12 @@ class Extrusion(Feature):
 
             App.Console.PrintLog(f"{obj.Label} time taken in applying map: {str((time.time() - startTime) - createPointsTime)}\n")
             App.Console.PrintLog(f"{obj.Label} time taken in updateElement: {str(self.timeTakeUE)}\n")
-            App.Console.PrintLog(f"{obj.Label} total datum time: {str(time.time() - startTime)}\n")
+            App.Console.PrintLog(f"{obj.Label} total boundary time: {str(time.time() - startTime)}\n")
 
             obj.ElementMap = json.dumps(elementMap)
-            
-            boundaryShape = Part.Compound(boundaryElementsList)
+            boundaryElementsList = GeometryUtils.mapElementsFromMap(boundaryEdgesList, boundaryVertexesList, elementMap)
+            boundaryShape = Part.makeCompound(boundaryElementsList)
+
             obj.Boundary.Shape = boundaryShape
             obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
             obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize

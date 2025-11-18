@@ -440,7 +440,9 @@ class FeatureDressup(Feature):
                         reversedCone = Part.makeCone(obj.Diameter.Value/2, 0, depth, App.Vector(0,0,0), App.Vector(0,0,-1), 360)
                         cutCompoundArray = []
                         map = json.loads(obj.ElementMap)
-                        boundaryShape = Part.Shape()
+                        elementList = []
+                        edgeList = []
+                        vertexList = []
 
                         for stringID in obj.Edges:
                             fullElement = Utils.getElementFromHash(container, stringID, obj.Label)
@@ -470,10 +472,10 @@ class FeatureDressup(Feature):
                                     topCircleSh = topCircle.toShape()
                                     topCircleSh.Placement = placement
 
-                                    boundaryShape = Part.Compound([boundaryShape, topCircleSh])
+                                    Utils.addElementToCompoundArray(topCircleSh, elementList, edgeList, vertexList)
                                     identifier = self.makeIdentifier(singleID, "Top", "Edge")
                                     identifiers.append(identifier)
-                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
+                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(edgeList))}"))
 
                                     thetaRad = math.radians(obj.Angle.Value / 2)
                                     deltaR = obj.Diameter.Value/2 - radius
@@ -490,10 +492,10 @@ class FeatureDressup(Feature):
                                     bottomCircleSh.Placement = placement
                                     bottomCircleSh.Placement.Base += moveVector
 
-                                    boundaryShape = Part.Compound([boundaryShape, bottomCircleSh])
+                                    Utils.addElementToCompoundArray(bottomCircleSh, elementList, edgeList, vertexList)
                                     identifier = self.makeIdentifier(singleID, "Bottom", "Edge")
                                     identifiers.append(identifier)
-                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(boundaryShape.Edges))}"))
+                                    map = self.updateElement(map, identifier, (obj.Boundary, f"Edge{str(len(edgeList))}"))
 
                                     if forward:
                                         forwardCone.Placement = placement
@@ -507,7 +509,9 @@ class FeatureDressup(Feature):
                                 # map.pop(k)
                                 map[k]["Stale"] = True
                         
-                        obj.Boundary.Shape = boundaryShape
+                        elementList = GeometryUtils.mapElementsFromMap(edgeList, vertexList, map)
+
+                        obj.Boundary.Shape = Part.makeCompound(elementList)
                         obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
                         obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
                         obj.ElementMap = json.dumps(map)

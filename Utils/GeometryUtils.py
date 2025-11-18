@@ -112,6 +112,48 @@ def pointOnCurve(
     except:
         return False
 
+def mapElementsFromMap(edgesList: list,
+                    vertexesList: list,
+                    elementMap: dict
+):
+    compoundList = []
+
+    for ID, val in elementMap.items():
+        if "Stale" in val.keys() and val["Stale"]:
+            continue
+
+        try:
+            elementName = val["Element"].split(".")[-1]
+            elementType = Utils.getElementTypeFromName(elementName)
+
+            if elementType != None:
+                element = None
+
+                if elementType == "Edge":
+                    elementIndex = int(elementName[4:])
+
+                    if elementIndex != 0:
+                        element = edgesList[elementIndex - 1]
+                        element.ElementMap = {ID: f"Edge1"}
+
+                        edgesList[elementIndex - 1] = element
+
+                elif elementType == "Vertex":
+                    elementIndex = int(elementName[6:])
+
+                    if elementIndex != 0:
+                        element = vertexesList[elementIndex - 1]
+                        element.ElementMap = {ID: f"Vertex1"}
+
+                        vertexesList[elementIndex - 1] = element
+        except Exception as e:
+            print(f"map compound error! {str(e)}")
+
+    compoundList.extend(edgesList)
+    compoundList.extend(vertexesList)
+
+    return compoundList
+
 def doEdgesIntersect(
     edge1: Part.Edge,
     edge2: Part.Edge,

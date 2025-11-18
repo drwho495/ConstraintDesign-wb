@@ -159,7 +159,7 @@ class PartContainer:
         if hasattr(obj, "Group"): self.oldGroup = obj.Group
         self.updateProps(obj)
     
-    def addObject(self, obj, objToAdd, afterTip=False, customAfterFeature = None):
+    def addObject(self, obj, objToAdd, afterTip = False, customAfterFeature = None, index = None):
         group = obj.Group
 
         if customAfterFeature == None or (customAfterFeature != None and customAfterFeature not in group):
@@ -175,7 +175,10 @@ class PartContainer:
 
                 group.insert(addIndex + 1, objToAdd)
             else:
-                group.append(objToAdd)
+                if index == None:
+                    group.append(objToAdd)
+                else:
+                    group.insert(index, objToAdd)
         elif customAfterFeature != None and customAfterFeature in group:
             index = group.index(customAfterFeature)
 
@@ -486,20 +489,18 @@ class ViewProviderPartContainer:
         if vobj.Object.hasExtension("App::OriginGroupExtensionPython"):
             vobj.addExtension("Gui::ViewProviderOriginGroupExtensionPython")
     
-    def onDelete(self, vobj, subelements): # TODO: Check for constraint design elements
-        if hasattr(vobj.Object, "Origin"):
-            if vobj.Object.Origin != None:
-                vobj.Object.Document.removeObject(vobj.Object.Origin.Name)
+    def onDelete(self, vobj, subelements):
+        if hasattr(vobj, "Object") and hasattr(vobj.Object, "Group"):
+            for obj in vobj.Object.Group:
+                if not Utils.isType(obj, "BoundarySketch"):
+                    vobj.Object.Document.removeObject(obj.Name)
 
-        if hasattr(vobj.Object, "ConstraintGroup"):
-            if vobj.Object.ConstraintGroup != None:
-                vobj.Object.ConstraintGroup.Proxy.deleteConstraints(vobj.Object.ConstraintGroup)
-                vobj.Object.Document.removeObject(vobj.Object.ConstraintGroup.Name)
-        
-        # feature.Document.removeObject(feature.Name)
         return True
 
     def setEdit(self, vobj, mode):
+        if mode != 0:
+            return True # fix transform setting this as the active object
+        
         if Gui.ActiveDocument.ActiveView.getActiveObject("ConstraintDesign") != vobj.Object:
             Gui.ActiveDocument.ActiveView.setActiveObject("ConstraintDesign", vobj.Object)
             return False
@@ -542,7 +543,7 @@ class ViewProviderPartContainer:
         return None
     
 def makePartContainer(linkToObject = None):
-    name = "PartContainer"
+    name = "Part 001"
     isLink = False
 
     if linkToObject != None:
@@ -551,10 +552,11 @@ def makePartContainer(linkToObject = None):
             return None
 
         isLink = True
-        name = "ConstraintLink"
+        name = "Constraint Link 001"
 
-    obj = App.ActiveDocument.addObject("Part::FeaturePython",
-                             name)
+    obj = App.ActiveDocument.addObject("Part::FeaturePython", name)
+    obj.Label = name # re-apply so the spaces show up
+
     PartContainer(obj)
     ViewProviderPartContainer(obj.ViewObject)
 

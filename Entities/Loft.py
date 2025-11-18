@@ -9,6 +9,7 @@ import random
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # allow python to see ".."
 from Utils import Utils
+from Utils import GeometryUtils
 from Utils import Constants
 from Entities.Feature import Feature
 from PySide import QtWidgets
@@ -511,7 +512,8 @@ class Loft(Feature):
         obj.ElementMap = json.dumps(elementMap)
         
         # obj.Boundary.Placement = obj.Supports[0].Placement
-        obj.Boundary.Shape = Part.Compound(boundaryElementList)
+        boundaryElementList = GeometryUtils.mapElementsFromMap(boundaryEdgesList, boundaryVertexesList, elementMap)
+        obj.Boundary.Shape = Part.makeCompound(boundaryElementList)
         obj.Boundary.ViewObject.LineWidth = Constants.boundaryLineWidth
         obj.Boundary.ViewObject.PointSize = Constants.boundaryPointSize
         obj.Boundary.Visibility = True
