@@ -293,7 +293,7 @@ class PartContainer:
 
         if hasattr(obj, "Group"): self.oldGroup = obj.Group
 
-        if inEdit != None and Utils.isType(inEdit.Object, "BoundarySketch"):
+        if inEdit != None and hasattr(inEdit, "Object") and Utils.isType(inEdit.Object, "BoundarySketch"):
             return
         
         if obj.ObjectVisibilityDict != "{}":
