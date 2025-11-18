@@ -26,6 +26,7 @@ SET(ConstraintDesign_Commands_SRCS
     Commands/MoveFeatureCommands.py
     Commands/CreateSketch.py
     Commands/CreateJoint.py
+    Commands/AddVarset.py
     Commands/UpdateSketchVisibility.py
 )
 
