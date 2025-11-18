@@ -18,6 +18,44 @@ from DesignWorkbench import ConstraintDesign
 
 directory = os.path.dirname(os.path.abspath(locater.__file__))
 
+# Check if we're the user-installed version and if a built-in version exists
+# If so, skip registration to let the built-in version take precedence
+import FreeCAD as App
+import FreeCADGui as Gui
+
+if hasattr(App, "__fallback_mods__"):
+    mod_name = "constraintdesign-wb"
+    if mod_name in App.__fallback_mods__:
+        fallback_paths = App.__fallback_mods__[mod_name]
+        current_path = os.path.realpath(directory)
+        user_mod_path = os.path.realpath(App.getUserAppDataDir() + "Mod")
+        system_mod_path = os.path.realpath(App.getHomePath() + "Mod")
+        
+        # If we're in the user Mod directory and there's a built-in version, skip
+        if current_path.startswith(user_mod_path):
+            for path in fallback_paths:
+                real_path = os.path.realpath(path)
+                if real_path.startswith(system_mod_path) and real_path != current_path:
+                    # Built-in version exists, skip this user-installed version
+                    App.Console.PrintLog(
+                        f"ConstraintDesign: User-installed version found at {current_path}, "
+                        f"but built-in version at {real_path} takes precedence. "
+                        f"Skipping user-installed version.\n"
+                    )
+                    # Don't register - just return early
+                    # This prevents the Gui.addWorkbench call at the end
+                    # We'll use a flag to prevent execution
+                    _skip_registration = True
+                    break
+            else:
+                _skip_registration = False
+        else:
+            _skip_registration = False
+    else:
+        _skip_registration = False
+else:
+    _skip_registration = False
+
 sys.path.append(os.path.dirname(directory)) # allow python to see ".."
 
 ### this is where mojo files are loaded ###
@@ -35,7 +73,8 @@ if sys.version_info[0] == 3 and sys.version_info[1] >= 11:
     FC_COMMIT_REQUIRED = 33772
 
     # Check FreeCAD version
-    App.Console.PrintLog(App.Qt.translate("Log", "Checking FreeCAD version\n"))
+    if not _skip_registration:
+        App.Console.PrintLog(App.Qt.translate("Log", "Checking FreeCAD version\n"))
     ver = App.Version()
     major_ver = int(ver[0])
     minor_ver = int(ver[1])
@@ -83,4 +122,6 @@ if sys.version_info[0] == 3 and sys.version_info[1] >= 11:
 
 
 
-Gui.addWorkbench(ConstraintDesign())
+# Only register if we're not skipping (i.e., we're the built-in version or no built-in exists)
+if not _skip_registration:
+    Gui.addWorkbench(ConstraintDesign())
