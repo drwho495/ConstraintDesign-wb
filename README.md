@@ -1,3 +1,5 @@
+# Archived in favor of [V2 Topological Naming Algorithm](https://github.com/FreeCAD/FreeCAD/pull/31040)
+
 # Constraint Design FreeCAD Workbench
 
 ![image](https://github.com/user-attachments/assets/ca713e83-d071-4174-9162-bc58b7d7f4c6)
